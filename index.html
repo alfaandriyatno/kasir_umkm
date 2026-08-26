@@ -219,6 +219,12 @@
   }
   .login-card h1{font-family:'Fraunces',serif; font-size:24px; margin:0 0 4px 0;}
   .login-card .sub{font-size:13px; color:var(--ink-soft); margin-bottom:22px;}
+  .approval-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:12px 14px; border:1px solid var(--line); border-radius:10px;
+  }
+  .approval-item .aemail{ font-weight:600; font-size:14px; word-break:break-all; }
+  .approval-item .adate{ font-size:11px; color:var(--ink-soft); }
   .company-item{
     display:flex; align-items:center; justify-content:space-between;
     padding:12px 14px; border:1px solid var(--line); border-radius:10px;
@@ -293,6 +299,43 @@
     </div>
     <div style="text-align:center; margin-top:16px; font-size:13px;">
       <a href="#" id="btn-company-logout" style="color:var(--ink-soft); text-decoration:none;">Keluar dari akun</a>
+    </div>
+    <div id="superadmin-link-wrap" style="display:none; text-align:center; margin-top:8px; font-size:13px;">
+      <a href="#" id="btn-open-approvals" style="color:var(--amber-dark); font-weight:600; text-decoration:none;">Persetujuan Pengguna</a>
+    </div>
+  </div>
+</div>
+
+<div class="login-screen app-hidden" id="pending-screen">
+  <div class="login-card" style="max-width:440px; text-align:center;">
+    <div style="width:56px; height:56px; border-radius:50%; background:#FDF1DC; color:#B5762A; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px;">&#9203;</div>
+    <h1>Menunggu Persetujuan</h1>
+    <div class="sub">Pendaftaran kamu sudah diterima dan sedang menunggu persetujuan pemilik. Kamu akan bisa masuk setelah disetujui.</div>
+    <button class="btn outline" style="width:100%; margin-top:8px;" id="btn-pending-refresh">Cek Status Lagi</button>
+    <div style="text-align:center; margin-top:16px; font-size:13px;">
+      <a href="#" id="btn-pending-logout" style="color:var(--ink-soft); text-decoration:none;">Keluar</a>
+    </div>
+  </div>
+</div>
+
+<div class="login-screen app-hidden" id="rejected-screen">
+  <div class="login-card" style="max-width:440px; text-align:center;">
+    <div style="width:56px; height:56px; border-radius:50%; background:#FBE7E7; color:#B5342A; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px;">&#10005;</div>
+    <h1>Pendaftaran Ditolak</h1>
+    <div class="sub">Maaf, pendaftaran akun kamu ditolak oleh pemilik. Hubungi pemilik aplikasi untuk informasi lebih lanjut.</div>
+    <div style="text-align:center; margin-top:16px; font-size:13px;">
+      <a href="#" id="btn-rejected-logout" style="color:var(--ink-soft); text-decoration:none;">Keluar</a>
+    </div>
+  </div>
+</div>
+
+<div class="login-screen app-hidden" id="approval-screen">
+  <div class="login-card" style="max-width:520px;">
+    <h1>Persetujuan Pengguna</h1>
+    <div class="sub">Setujui atau tolak pendaftar baru sebelum mereka bisa masuk ke aplikasi</div>
+    <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; max-height:400px; overflow-y:auto;"></div>
+    <div style="text-align:center; margin-top:8px; font-size:13px;">
+      <a href="#" id="btn-close-approvals" style="color:var(--ink-soft); text-decoration:none;">&larr; Kembali</a>
     </div>
   </div>
 </div>
@@ -1048,10 +1091,99 @@ document.getElementById('login-password').addEventListener('keydown', e=>{ if(e.
 
 async function afterAuth(){
   document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('company-screen').classList.remove('app-hidden');
   document.getElementById('login-email').value = '';
   document.getElementById('login-password').value = '';
+
+  const { data: profile, error } = await sb.from('profiles').select('status, is_superadmin').eq('id', AUTH_USER.id).maybeSingle();
+  if(error){ showToast('Gagal memeriksa status akun: ' + error.message); return; }
+
+  if(profile && profile.status === 'pending'){
+    document.getElementById('pending-screen').classList.remove('app-hidden');
+    return;
+  }
+  if(profile && profile.status === 'rejected'){
+    document.getElementById('rejected-screen').classList.remove('app-hidden');
+    return;
+  }
+
+  document.getElementById('company-screen').classList.remove('app-hidden');
+  document.getElementById('superadmin-link-wrap').style.display = (profile && profile.is_superadmin) ? '' : 'none';
   await loadCompanyList();
+}
+
+document.getElementById('btn-pending-refresh').addEventListener('click', async ()=>{
+  const { data: profile, error } = await sb.from('profiles').select('status, is_superadmin').eq('id', AUTH_USER.id).maybeSingle();
+  if(error){ showToast('Gagal memeriksa status: ' + error.message); return; }
+  if(profile && profile.status === 'approved'){
+    document.getElementById('pending-screen').classList.add('app-hidden');
+    document.getElementById('company-screen').classList.remove('app-hidden');
+    document.getElementById('superadmin-link-wrap').style.display = profile.is_superadmin ? '' : 'none';
+    await loadCompanyList();
+  } else if(profile && profile.status === 'rejected'){
+    document.getElementById('pending-screen').classList.add('app-hidden');
+    document.getElementById('rejected-screen').classList.remove('app-hidden');
+  } else {
+    showToast('Masih menunggu persetujuan pemilik.');
+  }
+});
+document.getElementById('btn-pending-logout').addEventListener('click', async (e)=>{
+  e.preventDefault();
+  await sb.auth.signOut();
+  AUTH_USER = null;
+  document.getElementById('pending-screen').classList.add('app-hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+});
+document.getElementById('btn-rejected-logout').addEventListener('click', async (e)=>{
+  e.preventDefault();
+  await sb.auth.signOut();
+  AUTH_USER = null;
+  document.getElementById('rejected-screen').classList.add('app-hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+});
+
+/* ---- Panel Persetujuan Pengguna (khusus pemilik/superadmin) ---- */
+document.getElementById('btn-open-approvals').addEventListener('click', async (e)=>{
+  e.preventDefault();
+  document.getElementById('company-screen').classList.add('app-hidden');
+  document.getElementById('approval-screen').classList.remove('app-hidden');
+  await loadApprovalList();
+});
+document.getElementById('btn-close-approvals').addEventListener('click', (e)=>{
+  e.preventDefault();
+  document.getElementById('approval-screen').classList.add('app-hidden');
+  document.getElementById('company-screen').classList.remove('app-hidden');
+});
+async function loadApprovalList(){
+  const listEl = document.getElementById('approval-list');
+  const { data, error } = await sb.from('profiles').select('id, email, status, created_at').eq('status', 'pending').order('created_at');
+  if(error){ listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Gagal memuat: ' + error.message + '</div>'; return; }
+  if(!data || data.length === 0){
+    listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada pendaftar yang menunggu persetujuan.</div>';
+    return;
+  }
+  listEl.innerHTML = data.map(u => `
+    <div class="approval-item">
+      <div>
+        <div class="aemail">${u.email}</div>
+        <div class="adate">Daftar: ${new Date(u.created_at).toLocaleString('id-ID')}</div>
+      </div>
+      <div style="display:flex; gap:6px; flex-shrink:0;">
+        <button class="btn amber sm" onclick="approveUser('${u.id}')">Setujui</button>
+        <button class="btn danger sm" onclick="rejectUser('${u.id}')">Tolak</button>
+      </div>
+    </div>`).join('');
+}
+async function approveUser(id){
+  const { error } = await sb.from('profiles').update({ status: 'approved' }).eq('id', id);
+  if(error){ showToast('Gagal: ' + error.message); return; }
+  showToast('Pengguna disetujui');
+  loadApprovalList();
+}
+async function rejectUser(id){
+  const { error } = await sb.from('profiles').update({ status: 'rejected' }).eq('id', id);
+  if(error){ showToast('Gagal: ' + error.message); return; }
+  showToast('Pendaftaran ditolak');
+  loadApprovalList();
 }
 
 /* ---- Pilih / Buat Perusahaan (pemisah data + akses multi-device) ---- */
@@ -2397,6 +2529,9 @@ sb.auth.onAuthStateChange((event)=>{
     document.getElementById('sidebar').classList.add('app-hidden');
     document.getElementById('main-app').classList.add('app-hidden');
     document.getElementById('company-screen').classList.add('app-hidden');
+    document.getElementById('pending-screen').classList.add('app-hidden');
+    document.getElementById('rejected-screen').classList.add('app-hidden');
+    document.getElementById('approval-screen').classList.add('app-hidden');
     document.getElementById('login-screen').classList.remove('hidden');
   }
 });
