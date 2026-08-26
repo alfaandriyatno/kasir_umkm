@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hasil Persetujuan - Kasir UMKM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Inter',sans-serif; background:#FBF7F0; color:#2E2A26;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .card{
+    background:#fff; border:1px solid #E7DFCF; border-radius:16px; padding:40px 32px;
+    max-width:440px; width:100%; text-align:center; box-shadow:0 4px 24px rgba(0,0,0,0.05);
+  }
+  .icon{
+    width:64px; height:64px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:32px;
+  }
+  .icon.ok{background:#E8F3E8; color:#3C8A46;}
+  .icon.reject{background:#FBE7E7; color:#B5342A;}
+  .icon.warn{background:#FDF1DC; color:#B5762A;}
+  h1{font-family:'Fraunces',serif; font-size:22px; margin-bottom:10px;}
+  p{font-size:14.5px; color:#5B5648; line-height:1.6;}
+  .email{font-weight:600; color:#2E2A26;}
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div>Memuat...</div>
+  </div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const result = params.get('result');
+  const status = params.get('status');
+  const email = params.get('email') || '';
+  const name = params.get('name') || '';
+  const message = params.get('message') || '';
+  const card = document.getElementById('card');
+
+  function render(iconClass, iconChar, title, body) {
+    card.innerHTML = `
+      <div class="icon ${iconClass}">${iconChar}</div>
+      <h1>${title}</h1>
+      <p>${body}</p>
+    `;
+  }
+
+  const who = name ? `${name} (<span class="email">${email}</span>)` : `<span class="email">${email}</span>`;
+
+  if (result === 'success' && status === 'approved') {
+    render('ok', '&#10003;', 'Pendaftaran Disetujui', `Pendaftaran ${who} telah disetujui dan sekarang bisa masuk ke aplikasi.`);
+  } else if (result === 'success' && status === 'rejected') {
+    render('reject', '&#10005;', 'Pendaftaran Ditolak', `Pendaftaran ${who} telah ditolak.`);
+  } else if (result === 'already') {
+    render('warn', '&#8505;', 'Sudah Diproses Sebelumnya', `Pendaftaran ${who} sudah pernah diproses dengan status: <b>${status}</b>.`);
+  } else {
+    render('warn', '&#9888;', 'Terjadi Masalah', message || 'Tautan tidak valid atau sudah kedaluwarsa.');
+  }
+</script>
+</body>
+</html>
