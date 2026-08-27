@@ -212,6 +212,14 @@
     width:380px; max-width:100%; background:#fff; border:1px solid var(--line);
     border-radius:16px; box-shadow:var(--shadow); padding:32px 28px; position:relative;
   }
+  .login-screen.fullscreen{ align-items:stretch; justify-content:stretch; padding:0; }
+  .login-card.fullscreen-card{
+    width:100%; max-width:100%; height:100%; border-radius:0; border:none;
+    box-shadow:none; padding:28px clamp(20px, 5vw, 64px); overflow-y:auto;
+    display:flex; flex-direction:column;
+  }
+  .fullscreen-card #approval-list{ max-height:none !important; flex:1; }
+  .fullscreen-card h1{ font-size:26px; }
   .login-card::before{
     content:""; position:absolute; top:-9px; left:24px; right:24px; height:16px;
     background-image: radial-gradient(circle at 8px 8px, var(--paper) 8px, transparent 8.5px);
@@ -277,11 +285,47 @@
       <label>Nama Lengkap</label>
       <input type="text" id="login-name" placeholder="Nama kamu">
     </div>
+    <div id="forgot-password-wrap" style="text-align:right; margin:-10px 0 14px 0;">
+      <a href="#" id="btn-forgot-password" style="color:var(--ink-soft); font-size:12.5px; text-decoration:none;">Lupa password?</a>
+    </div>
     <button class="btn amber" style="width:100%; padding:11px;" id="btn-auth-submit">Masuk</button>
     <div style="text-align:center; margin-top:14px; font-size:13px; color:var(--ink-soft);">
       <span id="auth-toggle-text">Belum punya akun?</span>
       <a href="#" id="btn-auth-toggle" style="color:var(--amber-dark); font-weight:600; text-decoration:none;">Daftar</a>
     </div>
+  </div>
+</div>
+
+<div class="login-screen app-hidden" id="forgot-password-screen">
+  <div class="login-card">
+    <h1>Lupa Password</h1>
+    <div class="sub">Masukkan email akun kamu, kami akan kirim tautan untuk membuat password baru</div>
+    <div class="login-error" id="forgot-password-error"></div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="forgot-password-email" placeholder="Masukkan email akun kamu" autocomplete="username">
+    </div>
+    <button class="btn amber" style="width:100%; padding:11px;" id="btn-forgot-password-submit">Kirim Tautan Reset</button>
+    <div style="text-align:center; margin-top:14px; font-size:13px;">
+      <a href="#" id="btn-forgot-password-back" style="color:var(--ink-soft); text-decoration:none;">&larr; Kembali ke Masuk</a>
+    </div>
+  </div>
+</div>
+
+<div class="login-screen app-hidden" id="reset-password-screen">
+  <div class="login-card">
+    <h1>Buat Password Baru</h1>
+    <div class="sub">Masukkan password baru untuk akun kamu</div>
+    <div class="login-error" id="reset-password-error"></div>
+    <div class="field">
+      <label>Password Baru</label>
+      <input type="password" id="reset-password-new" placeholder="Minimal 6 karakter" autocomplete="new-password">
+    </div>
+    <div class="field">
+      <label>Ulangi Password Baru</label>
+      <input type="password" id="reset-password-confirm" placeholder="Ulangi password baru" autocomplete="new-password">
+    </div>
+    <button class="btn amber" style="width:100%; padding:11px;" id="btn-reset-password-submit">Simpan Password Baru</button>
   </div>
 </div>
 
@@ -342,8 +386,8 @@
 </div>
 
 
-<div class="login-screen app-hidden" id="approval-screen">
-  <div class="login-card" style="max-width:600px;">
+<div class="login-screen app-hidden fullscreen" id="approval-screen">
+  <div class="login-card fullscreen-card" style="max-width:900px; margin:0 auto;">
     <h1>Kelola Pengguna</h1>
     <div class="sub">Semua orang yang pernah mendaftar ke aplikasi ini</div>
     <div style="display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;">
@@ -352,7 +396,7 @@
       <button class="btn outline sm approval-filter-btn" data-filter="rejected">Ditolak</button>
       <button class="btn outline sm approval-filter-btn" data-filter="all">Semua</button>
     </div>
-    <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; max-height:420px; overflow-y:auto;"></div>
+    <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; overflow-y:auto;"></div>
     <div style="text-align:center; margin-top:8px; font-size:13px;">
       <a href="#" id="btn-close-approvals" style="color:var(--ink-soft); text-decoration:none;">&larr; Kembali</a>
     </div>
@@ -1074,6 +1118,7 @@ document.getElementById('btn-auth-toggle').addEventListener('click', (e)=>{
   document.getElementById('btn-auth-submit').textContent = authMode==='login' ? 'Masuk' : 'Daftar';
   document.getElementById('auth-mode-sub').textContent = authMode==='login' ? 'Masuk untuk melanjutkan' : 'Buat akun baru';
   document.getElementById('login-name-field').style.display = authMode==='signup' ? '' : 'none';
+  document.getElementById('forgot-password-wrap').style.display = authMode==='signup' ? 'none' : '';
   document.getElementById('auth-toggle-text').textContent = authMode==='login' ? 'Belum punya akun?' : 'Sudah punya akun?';
   document.getElementById('btn-auth-toggle').textContent = authMode==='login' ? 'Daftar' : 'Masuk';
   document.getElementById('login-error').style.display='none';
@@ -1107,6 +1152,63 @@ async function doAuthSubmit(){
 }
 document.getElementById('btn-auth-submit').addEventListener('click', doAuthSubmit);
 document.getElementById('login-password').addEventListener('keydown', e=>{ if(e.key==='Enter') doAuthSubmit(); });
+
+/* ---- Lupa Password ---- */
+document.getElementById('btn-forgot-password').addEventListener('click', (e)=>{
+  e.preventDefault();
+  document.getElementById('forgot-password-error').style.display = 'none';
+  document.getElementById('forgot-password-email').value = document.getElementById('login-email').value.trim();
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('forgot-password-screen').classList.remove('app-hidden');
+});
+document.getElementById('btn-forgot-password-back').addEventListener('click', (e)=>{
+  e.preventDefault();
+  document.getElementById('forgot-password-screen').classList.add('app-hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+});
+document.getElementById('btn-forgot-password-submit').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('forgot-password-error');
+  errEl.style.display = 'none';
+  const email = document.getElementById('forgot-password-email').value.trim();
+  if(!email){ errEl.textContent = 'Email wajib diisi.'; errEl.style.display = 'block'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://kasir-umkm-sigma.vercel.app/',
+  });
+  if(error){ errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  showToast('Tautan reset password sudah dikirim ke email kamu (cek juga folder spam).');
+  document.getElementById('forgot-password-screen').classList.add('app-hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+});
+
+/* ---- Set Password Baru (setelah klik tautan reset di email) ---- */
+let isPasswordRecovery = false;
+sb.auth.onAuthStateChange((event, session)=>{
+  if(event === 'PASSWORD_RECOVERY'){
+    isPasswordRecovery = true;
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('forgot-password-screen').classList.add('app-hidden');
+    document.getElementById('company-screen').classList.add('app-hidden');
+    document.getElementById('pending-screen').classList.add('app-hidden');
+    document.getElementById('rejected-screen').classList.add('app-hidden');
+    document.getElementById('disabled-screen').classList.add('app-hidden');
+    document.getElementById('reset-password-screen').classList.remove('app-hidden');
+  }
+});
+document.getElementById('btn-reset-password-submit').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('reset-password-error');
+  errEl.style.display = 'none';
+  const pw = document.getElementById('reset-password-new').value;
+  const pwConfirm = document.getElementById('reset-password-confirm').value;
+  if(!pw || pw.length < 6){ errEl.textContent = 'Password minimal 6 karakter.'; errEl.style.display = 'block'; return; }
+  if(pw !== pwConfirm){ errEl.textContent = 'Konfirmasi password tidak sama.'; errEl.style.display = 'block'; return; }
+  const { data, error } = await sb.auth.updateUser({ password: pw });
+  if(error){ errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  isPasswordRecovery = false;
+  showToast('Password berhasil diubah.');
+  document.getElementById('reset-password-screen').classList.add('app-hidden');
+  AUTH_USER = data.user;
+  await afterAuth();
+});
 
 async function afterAuth(){
   document.getElementById('login-screen').classList.add('hidden');
@@ -2592,11 +2694,15 @@ document.getElementById('btn-export-labarugi-pdf').addEventListener('click', ()=
 
 /* ================= INIT ================= */
 (async function boot(){
+  const hash = window.location.hash || '';
+  const isRecoveryLink = hash.includes('type=recovery');
   const { data: { session } } = await sb.auth.getSession();
   if(session){
     AUTH_USER = session.user;
-    await afterAuth();
-  } else {
+    if(!isRecoveryLink){
+      await afterAuth();
+    }
+  } else if(!isRecoveryLink){
     document.getElementById('login-email').focus();
   }
 })();
