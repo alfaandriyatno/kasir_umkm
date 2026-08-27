@@ -219,6 +219,7 @@
   }
   .login-card h1{font-family:'Fraunces',serif; font-size:24px; margin:0 0 4px 0;}
   .login-card .sub{font-size:13px; color:var(--ink-soft); margin-bottom:22px;}
+  .approval-filter-btn.active{ background:var(--amber); color:#fff; border-color:var(--amber); }
   .approval-item{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     padding:12px 14px; border:1px solid var(--line); border-radius:10px;
@@ -301,7 +302,7 @@
       <a href="#" id="btn-company-logout" style="color:var(--ink-soft); text-decoration:none;">Keluar dari akun</a>
     </div>
     <div id="superadmin-link-wrap" style="display:none; text-align:center; margin-top:8px; font-size:13px;">
-      <a href="#" id="btn-open-approvals" style="color:var(--amber-dark); font-weight:600; text-decoration:none;">Persetujuan Pengguna</a>
+      <a href="#" id="btn-open-approvals" style="color:var(--amber-dark); font-weight:600; text-decoration:none;">Kelola Pengguna</a>
     </div>
   </div>
 </div>
@@ -329,11 +330,29 @@
   </div>
 </div>
 
+<div class="login-screen app-hidden" id="disabled-screen">
+  <div class="login-card" style="max-width:440px; text-align:center;">
+    <div style="width:56px; height:56px; border-radius:50%; background:#F1F1F1; color:#666; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto; font-size:26px;">&#128274;</div>
+    <h1>Akun Dinonaktifkan</h1>
+    <div class="sub">Akun kamu telah dinonaktifkan oleh pemilik aplikasi dan tidak bisa digunakan untuk saat ini. Hubungi pemilik aplikasi untuk informasi lebih lanjut.</div>
+    <div style="text-align:center; margin-top:16px; font-size:13px;">
+      <a href="#" id="btn-disabled-logout" style="color:var(--ink-soft); text-decoration:none;">Keluar</a>
+    </div>
+  </div>
+</div>
+
+
 <div class="login-screen app-hidden" id="approval-screen">
-  <div class="login-card" style="max-width:520px;">
-    <h1>Persetujuan Pengguna</h1>
-    <div class="sub">Setujui atau tolak pendaftar baru sebelum mereka bisa masuk ke aplikasi</div>
-    <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; max-height:400px; overflow-y:auto;"></div>
+  <div class="login-card" style="max-width:600px;">
+    <h1>Kelola Pengguna</h1>
+    <div class="sub">Semua orang yang pernah mendaftar ke aplikasi ini</div>
+    <div style="display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;">
+      <button class="btn outline sm approval-filter-btn active" data-filter="pending">Menunggu</button>
+      <button class="btn outline sm approval-filter-btn" data-filter="approved">Disetujui</button>
+      <button class="btn outline sm approval-filter-btn" data-filter="rejected">Ditolak</button>
+      <button class="btn outline sm approval-filter-btn" data-filter="all">Semua</button>
+    </div>
+    <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; max-height:420px; overflow-y:auto;"></div>
     <div style="text-align:center; margin-top:8px; font-size:13px;">
       <a href="#" id="btn-close-approvals" style="color:var(--ink-soft); text-decoration:none;">&larr; Kembali</a>
     </div>
@@ -1094,9 +1113,14 @@ async function afterAuth(){
   document.getElementById('login-email').value = '';
   document.getElementById('login-password').value = '';
 
-  const { data: profile, error } = await sb.from('profiles').select('status, is_superadmin').eq('id', AUTH_USER.id).maybeSingle();
+  const { data: profile, error } = await sb.from('profiles').select('status, is_superadmin, disabled').eq('id', AUTH_USER.id).maybeSingle();
   if(error){ showToast('Gagal memeriksa status akun: ' + error.message); return; }
 
+  if(profile && profile.disabled){
+    await sb.auth.signOut();
+    document.getElementById('disabled-screen').classList.remove('app-hidden');
+    return;
+  }
   if(profile && profile.status === 'pending'){
     document.getElementById('pending-screen').classList.remove('app-hidden');
     return;
@@ -1110,6 +1134,13 @@ async function afterAuth(){
   document.getElementById('superadmin-link-wrap').style.display = (profile && profile.is_superadmin) ? '' : 'none';
   await loadCompanyList();
 }
+
+document.getElementById('btn-disabled-logout').addEventListener('click', async (e)=>{
+  e.preventDefault();
+  AUTH_USER = null;
+  document.getElementById('disabled-screen').classList.add('app-hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+});
 
 document.getElementById('btn-pending-refresh').addEventListener('click', async ()=>{
   const { data: profile, error } = await sb.from('profiles').select('status, is_superadmin').eq('id', AUTH_USER.id).maybeSingle();
@@ -1141,7 +1172,8 @@ document.getElementById('btn-rejected-logout').addEventListener('click', async (
   document.getElementById('login-screen').classList.remove('hidden');
 });
 
-/* ---- Panel Persetujuan Pengguna (khusus pemilik/superadmin) ---- */
+/* ---- Panel Kelola Pengguna (khusus pemilik/superadmin) ---- */
+let approvalFilter = 'pending';
 document.getElementById('btn-open-approvals').addEventListener('click', async (e)=>{
   e.preventDefault();
   document.getElementById('company-screen').classList.add('app-hidden');
@@ -1153,25 +1185,58 @@ document.getElementById('btn-close-approvals').addEventListener('click', (e)=>{
   document.getElementById('approval-screen').classList.add('app-hidden');
   document.getElementById('company-screen').classList.remove('app-hidden');
 });
+document.querySelectorAll('.approval-filter-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.approval-filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    approvalFilter = btn.dataset.filter;
+    loadApprovalList();
+  });
+});
+
+const STATUS_LABELS = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' };
+const STATUS_COLORS = { pending: '#B5762A', approved: '#3C8A46', rejected: '#B5342A' };
+
 async function loadApprovalList(){
   const listEl = document.getElementById('approval-list');
-  const { data, error } = await sb.from('profiles').select('id, email, status, created_at').eq('status', 'pending').order('created_at');
+  listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Memuat...</div>';
+  let query = sb.from('profiles').select('id, email, name, status, disabled, created_at, is_superadmin').order('created_at', { ascending: false });
+  if(approvalFilter !== 'all') query = query.eq('status', approvalFilter);
+  const { data, error } = await query;
   if(error){ listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Gagal memuat: ' + error.message + '</div>'; return; }
   if(!data || data.length === 0){
-    listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada pendaftar yang menunggu persetujuan.</div>';
+    listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada data untuk filter ini.</div>';
     return;
   }
-  listEl.innerHTML = data.map(u => `
+  listEl.innerHTML = data.map(u => {
+    const isSelf = u.id === AUTH_USER.id;
+    let actions = '';
+    if(u.status === 'pending'){
+      actions += `<button class="btn amber sm" onclick="approveUser('${u.id}')">Setujui</button>
+                   <button class="btn danger sm" onclick="rejectUser('${u.id}')">Tolak</button>`;
+    } else if(!isSelf) {
+      actions += u.disabled
+        ? `<button class="btn amber sm" onclick="setDisabled('${u.id}', false)">Aktifkan</button>`
+        : `<button class="btn outline sm" onclick="setDisabled('${u.id}', true)">Nonaktifkan</button>`;
+    }
+    if(!isSelf && !u.is_superadmin){
+      actions += `<button class="btn danger sm" onclick="deleteAccount('${u.id}','${(u.email||'').replace(/'/g,"\\'")}')">Hapus</button>`;
+    }
+    return `
     <div class="approval-item">
       <div>
-        <div class="aemail">${u.email}</div>
-        <div class="adate">Daftar: ${new Date(u.created_at).toLocaleString('id-ID')}</div>
+        <div class="aemail">${u.name ? u.name + ' &mdash; ' : ''}${u.email}${isSelf ? ' <span style="opacity:.6;">(kamu)</span>' : ''}${u.is_superadmin ? ' <span style="opacity:.6;">(pemilik)</span>' : ''}</div>
+        <div class="adate">
+          <span style="color:${STATUS_COLORS[u.status]}; font-weight:600;">${STATUS_LABELS[u.status] || u.status}</span>
+          ${u.disabled ? ' &middot; <span style="color:#B5342A; font-weight:600;">Nonaktif</span>' : ''}
+          &middot; Daftar: ${new Date(u.created_at).toLocaleString('id-ID')}
+        </div>
       </div>
-      <div style="display:flex; gap:6px; flex-shrink:0;">
-        <button class="btn amber sm" onclick="approveUser('${u.id}')">Setujui</button>
-        <button class="btn danger sm" onclick="rejectUser('${u.id}')">Tolak</button>
+      <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">
+        ${actions}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 async function approveUser(id){
   const { error } = await sb.from('profiles').update({ status: 'approved' }).eq('id', id);
@@ -1184,6 +1249,21 @@ async function rejectUser(id){
   if(error){ showToast('Gagal: ' + error.message); return; }
   showToast('Pendaftaran ditolak');
   loadApprovalList();
+}
+async function setDisabled(id, disabled){
+  const { error } = await sb.from('profiles').update({ disabled }).eq('id', id);
+  if(error){ showToast('Gagal: ' + error.message); return; }
+  showToast(disabled ? 'Akun dinonaktifkan' : 'Akun diaktifkan kembali');
+  loadApprovalList();
+}
+async function deleteAccount(id, email){
+  showConfirm(`Hapus akun <strong>${email}</strong> secara permanen? Tindakan ini tidak bisa dibatalkan.`, async ()=>{
+    const { data, error } = await sb.functions.invoke('admin-delete-user', { body: { target_user_id: id } });
+    if(error){ showToast('Gagal menghapus: ' + error.message); return; }
+    if(data && data.error){ showToast('Gagal menghapus: ' + data.error); return; }
+    showToast('Akun berhasil dihapus');
+    loadApprovalList();
+  });
 }
 
 /* ---- Pilih / Buat Perusahaan (pemisah data + akses multi-device) ---- */
