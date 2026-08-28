@@ -512,13 +512,57 @@
         </div>
       </div>
 
-      <div class="card" style="overflow-x:auto;">
+      <div class="card" style="overflow-x:auto; margin-bottom:20px;">
         <h3 class="display" style="margin-top:0; color:var(--rust);">⚠ Stok Menipis (kurang dari 10)</h3>
         <table id="dash-lowstock-table">
           <thead><tr><th>Nama Produk</th><th>Kategori</th><th class="num">Sisa Stok</th><th></th></tr></thead>
           <tbody id="dash-lowstock-tbody"></tbody>
         </table>
         <div id="dash-lowstock-empty" class="empty-state" style="display:none;">Semua stok barang masih aman (10 atau lebih).</div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="field">
+          <label>Dari Tanggal</label>
+          <input type="date" id="lap-from">
+        </div>
+        <div class="field">
+          <label>Sampai Tanggal</label>
+          <input type="date" id="lap-to">
+        </div>
+        <button class="btn outline" id="btn-lap-filter">Terapkan</button>
+      </div>
+
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="label">Total Penjualan</div><div class="value mono" id="s-penjualan">Rp 0</div></div>
+        <div class="stat"><div class="label">Total Modal (HPP)</div><div class="value mono" id="s-modal">Rp 0</div></div>
+        <div class="stat" id="s-laba-card"><div class="label">Laba / Rugi</div><div class="value mono" id="s-laba">Rp 0</div></div>
+        <div class="stat"><div class="label">Total PPN Terkumpul</div><div class="value mono" id="s-ppn">Rp 0</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h3 class="display" style="margin-top:0;">Grafik Laba per Hari</h3>
+        <div id="chart-area" style="display:flex; align-items:flex-end; gap:8px; height:160px; padding-top:10px;"></div>
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h3 class="display" style="margin-top:0;">Harga Beli &amp; Harga Jual per Barang</h3>
+        <table id="harga-table">
+          <thead>
+            <tr>
+              <th rowspan="2" style="vertical-align:bottom;">Nama</th>
+              <th colspan="3" style="text-align:center; border-bottom:1px solid var(--line);">Eceran</th>
+              <th colspan="4" style="text-align:center; border-bottom:1px solid var(--line);">Karton</th>
+              <th colspan="4" style="text-align:center; border-bottom:1px solid var(--line);">Renceng</th>
+            </tr>
+            <tr>
+              <th class="num">Harga Beli</th><th class="num">Harga Jual</th><th class="num">Margin</th>
+              <th class="num">Isi</th><th class="num">Harga Beli</th><th class="num">Harga Jual</th><th class="num">Margin</th>
+              <th class="num">Isi</th><th class="num">Harga Beli</th><th class="num">Harga Jual</th><th class="num">Margin</th>
+            </tr>
+          </thead>
+          <tbody id="harga-tbody"></tbody>
+        </table>
       </div>
     </section>
 
@@ -600,47 +644,15 @@
       <div class="filter-bar">
         <div class="field">
           <label>Dari Tanggal</label>
-          <input type="date" id="lap-from">
+          <input type="date" id="riw-from">
         </div>
         <div class="field">
           <label>Sampai Tanggal</label>
-          <input type="date" id="lap-to">
+          <input type="date" id="riw-to">
         </div>
-        <button class="btn outline" id="btn-lap-filter">Terapkan</button>
+        <button class="btn outline" id="btn-riw-filter">Terapkan</button>
         <button class="btn outline" id="btn-export-csv">⬇ Export CSV</button>
         <button class="btn amber" id="btn-export-pdf">📄 Export PDF</button>
-      </div>
-
-      <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
-        <div class="stat"><div class="label">Total Penjualan</div><div class="value mono" id="s-penjualan">Rp 0</div></div>
-        <div class="stat"><div class="label">Total Modal (HPP)</div><div class="value mono" id="s-modal">Rp 0</div></div>
-        <div class="stat" id="s-laba-card"><div class="label">Laba / Rugi</div><div class="value mono" id="s-laba">Rp 0</div></div>
-        <div class="stat"><div class="label">Total PPN Terkumpul</div><div class="value mono" id="s-ppn">Rp 0</div></div>
-      </div>
-
-      <div class="card" style="margin-bottom:20px;">
-        <h3 class="display" style="margin-top:0;">Grafik Laba per Hari</h3>
-        <div id="chart-area" style="display:flex; align-items:flex-end; gap:8px; height:160px; padding-top:10px;"></div>
-      </div>
-
-      <div class="card" style="margin-bottom:20px; overflow-x:auto;">
-        <h3 class="display" style="margin-top:0;">Harga Beli &amp; Harga Jual per Barang</h3>
-        <table id="harga-table">
-          <thead>
-            <tr>
-              <th rowspan="2" style="vertical-align:bottom;">Nama</th>
-              <th colspan="3" style="text-align:center; border-bottom:1px solid var(--line);">Eceran</th>
-              <th colspan="4" style="text-align:center; border-bottom:1px solid var(--line);">Karton</th>
-              <th colspan="4" style="text-align:center; border-bottom:1px solid var(--line);">Renceng</th>
-            </tr>
-            <tr>
-              <th class="num">Harga Beli</th><th class="num">Harga Jual</th><th class="num">Margin</th>
-              <th class="num">Isi</th><th class="num">Harga Beli</th><th class="num">Harga Jual</th><th class="num">Margin</th>
-              <th class="num">Isi</th><th class="num">Harga Beli</th><th class="num">Harga Jual</th><th class="num">Margin</th>
-            </tr>
-          </thead>
-          <tbody id="harga-tbody"></tbody>
-        </table>
       </div>
 
       <div class="card" style="overflow-x:auto;">
@@ -1128,9 +1140,9 @@ function switchView(v){
   document.querySelectorAll('.view-section').forEach(s=>s.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   document.getElementById('view-title').textContent = titles[v];
-  if(v==='dashboard') renderDashboard();
+  if(v==='dashboard'){ renderDashboard(); renderReport(); }
   if(v==='produk') renderProducts();
-  if(v==='laporan') renderReport();
+  if(v==='laporan') renderRiwayat();
   if(v==='penyesuaian') renderAdjustments();
 }
 
@@ -1494,6 +1506,7 @@ async function enterCompany(id, name, role, memberName){
   renderCart();
   renderProducts();
   renderReport();
+  renderRiwayat();
   renderDashboard();
   renderUsers();
   switchView(allowedViews[0]);
@@ -1643,7 +1656,7 @@ document.getElementById('btn-reset-data').addEventListener('click', ()=>{
     DB.products = [];
     DB.transactions = [];
     showToast('Semua data telah dihapus');
-    renderProducts(); renderReport(); cart=[]; renderCart(); renderDashboard();
+    renderProducts(); renderReport(); renderRiwayat(); cart=[]; renderCart(); renderDashboard();
   });
 });
 refreshStoreName();
@@ -2203,6 +2216,7 @@ function voidTransaction(id){
       DB.transactions = DB.transactions.filter(t=>t.id !== id);
       showToast('Transaksi dibatalkan, stok dikembalikan');
       renderReport();
+      renderRiwayat();
       renderProducts();
     }
   );
@@ -2212,6 +2226,10 @@ function voidTransaction(id){
 document.getElementById('lap-from').value = todayStr();
 document.getElementById('lap-to').value = todayStr();
 document.getElementById('btn-lap-filter').addEventListener('click', renderReport);
+
+document.getElementById('riw-from').value = todayStr();
+document.getElementById('riw-to').value = todayStr();
+document.getElementById('btn-riw-filter').addEventListener('click', renderRiwayat);
 
 function renderReport(){
   const from = document.getElementById('lap-from').value;
@@ -2233,28 +2251,6 @@ function renderReport(){
   const labaCard = document.getElementById('s-laba-card');
   labaCard.classList.remove('pos','neg');
   labaCard.classList.add(totalLaba >= 0 ? 'pos' : 'neg');
-
-  // riwayat table
-  const rtbody = document.getElementById('riwayat-tbody');
-  rtbody.innerHTML = '';
-  document.getElementById('riwayat-empty').style.display = trxs.length ? 'none' : 'block';
-  trxs.forEach(t=>{
-    const itemSummary = t.items.map(i=>`${i.name} x${i.qty}`).join(', ');
-    const methodBadgeColor = {cash:'var(--green)', transfer:'var(--amber-dark)', qris:'var(--ink-soft)'}[t.paymentMethod] || 'var(--ink-soft)';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${new Date(t.date).toLocaleString('id-ID')}</td>
-      <td style="max-width:260px;">${itemSummary}</td>
-      <td style="color:${methodBadgeColor}; font-weight:600; font-size:12.5px;">${PAY_METHOD_LABELS[t.paymentMethod] || 'Tunai'}</td>
-      <td class="num mono">${rupiah(t.total)}</td>
-      <td class="num mono">${t.ppnAmount > 0 ? rupiah(t.ppnAmount) + ` (${t.ppnPercent}%)` : '—'}</td>
-      <td class="num mono">${rupiah(t.totalModal)}</td>
-      <td class="num mono" style="color:${t.profit>=0?'var(--green)':'var(--rust)'};">${rupiah(t.profit)}</td>
-      <td>
-        <button class="btn danger sm" onclick="voidTransaction('${t.id}')" title="Menghapus transaksi & mengembalikan stok barang">Batalkan</button>
-      </td>`;
-    rtbody.appendChild(tr);
-  });
 
   // harga beli/jual per barang
   const htbody = document.getElementById('harga-tbody');
@@ -2307,9 +2303,39 @@ function renderReport(){
   }
 }
 
+function renderRiwayat(){
+  const from = document.getElementById('riw-from').value;
+  const to = document.getElementById('riw-to').value;
+  const trxs = DB.transactions.filter(t=>{
+    const d = t.date.slice(0,10);
+    return (!from || d>=from) && (!to || d<=to);
+  }).sort((a,b)=> new Date(b.date) - new Date(a.date));
+
+  const rtbody = document.getElementById('riwayat-tbody');
+  rtbody.innerHTML = '';
+  document.getElementById('riwayat-empty').style.display = trxs.length ? 'none' : 'block';
+  trxs.forEach(t=>{
+    const itemSummary = t.items.map(i=>`${i.name} x${i.qty}`).join(', ');
+    const methodBadgeColor = {cash:'var(--green)', transfer:'var(--amber-dark)', qris:'var(--ink-soft)'}[t.paymentMethod] || 'var(--ink-soft)';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(t.date).toLocaleString('id-ID')}</td>
+      <td style="max-width:260px;">${itemSummary}</td>
+      <td style="color:${methodBadgeColor}; font-weight:600; font-size:12.5px;">${PAY_METHOD_LABELS[t.paymentMethod] || 'Tunai'}</td>
+      <td class="num mono">${rupiah(t.total)}</td>
+      <td class="num mono">${t.ppnAmount > 0 ? rupiah(t.ppnAmount) + ` (${t.ppnPercent}%)` : '—'}</td>
+      <td class="num mono">${rupiah(t.totalModal)}</td>
+      <td class="num mono" style="color:${t.profit>=0?'var(--green)':'var(--rust)'};">${rupiah(t.profit)}</td>
+      <td>
+        <button class="btn danger sm" onclick="voidTransaction('${t.id}')" title="Menghapus transaksi & mengembalikan stok barang">Batalkan</button>
+      </td>`;
+    rtbody.appendChild(tr);
+  });
+}
+
 document.getElementById('btn-export-csv').addEventListener('click', ()=>{
-  const from = document.getElementById('lap-from').value;
-  const to = document.getElementById('lap-to').value;
+  const from = document.getElementById('riw-from').value;
+  const to = document.getElementById('riw-to').value;
   const trxs = DB.transactions.filter(t=>{
     const d = t.date.slice(0,10);
     return (!from || d>=from) && (!to || d<=to);
@@ -2334,8 +2360,8 @@ document.getElementById('btn-export-pdf').addEventListener('click', ()=>{
   }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({orientation:'landscape'});
-  const from = document.getElementById('lap-from').value;
-  const to = document.getElementById('lap-to').value;
+  const from = document.getElementById('riw-from').value;
+  const to = document.getElementById('riw-to').value;
   const trxs = DB.transactions.filter(t=>{
     const d = t.date.slice(0,10);
     return (!from || d>=from) && (!to || d<=to);
