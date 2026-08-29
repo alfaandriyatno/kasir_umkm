@@ -276,7 +276,6 @@
   @media print{
     body *{visibility:hidden;}
     #print-area, #print-area *{visibility:visible;}
-    #print-area{display:block !important; position:absolute; top:0; left:0; width:280px;}
   }
   @media (max-width:900px){
     .sidebar{width:72px;}
@@ -286,6 +285,7 @@
     .stat-row{grid-template-columns:1fr;}
   }
 </style>
+<style id="print-page-style"></style>
 </head>
 <body>
 
@@ -790,6 +790,20 @@
       </div>
 
       <div class="card" style="max-width:420px; margin-bottom:20px;">
+        <h3 class="display" style="margin-top:0;">Ukuran Kertas Struk</h3>
+        <div class="field">
+          <label>Pilih Ukuran Kertas</label>
+          <select id="receipt-paper-size">
+            <option value="80mm">80mm (Printer Struk/Thermal)</option>
+            <option value="58mm">58mm (Printer Struk/Thermal Kecil)</option>
+            <option value="a4">A4 (Printer Biasa)</option>
+          </select>
+        </div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin:-8px 0 14px 0;">Sesuaikan dengan jenis printer yang kamu pakai untuk mencetak struk kasir.</div>
+        <button class="btn amber" id="btn-save-paper-size">Simpan Ukuran Kertas</button>
+      </div>
+
+      <div class="card" style="max-width:420px; margin-bottom:20px;">
         <h3 class="display" style="margin-top:0;">Pajak (PPN)</h3>
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:14px;">
           <input type="checkbox" id="ppn-enabled" style="width:auto;">
@@ -962,7 +976,7 @@ let SESSION = null;         // { role, name, email } peran user di perusahaan ak
 /* ================= STORAGE (tersinkron ke Supabase per perusahaan) ================= */
 const CACHE = {
   products: [], transactions: [], adjustments: [], customAccounts: [],
-  storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11},
+  storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
 };
 let _saveTimer = null;
 function scheduleSave(){
@@ -974,7 +988,7 @@ async function saveCompanyData(){
   const payload = {
     products: CACHE.products, transactions: CACHE.transactions,
     adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts,
-    storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig,
+    storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
   };
   const { error } = await sb.from('company_data').upsert({
     company_id: CURRENT_COMPANY.id, data: payload,
@@ -993,6 +1007,8 @@ const DB = {
   set storeAddress(v){ CACHE.storeAddress = v; scheduleSave(); },
   get ppnConfig(){ return CACHE.ppnConfig; },
   set ppnConfig(v){ CACHE.ppnConfig = v; scheduleSave(); },
+  get receiptPaperSize(){ return CACHE.receiptPaperSize; },
+  set receiptPaperSize(v){ CACHE.receiptPaperSize = v; scheduleSave(); },
   get adjustments(){ return CACHE.adjustments; },
   set adjustments(v){ CACHE.adjustments = v; scheduleSave(); },
   get customAccounts(){ return CACHE.customAccounts; },
@@ -1364,7 +1380,7 @@ async function loadApprovalList(){
     return;
   }
 
-  let query = sb.from('profiles').select('id, email, name, status, disabled, created_at, is_superadmin').order('created_at', { ascending: false });
+  let query = sb.from('profiles').select('id, email, name, status, disabled, created_at, is_superadmin, account_type').order('created_at', { ascending: false });
   if(approvalFilter !== 'all') query = query.eq('status', approvalFilter);
   const { data, error } = await query;
   if(error){ listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Gagal memuat: ' + error.message + '</div>'; return; }
@@ -1372,7 +1388,8 @@ async function loadApprovalList(){
     listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada data untuk filter ini.</div>';
     return;
   }
-  listEl.innerHTML = data.map(u => {
+
+  function renderCard(u){
     const isSelf = u.id === AUTH_USER.id;
     let actions = '';
     if(u.status === 'pending'){
@@ -1400,7 +1417,26 @@ async function loadApprovalList(){
         ${actions}
       </div>
     </div>`;
-  }).join('');
+  }
+
+  const owners = data.filter(u => u.account_type === 'owner');
+  const karyawan = data.filter(u => u.account_type !== 'owner');
+
+  listEl.innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;">
+      <div>
+        <h3 class="display" style="margin:0 0 10px 0; font-size:16px;">Owner (${owners.length})</h3>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          ${owners.length ? owners.map(renderCard).join('') : '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada.</div>'}
+        </div>
+      </div>
+      <div>
+        <h3 class="display" style="margin:0 0 10px 0; font-size:16px;">Karyawan (${karyawan.length})</h3>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          ${karyawan.length ? karyawan.map(renderCard).join('') : '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada.</div>'}
+        </div>
+      </div>
+    </div>`;
 }
 
 const UPGRADE_REQUEST_LABELS = { become_owner: 'Ajukan jadi Owner', extra_company: 'Ajukan Tambah Toko' };
@@ -1608,6 +1644,7 @@ async function enterCompany(id, name, role, memberName){
     CACHE.storeName = d.storeName || name;
     CACHE.storeAddress = d.storeAddress || '';
     CACHE.ppnConfig = d.ppnConfig || {enabled:false, percent:11};
+    CACHE.receiptPaperSize = d.receiptPaperSize || '80mm';
   } else {
     CACHE.products = [
       {id:uid(), barcode:'8991234567890', name:'Indomie Goreng', category:'Sembako', unit:'pcs', buyPrice:2800, sellPrice:3500, stock:80, minStock:10,
@@ -1626,6 +1663,7 @@ async function enterCompany(id, name, role, memberName){
     CACHE.storeName = name;
     CACHE.storeAddress = '';
     CACHE.ppnConfig = {enabled:false, percent:11};
+    CACHE.receiptPaperSize = '80mm';
     await saveCompanyData();
   }
 
@@ -1641,6 +1679,7 @@ async function enterCompany(id, name, role, memberName){
   applyRolePermissions(SESSION.role);
   const allowedViews = ROLE_PERMISSIONS[SESSION.role] || ['dashboard'];
   refreshStoreName();
+  refreshPaperSizeUI();
   refreshAccountUI();
   renderCart();
   renderProducts();
@@ -1789,6 +1828,38 @@ document.getElementById('btn-save-ppn').addEventListener('click', ()=>{
   showToast('Pengaturan PPN disimpan');
 });
 refreshPpnSettingsUI();
+
+function updatePrintPageStyle(){
+  const size = DB.receiptPaperSize || '80mm';
+  const styleEl = document.getElementById('print-page-style');
+  if(size === 'a4'){
+    styleEl.textContent = `
+      @page{ size:A4; margin:15mm; }
+      @media print{
+        html, body{width:auto; margin:0; padding:0;}
+        #print-area{display:block !important; position:absolute; top:0; left:0; width:100%; max-width:700px; margin:0 auto; padding:0;}
+      }`;
+  } else {
+    const w = size === '58mm' ? '58mm' : '80mm';
+    styleEl.textContent = `
+      @page{ size:${w} auto; margin:0; }
+      @media print{
+        html, body{width:${w}; margin:0; padding:0;}
+        #print-area{display:block !important; position:absolute; top:0; left:0; width:${w}; margin:0; padding:0;}
+      }`;
+  }
+}
+function refreshPaperSizeUI(){
+  document.getElementById('receipt-paper-size').value = DB.receiptPaperSize || '80mm';
+  updatePrintPageStyle();
+}
+document.getElementById('btn-save-paper-size').addEventListener('click', ()=>{
+  const v = document.getElementById('receipt-paper-size').value;
+  DB.receiptPaperSize = v;
+  updatePrintPageStyle();
+  showToast('Ukuran kertas struk disimpan');
+});
+refreshPaperSizeUI();
 
 document.getElementById('btn-reset-data').addEventListener('click', ()=>{
   showConfirm('Yakin ingin menghapus <strong>semua</strong> data produk dan transaksi milik perusahaan <strong>' + CURRENT_COMPANY.name + '</strong>? Tindakan ini tidak bisa dibatalkan dan berlaku di semua device.', ()=>{
@@ -2330,6 +2401,7 @@ function printReceipt(trx){
       <hr>
       <div style="text-align:center; font-size:11px;">Terima kasih atas kunjungan Anda</div>
     </div>`;
+  updatePrintPageStyle();
   window.print();
 }
 
