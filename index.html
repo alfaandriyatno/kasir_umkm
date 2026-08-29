@@ -308,6 +308,13 @@
       <label>Nama Lengkap</label>
       <input type="text" id="login-name" placeholder="Nama kamu">
     </div>
+    <div class="field" id="login-account-type-field" style="display:none;">
+      <label>Daftar Sebagai</label>
+      <select id="login-account-type">
+        <option value="karyawan">Karyawan (bergabung ke toko milik Owner)</option>
+        <option value="owner">Owner (membuat &amp; mengelola toko sendiri)</option>
+      </select>
+    </div>
     <div id="forgot-password-wrap" style="text-align:right; margin:-10px 0 14px 0;">
       <a href="#" id="btn-forgot-password" style="color:var(--ink-soft); font-size:12.5px; text-decoration:none;">Lupa password?</a>
     </div>
@@ -358,12 +365,22 @@
     <div class="sub">Satu akun bisa mengakses beberapa perusahaan/toko</div>
     <div class="login-error" id="company-error"></div>
     <div id="company-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;"></div>
-    <div style="border-top:1px solid var(--line); padding-top:16px;">
+    <div id="create-company-section" style="border-top:1px solid var(--line); padding-top:16px;">
       <div class="field">
         <label>Buat Perusahaan Baru</label>
         <input type="text" id="new-company-name" placeholder="Nama perusahaan/toko">
       </div>
       <button class="btn amber" style="width:100%; padding:11px;" id="btn-create-company">+ Buat Perusahaan</button>
+    </div>
+    <div id="quota-full-section" style="display:none; border-top:1px solid var(--line); padding-top:16px; text-align:center;">
+      <div style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Kuota toko gratis kamu sudah habis (<span id="quota-info"></span>). Untuk membuat toko lagi, ajukan izin ke pemilik aplikasi.</div>
+      <button class="btn outline" style="width:100%;" id="btn-request-extra-company">Ajukan Tambah Toko</button>
+      <div id="extra-company-request-status" style="font-size:12px; color:var(--ink-soft); margin-top:8px;"></div>
+    </div>
+    <div id="karyawan-section" style="display:none; border-top:1px solid var(--line); padding-top:16px; text-align:center;">
+      <div style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Kamu terdaftar sebagai <b>Karyawan</b>. Untuk membuat toko sendiri, ajukan menjadi Owner ke pemilik aplikasi.</div>
+      <button class="btn outline" style="width:100%;" id="btn-request-become-owner">Ajukan Jadi Owner</button>
+      <div id="become-owner-request-status" style="font-size:12px; color:var(--ink-soft); margin-top:8px;"></div>
     </div>
     <div style="text-align:center; margin-top:16px; font-size:13px;">
       <a href="#" id="btn-company-logout" style="color:var(--ink-soft); text-decoration:none;">Keluar dari akun</a>
@@ -418,6 +435,7 @@
       <button class="btn outline sm approval-filter-btn" data-filter="approved">Disetujui</button>
       <button class="btn outline sm approval-filter-btn" data-filter="rejected">Ditolak</button>
       <button class="btn outline sm approval-filter-btn" data-filter="all">Semua</button>
+      <button class="btn outline sm approval-filter-btn" data-filter="requests">Permintaan</button>
     </div>
     <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; overflow-y:auto;"></div>
     <div style="text-align:center; margin-top:8px; font-size:13px;">
@@ -658,7 +676,7 @@
       <div class="card" style="overflow-x:auto;">
         <h3 class="display" style="margin-top:0;">Riwayat Transaksi</h3>
         <table id="riwayat-table">
-          <thead><tr><th>Tanggal</th><th>Item</th><th>Metode</th><th class="num">Total</th><th class="num">PPN</th><th class="num">Modal</th><th class="num">Laba</th><th></th></tr></thead>
+          <thead><tr><th>Tanggal</th><th>Kasir</th><th>Item</th><th>Metode</th><th class="num">Total</th><th class="num">PPN</th><th class="num">Modal</th><th class="num">Laba</th><th></th></tr></thead>
           <tbody id="riwayat-tbody"></tbody>
         </table>
         <div id="riwayat-empty" class="empty-state" style="display:none;">Belum ada transaksi pada rentang tanggal ini.</div>
@@ -1154,6 +1172,7 @@ document.getElementById('btn-auth-toggle').addEventListener('click', (e)=>{
   document.getElementById('btn-auth-submit').textContent = authMode==='login' ? 'Masuk' : 'Daftar';
   document.getElementById('auth-mode-sub').textContent = authMode==='login' ? 'Masuk untuk melanjutkan' : 'Buat akun baru';
   document.getElementById('login-name-field').style.display = authMode==='signup' ? '' : 'none';
+  document.getElementById('login-account-type-field').style.display = authMode==='signup' ? '' : 'none';
   document.getElementById('forgot-password-wrap').style.display = authMode==='signup' ? 'none' : '';
   document.getElementById('auth-toggle-text').textContent = authMode==='login' ? 'Belum punya akun?' : 'Sudah punya akun?';
   document.getElementById('btn-auth-toggle').textContent = authMode==='login' ? 'Daftar' : 'Masuk';
@@ -1169,8 +1188,9 @@ async function doAuthSubmit(){
 
   if(authMode === 'signup'){
     const name = document.getElementById('login-name').value.trim();
+    const accountType = document.getElementById('login-account-type').value;
     if(!name){ errEl.textContent='Nama wajib diisi.'; errEl.style.display='block'; return; }
-    const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ full_name:name } } });
+    const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ full_name:name, account_type:accountType } } });
     if(error){ errEl.textContent = error.message; errEl.style.display='block'; return; }
     if(data.session){
       AUTH_USER = data.user;
@@ -1338,6 +1358,12 @@ const STATUS_COLORS = { pending: '#B5762A', approved: '#3C8A46', rejected: '#B53
 async function loadApprovalList(){
   const listEl = document.getElementById('approval-list');
   listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Memuat...</div>';
+
+  if(approvalFilter === 'requests'){
+    await loadUpgradeRequestsList();
+    return;
+  }
+
   let query = sb.from('profiles').select('id, email, name, status, disabled, created_at, is_superadmin').order('created_at', { ascending: false });
   if(approvalFilter !== 'all') query = query.eq('status', approvalFilter);
   const { data, error } = await query;
@@ -1376,6 +1402,50 @@ async function loadApprovalList(){
     </div>`;
   }).join('');
 }
+
+const UPGRADE_REQUEST_LABELS = { become_owner: 'Ajukan jadi Owner', extra_company: 'Ajukan Tambah Toko' };
+
+async function loadUpgradeRequestsList(){
+  const listEl = document.getElementById('approval-list');
+  const { data, error } = await sb.from('upgrade_requests')
+    .select('id, user_id, request_type, status, created_at, profiles(email, name)')
+    .order('created_at', { ascending: false });
+  if(error){ listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Gagal memuat: ' + error.message + '</div>'; return; }
+  if(!data || data.length === 0){
+    listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Belum ada permintaan.</div>';
+    return;
+  }
+  listEl.innerHTML = data.map(r => {
+    const email = r.profiles?.email || '-';
+    const name = r.profiles?.name;
+    const actions = r.status === 'pending'
+      ? `<button class="btn amber sm" onclick="decideUpgradeRequest('${r.id}','approved')">Setujui</button>
+         <button class="btn danger sm" onclick="decideUpgradeRequest('${r.id}','rejected')">Tolak</button>`
+      : '';
+    return `
+    <div class="approval-item">
+      <div>
+        <div class="aemail">${name ? name + ' &mdash; ' : ''}${email}</div>
+        <div class="adate">
+          <span style="font-weight:600;">${UPGRADE_REQUEST_LABELS[r.request_type] || r.request_type}</span>
+          &middot; <span style="color:${STATUS_COLORS[r.status]}; font-weight:600;">${STATUS_LABELS[r.status] || r.status}</span>
+          &middot; Diajukan: ${new Date(r.created_at).toLocaleString('id-ID')}
+        </div>
+      </div>
+      <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">
+        ${actions}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function decideUpgradeRequest(id, status){
+  const { error } = await sb.from('upgrade_requests').update({ status }).eq('id', id);
+  if(error){ showToast('Gagal: ' + error.message); return; }
+  showToast(status === 'approved' ? 'Permintaan disetujui' : 'Permintaan ditolak');
+  loadUpgradeRequestsList();
+}
+
 async function approveUser(id){
   const { error } = await sb.from('profiles').update({ status: 'approved' }).eq('id', id);
   if(error){ showToast('Gagal: ' + error.message); return; }
@@ -1414,18 +1484,87 @@ async function loadCompanyList(){
   if(error){ errEl.textContent = error.message; errEl.style.display='block'; return; }
   const listEl = document.getElementById('company-list');
   if(!data || data.length===0){
-    listEl.innerHTML = `<div style="font-size:13px; color:var(--ink-soft);">Belum ada perusahaan. Buat salah satu di bawah.</div>`;
+    listEl.innerHTML = `<div style="font-size:13px; color:var(--ink-soft);">Belum ada perusahaan.</div>`;
+  } else {
+    window._companyChoices = {};
+    listEl.innerHTML = data.map((m,i)=>{
+      window._companyChoices[i] = { id:m.companies.id, name:m.companies.name, role:m.role, memberName:m.name };
+      return `<div class="company-item" onclick="enterCompanyByChoice(${i})">
+        <div><div class="cname">${m.companies.name}</div><div class="crole">Peran: ${ROLE_LABELS[m.role] || m.role}</div></div>
+        <div>&rarr;</div>
+      </div>`;
+    }).join('');
+  }
+
+  await refreshCompanyCreationUI();
+}
+
+async function refreshCompanyCreationUI(){
+  const createSection = document.getElementById('create-company-section');
+  const quotaSection = document.getElementById('quota-full-section');
+  const karyawanSection = document.getElementById('karyawan-section');
+  createSection.style.display = 'none';
+  quotaSection.style.display = 'none';
+  karyawanSection.style.display = 'none';
+
+  const { data: profile, error: profErr } = await sb.from('profiles').select('account_type, company_quota').eq('id', AUTH_USER.id).maybeSingle();
+  if(profErr || !profile) return;
+
+  if(profile.account_type !== 'owner'){
+    karyawanSection.style.display = '';
+    await showRequestStatus('become_owner', 'become-owner-request-status', 'btn-request-become-owner');
     return;
   }
-  window._companyChoices = {};
-  listEl.innerHTML = data.map((m,i)=>{
-    window._companyChoices[i] = { id:m.companies.id, name:m.companies.name, role:m.role, memberName:m.name };
-    return `<div class="company-item" onclick="enterCompanyByChoice(${i})">
-      <div><div class="cname">${m.companies.name}</div><div class="crole">Peran: ${ROLE_LABELS[m.role] || m.role}</div></div>
-      <div>&rarr;</div>
-    </div>`;
-  }).join('');
+
+  const { count } = await sb.from('companies').select('id', { count:'exact', head:true }).eq('created_by', AUTH_USER.id);
+  if((count || 0) < profile.company_quota){
+    createSection.style.display = '';
+  } else {
+    quotaSection.style.display = '';
+    document.getElementById('quota-info').textContent = `${count}/${profile.company_quota} toko`;
+    await showRequestStatus('extra_company', 'extra-company-request-status', 'btn-request-extra-company');
+  }
 }
+
+async function showRequestStatus(requestType, statusElId, btnId){
+  const statusEl = document.getElementById(statusElId);
+  const btn = document.getElementById(btnId);
+  const { data } = await sb.from('upgrade_requests')
+    .select('status, created_at')
+    .eq('user_id', AUTH_USER.id)
+    .eq('request_type', requestType)
+    .order('created_at', { ascending:false })
+    .limit(1)
+    .maybeSingle();
+  if(data && data.status === 'pending'){
+    statusEl.textContent = 'Permintaan kamu sedang menunggu persetujuan pemilik aplikasi.';
+    btn.disabled = true;
+  } else if(data && data.status === 'rejected'){
+    statusEl.textContent = 'Permintaan sebelumnya ditolak. Kamu bisa mengajukan lagi.';
+    btn.disabled = false;
+  } else {
+    statusEl.textContent = '';
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('btn-request-become-owner').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-request-become-owner');
+  btn.disabled = true;
+  const { error } = await sb.from('upgrade_requests').insert({ user_id: AUTH_USER.id, request_type: 'become_owner' });
+  if(error){ showToast('Gagal mengajukan: ' + error.message); btn.disabled = false; return; }
+  showToast('Permintaan terkirim ke pemilik aplikasi');
+  await showRequestStatus('become_owner', 'become-owner-request-status', 'btn-request-become-owner');
+});
+document.getElementById('btn-request-extra-company').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-request-extra-company');
+  btn.disabled = true;
+  const { error } = await sb.from('upgrade_requests').insert({ user_id: AUTH_USER.id, request_type: 'extra_company' });
+  if(error){ showToast('Gagal mengajukan: ' + error.message); btn.disabled = false; return; }
+  showToast('Permintaan terkirim ke pemilik aplikasi');
+  await showRequestStatus('extra_company', 'extra-company-request-status', 'btn-request-extra-company');
+});
+
 function enterCompanyByChoice(i){
   const c = window._companyChoices[i];
   enterCompany(c.id, c.name, c.role, c.memberName);
@@ -2147,6 +2286,7 @@ document.getElementById('btn-checkout').addEventListener('click', ()=>{
   const trx = {
     id: uid(),
     date: new Date().toISOString(),
+    cashierName: (SESSION && SESSION.name) ? SESSION.name : '-',
     items: cart.map(i=>({name:i.name + (i.unitType==='karton' ? ' (Karton)' : i.unitType==='renceng' ? ' (Renceng)' : ''), qty:i.qty, sellPrice:i.sellPrice, buyPrice:i.buyPrice})),
     subtotal, discount,
     ppnPercent, ppnAmount,
@@ -2320,6 +2460,7 @@ function renderRiwayat(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${new Date(t.date).toLocaleString('id-ID')}</td>
+      <td>${t.cashierName || '-'}</td>
       <td style="max-width:260px;">${itemSummary}</td>
       <td style="color:${methodBadgeColor}; font-weight:600; font-size:12.5px;">${PAY_METHOD_LABELS[t.paymentMethod] || 'Tunai'}</td>
       <td class="num mono">${rupiah(t.total)}</td>
@@ -2340,11 +2481,11 @@ document.getElementById('btn-export-csv').addEventListener('click', ()=>{
     const d = t.date.slice(0,10);
     return (!from || d>=from) && (!to || d<=to);
   });
-  let csv = 'Tanggal,Item,Metode,Subtotal,Diskon,PPN (%),PPN (Rp),Total,Modal,Laba\n';
+  let csv = 'Tanggal,Kasir,Item,Metode,Subtotal,Diskon,PPN (%),PPN (Rp),Total,Modal,Laba\n';
   trxs.forEach(t=>{
     const itemSummary = t.items.map(i=>`${i.name} x${i.qty}`).join(' | ').replace(/,/g,';');
     const metode = PAY_METHOD_LABELS[t.paymentMethod] || 'Tunai';
-    csv += `${t.date},"${itemSummary}",${metode},${t.subtotal},${t.discount},${t.ppnPercent||0},${t.ppnAmount||0},${t.total},${t.totalModal},${t.profit}\n`;
+    csv += `${t.date},"${t.cashierName || '-'}","${itemSummary}",${metode},${t.subtotal},${t.discount},${t.ppnPercent||0},${t.ppnAmount||0},${t.total},${t.totalModal},${t.profit}\n`;
   });
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
@@ -2431,15 +2572,16 @@ document.getElementById('btn-export-pdf').addEventListener('click', ()=>{
     startY: nextY + 3,
     theme: 'striped',
     styles:{fontSize:8},
-    head: [['Tanggal','Item','Metode','Total','PPN','Modal','Laba']],
+    head: [['Tanggal','Kasir','Item','Metode','Total','PPN','Modal','Laba']],
     body: trxs.map(t=>[
       new Date(t.date).toLocaleString('id-ID'),
+      t.cashierName || '-',
       t.items.map(i=>`${i.name} x${i.qty}`).join(', '),
       PAY_METHOD_LABELS[t.paymentMethod] || 'Tunai',
       rupiah(t.total), t.ppnAmount > 0 ? rupiah(t.ppnAmount) : '—', rupiah(t.totalModal), rupiah(t.profit)
     ]),
     headStyles:{fillColor:[20,33,61]},
-    columnStyles:{1:{cellWidth:55}},
+    columnStyles:{2:{cellWidth:55}},
   });
 
   doc.save(`laporan-${from}_${to}.pdf`);
