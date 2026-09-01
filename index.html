@@ -517,19 +517,25 @@
       <div class="grid" style="grid-template-columns:1fr 1fr; margin-bottom:20px;">
         <div class="card">
           <h3 class="display" style="margin-top:0;">Grafik Penjualan</h3>
-          <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Jumlah barang terjual per hari, sesuai rentang tanggal yang dipilih di atas</div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Jumlah barang terjual per hari, dalam 7 hari terakhir</div>
           <div id="chart-sales" style="display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:10px; overflow-x:auto;"></div>
         </div>
         <div class="card">
           <h3 class="display" style="margin-top:0;">Grafik Pendapatan</h3>
-          <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Total pendapatan penjualan per hari, sesuai rentang tanggal yang dipilih di atas</div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Total pendapatan penjualan per hari, dalam 7 hari terakhir</div>
           <div id="chart-revenue" style="display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:10px; overflow-x:auto;"></div>
         </div>
       </div>
 
       <div class="card" style="margin-bottom:20px;">
-        <h3 class="display" style="margin-top:0;">Produk Terjual</h3>
-        <div style="overflow-x:auto;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <h3 class="display" style="margin:0;">Produk Terjual per Hari</h3>
+          <div class="field" style="margin-bottom:0;">
+            <label>Pilih Tanggal</label>
+            <input type="date" id="dash-date">
+          </div>
+        </div>
+        <div style="overflow-x:auto; margin-top:12px;">
           <table id="dash-sold-table">
             <thead><tr><th>Nama Produk</th><th class="num">Qty Terjual</th><th class="num">Pendapatan</th><th class="num">Laba</th></tr></thead>
             <tbody id="dash-sold-tbody"></tbody>
@@ -650,7 +656,7 @@
         <table id="produk-table">
           <thead>
             <tr>
-              <th>Barcode</th><th>Nama</th><th>Kategori</th><th class="num">Harga Beli</th>
+              <th>Barcode</th><th>Nama</th><th>Kategori</th><th>Satuan</th><th class="num">Harga Beli</th>
               <th class="num">Harga Jual</th><th class="num">Stok</th><th>Status</th><th></th>
             </tr>
           </thead>
@@ -1136,38 +1142,37 @@ document.getElementById('confirm-cancel').addEventListener('click', ()=>{
 });
 
 /* ================= DASHBOARD ================= */
+document.getElementById('dash-date').value = todayStr();
+document.getElementById('dash-date').addEventListener('change', renderDashboardSoldTable);
 
 function renderDashboard(){
-  const from = document.getElementById('lap-from').value;
-  const to = document.getElementById('lap-to').value;
-  const trxs = DB.transactions.filter(t=>{
-    const d = t.date.slice(0,10);
-    return (!from || d>=from) && (!to || d<=to);
-  });
+  const trxs = DB.transactions;
+  const today = todayStr();
+  const todayTrxs = trxs.filter(t=>t.date.slice(0,10) === today);
 
-  const qty = trxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
-  const revenue = trxs.reduce((s,t)=>s+t.total,0);
-  document.getElementById('d-qty-today').textContent = qty + ' pcs';
-  document.getElementById('d-revenue-today').textContent = rupiah(revenue);
-  document.getElementById('d-trx-today').textContent = trxs.length;
+  const qtyToday = todayTrxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
+  const revenueToday = todayTrxs.reduce((s,t)=>s+t.total,0);
+  document.getElementById('d-qty-today').textContent = qtyToday + ' pcs';
+  document.getElementById('d-revenue-today').textContent = rupiah(revenueToday);
+  document.getElementById('d-trx-today').textContent = todayTrxs.length;
 
-  renderTrendCharts(trxs, from, to);
-  renderDashboardSoldTable(trxs);
+  renderTrendCharts(trxs);
+  renderDashboardSoldTable();
   renderLowStock();
 }
 
-function dateRangeArray(from, to){
-  if(!from || !to) return [todayStr()];
+function lastNDays(n){
   const arr = [];
-  const start = new Date(from), end = new Date(to);
-  for(let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
+  for(let i=n-1; i>=0; i--){
+    const d = new Date();
+    d.setDate(d.getDate()-i);
     arr.push(d.toISOString().slice(0,10));
   }
-  return arr.length ? arr.slice(-31) : [todayStr()]; // batasi maksimal 31 titik agar grafik tetap terbaca
+  return arr;
 }
 
-function renderTrendCharts(trxs, from, to){
-  const days = dateRangeArray(from, to);
+function renderTrendCharts(trxs){
+  const days = lastNDays(7);
   const qtyByDay = {}, revByDay = {};
   days.forEach(d=>{ qtyByDay[d]=0; revByDay[d]=0; });
   trxs.forEach(t=>{
@@ -1186,7 +1191,7 @@ function renderTrendCharts(trxs, from, to){
       const val = dataObj[d];
       const h = Math.max((val/maxVal)*110, val>0?4:2);
       const col = document.createElement('div');
-      col.style.cssText = 'flex:1; min-width:28px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;';
+      col.style.cssText = 'flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;';
       col.innerHTML = `
         <div class="mono" style="font-size:9.5px; margin-bottom:4px; color:var(--ink-soft);">${formatter(val)}</div>
         <div style="width:70%; height:${h}px; background:${val>0?color:'var(--paper-alt)'}; border-radius:5px 5px 0 0;"></div>
@@ -1199,15 +1204,9 @@ function renderTrendCharts(trxs, from, to){
   drawBars('chart-revenue', revByDay, 'var(--green)', v=>rupiah(v).replace('Rp ',''));
 }
 
-function renderDashboardSoldTable(trxs){
-  if(!trxs){
-    const from = document.getElementById('lap-from').value;
-    const to = document.getElementById('lap-to').value;
-    trxs = DB.transactions.filter(t=>{
-      const d = t.date.slice(0,10);
-      return (!from || d>=from) && (!to || d<=to);
-    });
-  }
+function renderDashboardSoldTable(){
+  const date = document.getElementById('dash-date').value || todayStr();
+  const trxs = DB.transactions.filter(t=>t.date.slice(0,10) === date);
   const byProduct = {};
   trxs.forEach(t=>{
     t.items.forEach(item=>{
@@ -2240,34 +2239,44 @@ function renderProducts(){
   });
   tbody.innerHTML = '';
   document.getElementById('produk-empty').style.display = products.length ? 'none' : 'block';
-  const UNIT_COLORS = {karton:'var(--green)', renceng:'var(--amber-dark)', kilo:'#2E7D9A', halfKilo:'#7A5CC9', quarterKilo:'#C9578A'};
-  const UNIT_ICONS = {karton:'📦', renceng:'🧵', kilo:'⚖️', halfKilo:'⚖️', quarterKilo:'⚖️'};
+
   products.forEach(p=>{
-    const low = p.stock <= p.minStock;
-    const extraInfo = EXTRA_UNITS.map(u=>{
+    // baris satuan: Eceran selalu ada, lalu semua EXTRA_UNITS (Karton/Renceng/1 Kg/½ Kg/¼ Kg)
+    const rows = [{ label:'Eceran', enabled:true, barcode:p.barcode, buy:p.buyPrice, sell:p.sellPrice, stock:p.stock }];
+    EXTRA_UNITS.forEach(u=>{
       const dbKey = EXTRA_UNIT_DBKEY[u.key];
-      if(!p[dbKey+'Enabled']) return '';
-      const isiText = u.hasIsi ? `isi ${p[dbKey+'Isi']} · ` : '';
-      return `<div style="font-size:11px; color:${UNIT_COLORS[dbKey]}; margin-top:2px;">${UNIT_ICONS[dbKey]} ${u.label}: ${isiText}${rupiah(p[dbKey+'SellPrice'])} · Stok ${p[dbKey+'Stock']||0}</div>`;
-    }).join('');
-    const barcodeSubInfo = EXTRA_UNITS.map(u=>{
-      const dbKey = EXTRA_UNIT_DBKEY[u.key];
-      return p[dbKey+'Enabled'] ? `<div style="font-size:10.5px; color:var(--ink-soft);">${u.label}: ${p[dbKey+'Barcode']}</div>` : '';
-    }).join('');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="mono">${p.barcode}${barcodeSubInfo}</td>
-      <td>${p.name}<div style="font-size:11px;color:var(--ink-soft);">${p.category} · ${p.unit}</div>${extraInfo}</td>
-      <td>${p.category}</td>
-      <td class="num mono">${rupiah(p.buyPrice)}</td>
-      <td class="num mono">${rupiah(p.sellPrice)}</td>
-      <td class="num mono ${low?'lowstock':''}">${p.stock}</td>
-      <td>${low ? '<span class="badge low">Stok Menipis</span>' : '<span class="badge ok">Aman</span>'}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn outline sm" onclick="editProduct('${p.id}')">Edit</button>
-        <button class="btn danger sm" onclick="deleteProduct('${p.id}')">Hapus</button>
-      </td>`;
-    tbody.appendChild(tr);
+      const enabled = !!p[dbKey+'Enabled'];
+      rows.push({
+        label: u.label, enabled,
+        barcode: enabled ? p[dbKey+'Barcode'] : '-',
+        buy: enabled ? p[dbKey+'BuyPrice'] : null,
+        sell: enabled ? p[dbKey+'SellPrice'] : null,
+        stock: enabled ? (p[dbKey+'Stock']||0) : null,
+      });
+    });
+
+    rows.forEach((r, idx)=>{
+      const low = r.enabled && r.stock <= p.minStock;
+      const tr = document.createElement('tr');
+      let cells = `<td class="mono">${r.enabled ? (r.barcode || '-') : '-'}</td>`;
+      if(idx === 0){
+        cells += `<td rowspan="${rows.length}">${p.name}</td>`;
+        cells += `<td rowspan="${rows.length}">${p.category}</td>`;
+      }
+      cells += `<td>${r.label}</td>`;
+      cells += `<td class="num mono">${r.enabled ? rupiah(r.buy) : '-'}</td>`;
+      cells += `<td class="num mono">${r.enabled ? rupiah(r.sell) : '-'}</td>`;
+      cells += `<td class="num mono ${low?'lowstock':''}">${r.enabled ? r.stock : '-'}</td>`;
+      cells += `<td>${!r.enabled ? '-' : (low ? '<span class="badge low">Menipis</span>' : '<span class="badge ok">Aman</span>')}</td>`;
+      if(idx === 0){
+        cells += `<td rowspan="${rows.length}" style="white-space:nowrap; vertical-align:top;">
+          <button class="btn outline sm" onclick="editProduct('${p.id}')">Edit</button>
+          <button class="btn danger sm" onclick="deleteProduct('${p.id}')">Hapus</button>
+        </td>`;
+      }
+      tr.innerHTML = cells;
+      tbody.appendChild(tr);
+    });
   });
 }
 document.getElementById('produk-search').addEventListener('input', renderProducts);
@@ -2702,7 +2711,7 @@ function voidTransaction(id){
 /* ================= LAPORAN ================= */
 document.getElementById('lap-from').value = todayStr();
 document.getElementById('lap-to').value = todayStr();
-document.getElementById('btn-lap-filter').addEventListener('click', ()=>{ renderReport(); renderDashboard(); });
+document.getElementById('btn-lap-filter').addEventListener('click', renderReport);
 
 document.getElementById('riw-from').value = todayStr();
 document.getElementById('riw-to').value = todayStr();
@@ -2795,15 +2804,9 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   const totalModal = trxs.reduce((s,t)=>s+t.totalModal,0);
   const totalLaba = trxs.reduce((s,t)=>s+t.profit,0);
   const totalPpn = trxs.reduce((s,t)=>s+(t.ppnAmount||0),0);
-  const qty = trxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
 
-  let csv = 'STATISTIK RINGKAS\n';
+  let csv = 'RINGKASAN DASHBOARD\n';
   csv += `Periode,${from || '-'} s/d ${to || '-'}\n`;
-  csv += `Total Terjual,${qty} pcs\n`;
-  csv += `Total Pendapatan,${trxs.reduce((s,t)=>s+t.total,0)}\n`;
-  csv += `Jumlah Transaksi,${trxs.length}\n\n`;
-
-  csv += 'RINGKASAN KEUANGAN\n';
   csv += `Total Penjualan,${totalPenjualan}\n`;
   csv += `Total Modal (HPP),${totalModal}\n`;
   csv += `Laba / Rugi,${totalLaba}\n`;
@@ -2814,29 +2817,6 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   const byDay = {};
   trxs.forEach(t=>{ const d = t.date.slice(0,10); byDay[d] = (byDay[d]||0) + t.profit; });
   Object.keys(byDay).sort().forEach(d=>{ csv += `${d},${byDay[d]}\n`; });
-  csv += '\n';
-
-  csv += 'PRODUK TERJUAL\n';
-  csv += 'Nama Produk,Qty Terjual,Pendapatan,Laba\n';
-  const byProduct = {};
-  trxs.forEach(t=>{
-    t.items.forEach(item=>{
-      if(!byProduct[item.name]) byProduct[item.name] = {qty:0, revenue:0, modal:0};
-      byProduct[item.name].qty += item.qty;
-      byProduct[item.name].revenue += item.sellPrice * item.qty;
-      byProduct[item.name].modal += item.buyPrice * item.qty;
-    });
-  });
-  Object.entries(byProduct).sort((a,b)=>b[1].qty-a[1].qty).forEach(([pname, d])=>{
-    csv += `"${pname}",${d.qty},${d.revenue},${d.revenue-d.modal}\n`;
-  });
-  csv += '\n';
-
-  csv += 'STOK MENIPIS (kurang dari 10, kondisi saat ini)\n';
-  csv += 'Nama Produk,Kategori,Sisa Stok\n';
-  DB.products.filter(p=>p.stock < 10).sort((a,b)=>a.stock-b.stock).forEach(p=>{
-    csv += `"${p.name}","${p.category}",${p.stock}\n`;
-  });
   csv += '\n';
 
   csv += 'HARGA BELI & HARGA JUAL PER BARANG\n';
@@ -2917,23 +2897,9 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   doc.setTextColor(0);
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
-  doc.text('Statistik Ringkas', 14, 44);
-  const qty = trxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
+  doc.text('Ringkasan', 14, 44);
   doc.autoTable({
     startY: 47,
-    theme: 'grid',
-    styles:{fontSize:9},
-    head: [['Total Terjual','Total Pendapatan','Jumlah Transaksi']],
-    body: [[ qty + ' pcs', rupiah(trxs.reduce((s,t)=>s+t.total,0)), String(trxs.length) ]],
-    headStyles:{fillColor:[20,33,61]},
-  });
-
-  let nextY = doc.lastAutoTable.finalY + 10;
-  doc.setFont('helvetica','bold');
-  doc.setFontSize(11);
-  doc.text('Ringkasan Keuangan', 14, nextY);
-  doc.autoTable({
-    startY: nextY + 3,
     theme: 'grid',
     styles:{fontSize:9},
     head: [['Total Penjualan','Total Modal (HPP)','Laba / Rugi','Total PPN Terkumpul']],
@@ -2945,8 +2911,7 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   trxs.forEach(t=>{ const d = t.date.slice(0,10); byDay[d] = (byDay[d]||0) + t.profit; });
   const days = Object.keys(byDay).sort();
 
-  nextY = doc.lastAutoTable.finalY + 10;
-  if(nextY > 250){ doc.addPage(); nextY = 20; }
+  let nextY = doc.lastAutoTable.finalY + 10;
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
   doc.text('Grafik Laba per Hari', 14, nextY);
@@ -2956,45 +2921,6 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
     styles:{fontSize:8},
     head: [['Tanggal','Laba / Rugi']],
     body: days.length ? days.map(d=>[d, rupiah(byDay[d])]) : [['-','Tidak ada data']],
-    headStyles:{fillColor:[20,33,61]},
-  });
-
-  nextY = doc.lastAutoTable.finalY + 10;
-  if(nextY > 250){ doc.addPage(); nextY = 20; }
-  doc.setFont('helvetica','bold');
-  doc.setFontSize(11);
-  doc.text('Produk Terjual', 14, nextY);
-  const byProduct = {};
-  trxs.forEach(t=>{
-    t.items.forEach(item=>{
-      if(!byProduct[item.name]) byProduct[item.name] = {qty:0, revenue:0, modal:0};
-      byProduct[item.name].qty += item.qty;
-      byProduct[item.name].revenue += item.sellPrice * item.qty;
-      byProduct[item.name].modal += item.buyPrice * item.qty;
-    });
-  });
-  const soldRows = Object.entries(byProduct).sort((a,b)=>b[1].qty-a[1].qty);
-  doc.autoTable({
-    startY: nextY + 3,
-    theme: 'striped',
-    styles:{fontSize:8},
-    head: [['Nama Produk','Qty Terjual','Pendapatan','Laba']],
-    body: soldRows.length ? soldRows.map(([pname,d])=>[pname, String(d.qty), rupiah(d.revenue), rupiah(d.revenue-d.modal)]) : [['-','-','-','-']],
-    headStyles:{fillColor:[20,33,61]},
-  });
-
-  nextY = doc.lastAutoTable.finalY + 10;
-  if(nextY > 250){ doc.addPage(); nextY = 20; }
-  doc.setFont('helvetica','bold');
-  doc.setFontSize(11);
-  doc.text('Stok Menipis (kondisi saat ini)', 14, nextY);
-  const lowStockRows = DB.products.filter(p=>p.stock < 10).sort((a,b)=>a.stock-b.stock);
-  doc.autoTable({
-    startY: nextY + 3,
-    theme: 'striped',
-    styles:{fontSize:8},
-    head: [['Nama Produk','Kategori','Sisa Stok']],
-    body: lowStockRows.length ? lowStockRows.map(p=>[p.name, p.category, String(p.stock)]) : [['-','Semua stok aman','-']],
     headStyles:{fillColor:[20,33,61]},
   });
 
