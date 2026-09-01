@@ -1488,6 +1488,23 @@ async function loadApprovalList(){
     return;
   }
 
+  // Ambil daftar toko yang dimiliki (created_by) untuk semua profil di daftar ini
+  const { data: ownedCompanies } = await sb.from('companies').select('id, name, created_by');
+  // Ambil daftar keanggotaan toko (untuk karyawan) beserta nama tokonya
+  const { data: memberships } = await sb.from('company_members').select('user_id, companies(name)');
+
+  const ownedMap = {}; // user_id -> [nama toko]
+  (ownedCompanies||[]).forEach(c=>{
+    if(!ownedMap[c.created_by]) ownedMap[c.created_by] = [];
+    ownedMap[c.created_by].push(c.name);
+  });
+  const memberMap = {}; // user_id -> [nama toko]
+  (memberships||[]).forEach(m=>{
+    if(!m.companies) return;
+    if(!memberMap[m.user_id]) memberMap[m.user_id] = [];
+    memberMap[m.user_id].push(m.companies.name);
+  });
+
   function renderCard(u){
     const isSelf = u.id === AUTH_USER.id;
     let actions = '';
@@ -1502,6 +1519,14 @@ async function loadApprovalList(){
     if(!isSelf && !u.is_superadmin){
       actions += `<button class="btn danger sm" onclick="deleteAccount('${u.id}','${(u.email||'').replace(/'/g,"\\'")}')">Hapus</button>`;
     }
+    let storeInfo = '';
+    if(u.account_type === 'owner'){
+      const stores = ownedMap[u.id] || [];
+      storeInfo = `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">Memegang ${stores.length} toko${stores.length ? ': ' + stores.join(', ') : ''}</div>`;
+    } else {
+      const stores = memberMap[u.id] || [];
+      storeInfo = `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">${stores.length ? 'Karyawan di toko: ' + stores.join(', ') : 'Belum bergabung ke toko manapun'}</div>`;
+    }
     return `
     <div class="approval-item">
       <div>
@@ -1511,6 +1536,7 @@ async function loadApprovalList(){
           ${u.disabled ? ' &middot; <span style="color:#B5342A; font-weight:600;">Nonaktif</span>' : ''}
           &middot; Daftar: ${new Date(u.created_at).toLocaleString('id-ID')}
         </div>
+        ${storeInfo}
       </div>
       <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">
         ${actions}
