@@ -509,9 +509,9 @@
       </div>
 
       <div class="stat-row" id="dash-stat-row">
-        <div class="stat"><div class="label">Terjual</div><div class="value mono" id="d-qty-today">0 pcs</div></div>
-        <div class="stat"><div class="label">Pendapatan</div><div class="value mono" id="d-revenue-today">Rp 0</div></div>
-        <div class="stat"><div class="label">Transaksi</div><div class="value mono" id="d-trx-today">0</div></div>
+        <div class="stat"><div class="label">Terjual Per Hari Ini</div><div class="value mono" id="d-qty-today">0 pcs</div></div>
+        <div class="stat"><div class="label">Pendapatan Per Hari Ini</div><div class="value mono" id="d-revenue-today">Rp 0</div></div>
+        <div class="stat"><div class="label">Transaksi Per Hari Ini</div><div class="value mono" id="d-trx-today">0</div></div>
       </div>
 
       <div class="grid" style="grid-template-columns:1fr 1fr; margin-bottom:20px;">
@@ -2806,18 +2806,75 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   const totalLaba = trxs.reduce((s,t)=>s+t.profit,0);
   const totalPpn = trxs.reduce((s,t)=>s+(t.ppnAmount||0),0);
 
-  let csv = 'RINGKASAN DASHBOARD\n';
+  // Statistik hari ini (tidak dipengaruhi filter tanggal)
+  const today = todayStr();
+  const todayTrxs = DB.transactions.filter(t=>t.date.slice(0,10) === today);
+  const qtyToday = todayTrxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
+  const revenueToday = todayTrxs.reduce((s,t)=>s+t.total,0);
+
+  let csv = 'STATISTIK PER HARI INI (' + today + ')\n';
+  csv += `Terjual,${qtyToday} pcs\n`;
+  csv += `Pendapatan,${revenueToday}\n`;
+  csv += `Transaksi,${todayTrxs.length}\n\n`;
+
+  // Grafik Penjualan & Pendapatan (7 hari terakhir, tidak dipengaruhi filter tanggal)
+  const days7 = lastNDays(7);
+  const qtyByDay7 = {}, revByDay7 = {};
+  days7.forEach(d=>{ qtyByDay7[d]=0; revByDay7[d]=0; });
+  DB.transactions.forEach(t=>{
+    const d = t.date.slice(0,10);
+    if(d in qtyByDay7){
+      qtyByDay7[d] += t.items.reduce((a,i)=>a+i.qty,0);
+      revByDay7[d] += t.total;
+    }
+  });
+  csv += 'GRAFIK PENJUALAN (7 HARI TERAKHIR)\n';
+  csv += 'Tanggal,Qty Terjual\n';
+  days7.forEach(d=>{ csv += `${d},${qtyByDay7[d]}\n`; });
+  csv += '\n';
+  csv += 'GRAFIK PENDAPATAN (7 HARI TERAKHIR)\n';
+  csv += 'Tanggal,Pendapatan\n';
+  days7.forEach(d=>{ csv += `${d},${revByDay7[d]}\n`; });
+  csv += '\n';
+
+  csv += 'RINGKASAN DASHBOARD (sesuai filter tanggal)\n';
   csv += `Periode,${from || '-'} s/d ${to || '-'}\n`;
   csv += `Total Penjualan,${totalPenjualan}\n`;
   csv += `Total Modal (HPP),${totalModal}\n`;
   csv += `Laba / Rugi,${totalLaba}\n`;
   csv += `Total PPN Terkumpul,${totalPpn}\n\n`;
 
-  csv += 'GRAFIK LABA PER HARI\n';
+  csv += 'GRAFIK LABA PER HARI (sesuai filter tanggal)\n';
   csv += 'Tanggal,Laba/Rugi\n';
   const byDay = {};
   trxs.forEach(t=>{ const d = t.date.slice(0,10); byDay[d] = (byDay[d]||0) + t.profit; });
   Object.keys(byDay).sort().forEach(d=>{ csv += `${d},${byDay[d]}\n`; });
+  csv += '\n';
+
+  // Produk Terjual per Hari (sesuai tanggal terpilih di kartu Produk Terjual)
+  const dashDate = document.getElementById('dash-date').value || todayStr();
+  const dashDateTrxs = DB.transactions.filter(t=>t.date.slice(0,10) === dashDate);
+  const byProductDay = {};
+  dashDateTrxs.forEach(t=>{
+    t.items.forEach(item=>{
+      if(!byProductDay[item.name]) byProductDay[item.name] = {qty:0, revenue:0, modal:0};
+      byProductDay[item.name].qty += item.qty;
+      byProductDay[item.name].revenue += item.sellPrice * item.qty;
+      byProductDay[item.name].modal += item.buyPrice * item.qty;
+    });
+  });
+  csv += `PRODUK TERJUAL PER HARI (${dashDate})\n`;
+  csv += 'Nama Produk,Qty Terjual,Pendapatan,Laba\n';
+  Object.entries(byProductDay).sort((a,b)=>b[1].qty-a[1].qty).forEach(([pname, d])=>{
+    csv += `"${pname}",${d.qty},${d.revenue},${d.revenue-d.modal}\n`;
+  });
+  csv += '\n';
+
+  csv += 'STOK MENIPIS (kurang dari 10, kondisi saat ini)\n';
+  csv += 'Nama Produk,Kategori,Sisa Stok\n';
+  DB.products.filter(p=>p.stock < 10).sort((a,b)=>a.stock-b.stock).forEach(p=>{
+    csv += `"${p.name}","${p.category}",${p.stock}\n`;
+  });
   csv += '\n';
 
   csv += 'HARGA BELI & HARGA JUAL PER BARANG\n';
@@ -2898,9 +2955,51 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   doc.setTextColor(0);
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
-  doc.text('Ringkasan', 14, 44);
+  doc.text('Statistik Per Hari Ini', 14, 44);
+  const today = todayStr();
+  const todayTrxs = DB.transactions.filter(t=>t.date.slice(0,10) === today);
+  const qtyToday = todayTrxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
+  const revenueToday = todayTrxs.reduce((s,t)=>s+t.total,0);
   doc.autoTable({
     startY: 47,
+    theme: 'grid',
+    styles:{fontSize:9},
+    head: [['Tanggal','Terjual','Pendapatan','Transaksi']],
+    body: [[ today, qtyToday + ' pcs', rupiah(revenueToday), String(todayTrxs.length) ]],
+    headStyles:{fillColor:[20,33,61]},
+  });
+
+  const days7 = lastNDays(7);
+  const qtyByDay7 = {}, revByDay7 = {};
+  days7.forEach(d=>{ qtyByDay7[d]=0; revByDay7[d]=0; });
+  DB.transactions.forEach(t=>{
+    const d = t.date.slice(0,10);
+    if(d in qtyByDay7){
+      qtyByDay7[d] += t.items.reduce((a,i)=>a+i.qty,0);
+      revByDay7[d] += t.total;
+    }
+  });
+
+  let nextY = doc.lastAutoTable.finalY + 10;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.text('Grafik Penjualan & Pendapatan (7 Hari Terakhir)', 14, nextY);
+  doc.autoTable({
+    startY: nextY + 3,
+    theme: 'striped',
+    styles:{fontSize:8},
+    head: [['Tanggal','Qty Terjual','Pendapatan']],
+    body: days7.map(d=>[d, String(qtyByDay7[d]), rupiah(revByDay7[d])]),
+    headStyles:{fillColor:[20,33,61]},
+  });
+
+  nextY = doc.lastAutoTable.finalY + 10;
+  if(nextY > 250){ doc.addPage(); nextY = 20; }
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.text('Ringkasan (sesuai filter tanggal)', 14, nextY);
+  doc.autoTable({
+    startY: nextY + 3,
     theme: 'grid',
     styles:{fontSize:9},
     head: [['Total Penjualan','Total Modal (HPP)','Laba / Rugi','Total PPN Terkumpul']],
@@ -2912,16 +3011,59 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   trxs.forEach(t=>{ const d = t.date.slice(0,10); byDay[d] = (byDay[d]||0) + t.profit; });
   const days = Object.keys(byDay).sort();
 
-  let nextY = doc.lastAutoTable.finalY + 10;
+  nextY = doc.lastAutoTable.finalY + 10;
+  if(nextY > 250){ doc.addPage(); nextY = 20; }
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
-  doc.text('Grafik Laba per Hari', 14, nextY);
+  doc.text('Grafik Laba per Hari (sesuai filter tanggal)', 14, nextY);
   doc.autoTable({
     startY: nextY + 3,
     theme: 'striped',
     styles:{fontSize:8},
     head: [['Tanggal','Laba / Rugi']],
     body: days.length ? days.map(d=>[d, rupiah(byDay[d])]) : [['-','Tidak ada data']],
+    headStyles:{fillColor:[20,33,61]},
+  });
+
+  const dashDate = document.getElementById('dash-date').value || todayStr();
+  const dashDateTrxs = DB.transactions.filter(t=>t.date.slice(0,10) === dashDate);
+  const byProductDay = {};
+  dashDateTrxs.forEach(t=>{
+    t.items.forEach(item=>{
+      if(!byProductDay[item.name]) byProductDay[item.name] = {qty:0, revenue:0, modal:0};
+      byProductDay[item.name].qty += item.qty;
+      byProductDay[item.name].revenue += item.sellPrice * item.qty;
+      byProductDay[item.name].modal += item.buyPrice * item.qty;
+    });
+  });
+  const soldRows = Object.entries(byProductDay).sort((a,b)=>b[1].qty-a[1].qty);
+
+  nextY = doc.lastAutoTable.finalY + 10;
+  if(nextY > 250){ doc.addPage(); nextY = 20; }
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.text(`Produk Terjual per Hari (${dashDate})`, 14, nextY);
+  doc.autoTable({
+    startY: nextY + 3,
+    theme: 'striped',
+    styles:{fontSize:8},
+    head: [['Nama Produk','Qty Terjual','Pendapatan','Laba']],
+    body: soldRows.length ? soldRows.map(([pname,d])=>[pname, String(d.qty), rupiah(d.revenue), rupiah(d.revenue-d.modal)]) : [['-','-','-','-']],
+    headStyles:{fillColor:[20,33,61]},
+  });
+
+  const lowStockRows = DB.products.filter(p=>p.stock < 10).sort((a,b)=>a.stock-b.stock);
+  nextY = doc.lastAutoTable.finalY + 10;
+  if(nextY > 250){ doc.addPage(); nextY = 20; }
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.text('Stok Menipis (kondisi saat ini)', 14, nextY);
+  doc.autoTable({
+    startY: nextY + 3,
+    theme: 'striped',
+    styles:{fontSize:8},
+    head: [['Nama Produk','Kategori','Sisa Stok']],
+    body: lowStockRows.length ? lowStockRows.map(p=>[p.name, p.category, String(p.stock)]) : [['-','Semua stok aman','-']],
     headStyles:{fillColor:[20,33,61]},
   });
 
