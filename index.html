@@ -431,11 +431,10 @@
     <h1>Kelola Pengguna</h1>
     <div class="sub">Semua orang yang pernah mendaftar ke aplikasi ini</div>
     <div style="display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;">
-      <button class="btn outline sm approval-filter-btn active" data-filter="pending">Menunggu</button>
+      <button class="btn outline sm approval-filter-btn active" data-filter="requests">Permintaan</button>
       <button class="btn outline sm approval-filter-btn" data-filter="approved">Disetujui</button>
       <button class="btn outline sm approval-filter-btn" data-filter="rejected">Ditolak</button>
       <button class="btn outline sm approval-filter-btn" data-filter="all">Semua</button>
-      <button class="btn outline sm approval-filter-btn" data-filter="requests">Permintaan</button>
     </div>
     <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; overflow-y:auto;"></div>
     <div style="text-align:center; margin-top:8px; font-size:13px;">
@@ -548,7 +547,7 @@
         <h3 class="display" style="margin-top:0; color:var(--rust);">⚠ Stok Menipis (kurang dari 10)</h3>
         <div style="font-size:11.5px; color:var(--ink-soft); margin:-8px 0 12px 0;">Menampilkan stok saat ini secara langsung (tidak dipengaruhi oleh filter tanggal di atas).</div>
         <table id="dash-lowstock-table">
-          <thead><tr><th>Nama Produk</th><th>Kategori</th><th class="num">Sisa Stok</th><th></th></tr></thead>
+          <thead><tr><th>Nama Produk</th><th>Kategori</th><th>Satuan</th><th class="num">Sisa Stok</th><th></th></tr></thead>
           <tbody id="dash-lowstock-tbody"></tbody>
         </table>
         <div id="dash-lowstock-empty" class="empty-state" style="display:none;">Semua stok barang masih aman (10 atau lebih).</div>
@@ -1233,16 +1232,27 @@ function renderDashboardSoldTable(){
 }
 
 function renderLowStock(){
-  const lowItems = DB.products.filter(p=>p.stock < 10).sort((a,b)=>a.stock-b.stock);
+  const rows = [];
+  DB.products.forEach(p=>{
+    if(p.stock < 10) rows.push({name:p.name, category:p.category, unit:'Eceran', stock:p.stock});
+    EXTRA_UNITS.forEach(u=>{
+      const dbKey = EXTRA_UNIT_DBKEY[u.key];
+      if(p[dbKey+'Enabled'] && (p[dbKey+'Stock']||0) < 10){
+        rows.push({name:p.name, category:p.category, unit:u.label, stock:p[dbKey+'Stock']||0});
+      }
+    });
+  });
+  rows.sort((a,b)=>a.stock-b.stock);
   const tbody = document.getElementById('dash-lowstock-tbody');
   tbody.innerHTML = '';
-  document.getElementById('dash-lowstock-empty').style.display = lowItems.length ? 'none' : 'block';
-  lowItems.forEach(p=>{
+  document.getElementById('dash-lowstock-empty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(r=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${p.name}</td>
-      <td>${p.category}</td>
-      <td class="num mono lowstock">${p.stock}</td>
+      <td>${r.name}</td>
+      <td>${r.category}</td>
+      <td>${r.unit}</td>
+      <td class="num mono lowstock">${r.stock}</td>
       <td><span class="badge low">Stok Menipis</span></td>`;
     tbody.appendChild(tr);
   });
@@ -1446,7 +1456,7 @@ document.getElementById('btn-rejected-logout').addEventListener('click', async (
 });
 
 /* ---- Panel Kelola Pengguna (khusus pemilik/superadmin) ---- */
-let approvalFilter = 'pending';
+let approvalFilter = 'requests';
 document.getElementById('btn-open-approvals').addEventListener('click', async (e)=>{
   e.preventDefault();
   document.getElementById('company-screen').classList.add('app-hidden');
@@ -1544,8 +1554,35 @@ async function loadApprovalList(){
     </div>`;
   }
 
+  // Ambil permintaan yang sudah diputuskan (approved/rejected) agar muncul di tab Disetujui/Ditolak/Semua
+  let decidedRequests = [];
+  if(approvalFilter !== 'pending'){
+    let reqQuery = sb.from('upgrade_requests').select('id, user_id, request_type, status, created_at, profiles(email, name, account_type)').order('created_at', { ascending:false });
+    if(approvalFilter === 'all') reqQuery = reqQuery.in('status', ['approved','rejected']);
+    else reqQuery = reqQuery.eq('status', approvalFilter);
+    const { data: reqData } = await reqQuery;
+    decidedRequests = reqData || [];
+  }
+  function renderRequestCard(r){
+    const email = r.profiles?.email || '-';
+    const name = r.profiles?.name;
+    return `
+    <div class="approval-item" style="background:var(--paper-alt);">
+      <div>
+        <div class="aemail">🔔 ${name ? name + ' &mdash; ' : ''}${email}</div>
+        <div class="adate">
+          Permintaan: <span style="font-weight:600;">${UPGRADE_REQUEST_LABELS[r.request_type] || r.request_type}</span>
+          &middot; <span style="color:${STATUS_COLORS[r.status]}; font-weight:600;">${STATUS_LABELS[r.status] || r.status}</span>
+          &middot; Diajukan: ${new Date(r.created_at).toLocaleString('id-ID')}
+        </div>
+      </div>
+    </div>`;
+  }
+
   const owners = data.filter(u => u.account_type === 'owner');
   const karyawan = data.filter(u => u.account_type !== 'owner');
+  const ownerRequests = decidedRequests.filter(r => r.profiles?.account_type === 'owner').map(renderRequestCard).join('');
+  const karyawanRequests = decidedRequests.filter(r => r.profiles?.account_type !== 'owner').map(renderRequestCard).join('');
 
   listEl.innerHTML = `
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;">
@@ -1553,12 +1590,14 @@ async function loadApprovalList(){
         <h3 class="display" style="margin:0 0 10px 0; font-size:16px;">Owner (${owners.length})</h3>
         <div style="display:flex; flex-direction:column; gap:10px;">
           ${owners.length ? owners.map(renderCard).join('') : '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada.</div>'}
+          ${ownerRequests}
         </div>
       </div>
       <div>
         <h3 class="display" style="margin:0 0 10px 0; font-size:16px;">Karyawan (${karyawan.length})</h3>
         <div style="display:flex; flex-direction:column; gap:10px;">
           ${karyawan.length ? karyawan.map(renderCard).join('') : '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada.</div>'}
+          ${karyawanRequests}
         </div>
       </div>
     </div>`;
@@ -1570,10 +1609,11 @@ async function loadUpgradeRequestsList(){
   const listEl = document.getElementById('approval-list');
   const { data, error } = await sb.from('upgrade_requests')
     .select('id, user_id, request_type, status, created_at, profiles(email, name)')
+    .eq('status', 'pending')
     .order('created_at', { ascending: false });
   if(error){ listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Gagal memuat: ' + error.message + '</div>'; return; }
   if(!data || data.length === 0){
-    listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Belum ada permintaan.</div>';
+    listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Tidak ada permintaan yang menunggu.</div>';
     return;
   }
   listEl.innerHTML = data.map(r => {
@@ -2820,6 +2860,20 @@ function renderReport(){
   }
 }
 
+function getLowStockRows(){
+  const rows = [];
+  DB.products.forEach(p=>{
+    if(p.stock < 10) rows.push({name:p.name, category:p.category, unit:'Eceran', stock:p.stock});
+    EXTRA_UNITS.forEach(u=>{
+      const dbKey = EXTRA_UNIT_DBKEY[u.key];
+      if(p[dbKey+'Enabled'] && (p[dbKey+'Stock']||0) < 10){
+        rows.push({name:p.name, category:p.category, unit:u.label, stock:p[dbKey+'Stock']||0});
+      }
+    });
+  });
+  return rows.sort((a,b)=>a.stock-b.stock);
+}
+
 document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   const from = document.getElementById('lap-from').value;
   const to = document.getElementById('lap-to').value;
@@ -2897,9 +2951,9 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   csv += '\n';
 
   csv += 'STOK MENIPIS (kurang dari 10, kondisi saat ini)\n';
-  csv += 'Nama Produk,Kategori,Sisa Stok\n';
-  DB.products.filter(p=>p.stock < 10).sort((a,b)=>a.stock-b.stock).forEach(p=>{
-    csv += `"${p.name}","${p.category}",${p.stock}\n`;
+  csv += 'Nama Produk,Kategori,Satuan,Sisa Stok\n';
+  getLowStockRows().forEach(r=>{
+    csv += `"${r.name}","${r.category}","${r.unit}",${r.stock}\n`;
   });
   csv += '\n';
 
@@ -3078,7 +3132,7 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
     headStyles:{fillColor:[20,33,61]},
   });
 
-  const lowStockRows = DB.products.filter(p=>p.stock < 10).sort((a,b)=>a.stock-b.stock);
+  const lowStockRows = getLowStockRows();
   nextY = doc.lastAutoTable.finalY + 10;
   if(nextY > 250){ doc.addPage(); nextY = 20; }
   doc.setFont('helvetica','bold');
@@ -3088,8 +3142,8 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
     startY: nextY + 3,
     theme: 'striped',
     styles:{fontSize:8},
-    head: [['Nama Produk','Kategori','Sisa Stok']],
-    body: lowStockRows.length ? lowStockRows.map(p=>[p.name, p.category, String(p.stock)]) : [['-','Semua stok aman','-']],
+    head: [['Nama Produk','Kategori','Satuan','Sisa Stok']],
+    body: lowStockRows.length ? lowStockRows.map(r=>[r.name, r.category, r.unit, String(r.stock)]) : [['-','Semua stok aman','-','-']],
     headStyles:{fillColor:[20,33,61]},
   });
 
