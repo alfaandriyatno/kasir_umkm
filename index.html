@@ -2246,12 +2246,13 @@ function renderProducts(){
     EXTRA_UNITS.forEach(u=>{
       const dbKey = EXTRA_UNIT_DBKEY[u.key];
       const enabled = !!p[dbKey+'Enabled'];
+      if(!enabled) return;
       rows.push({
         label: u.label, enabled,
-        barcode: enabled ? p[dbKey+'Barcode'] : '-',
-        buy: enabled ? p[dbKey+'BuyPrice'] : null,
-        sell: enabled ? p[dbKey+'SellPrice'] : null,
-        stock: enabled ? (p[dbKey+'Stock']||0) : null,
+        barcode: p[dbKey+'Barcode'],
+        buy: p[dbKey+'BuyPrice'],
+        sell: p[dbKey+'SellPrice'],
+        stock: p[dbKey+'Stock']||0,
       });
     });
 
