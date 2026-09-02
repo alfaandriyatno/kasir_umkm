@@ -435,6 +435,8 @@
       <button class="btn outline sm approval-filter-btn" data-filter="approved">Disetujui</button>
       <button class="btn outline sm approval-filter-btn" data-filter="rejected">Ditolak</button>
       <button class="btn outline sm approval-filter-btn" data-filter="all">Semua</button>
+      <button class="btn outline sm approval-filter-btn" data-filter="toko">Toko</button>
+      <button class="btn outline sm approval-filter-btn" data-filter="stores">Toko</button>
     </div>
     <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; overflow-y:auto;"></div>
     <div style="text-align:center; margin-top:8px; font-size:13px;">
@@ -1488,6 +1490,14 @@ async function loadApprovalList(){
     await loadUpgradeRequestsList();
     return;
   }
+  if(approvalFilter === 'toko'){
+    await loadStoresList();
+    return;
+  }
+  if(approvalFilter === 'stores'){
+    await loadStoresList();
+    return;
+  }
 
   let query = sb.from('profiles').select('id, email, name, status, disabled, created_at, is_superadmin, account_type').order('created_at', { ascending: false });
   if(approvalFilter !== 'all') query = query.eq('status', approvalFilter);
@@ -1647,6 +1657,57 @@ async function decideUpgradeRequest(id, status){
   loadUpgradeRequestsList();
 }
 
+async function loadStoresList(){
+  const listEl = document.getElementById('approval-list');
+  const { data: companiesData, error } = await sb.from('companies').select('id, name, disabled, created_at, created_by, profiles(email, name)').order('created_at', { ascending:false });
+  if(error){ listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Gagal memuat: ' + error.message + '</div>'; return; }
+  if(!companiesData || companiesData.length === 0){
+    listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Belum ada toko yang dibuat.</div>';
+    return;
+  }
+  const { data: membersData } = await sb.from('company_members').select('company_id');
+  const memberCount = {};
+  (membersData||[]).forEach(m=>{ memberCount[m.company_id] = (memberCount[m.company_id]||0) + 1; });
+
+  listEl.innerHTML = `<div style="display:flex; flex-direction:column; gap:10px;">` + companiesData.map(c=>{
+    const ownerEmail = c.profiles?.email || '-';
+    const ownerName = c.profiles?.name;
+    return `
+    <div class="approval-item">
+      <div>
+        <div class="aemail">${c.name}${c.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</div>
+        <div class="adate">
+          Pemilik: ${ownerName ? ownerName + ' &mdash; ' : ''}${ownerEmail}
+          &middot; ${memberCount[c.id]||0} anggota
+          &middot; Dibuat: ${new Date(c.created_at).toLocaleString('id-ID')}
+        </div>
+      </div>
+      <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">
+        ${c.disabled
+          ? `<button class="btn amber sm" onclick="setStoreDisabled('${c.id}', false)">Aktifkan</button>`
+          : `<button class="btn outline sm" onclick="setStoreDisabled('${c.id}', true)">Nonaktifkan</button>`}
+        <button class="btn danger sm" onclick="deleteStore('${c.id}','${c.name.replace(/'/g,"\\'")}')">Hapus</button>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+async function setStoreDisabled(id, disabled){
+  const { error } = await sb.from('companies').update({ disabled }).eq('id', id);
+  if(error){ showToast('Gagal: ' + error.message); return; }
+  showToast(disabled ? 'Toko dinonaktifkan' : 'Toko diaktifkan kembali');
+  loadStoresList();
+}
+
+async function deleteStore(id, name){
+  showConfirm(`Hapus toko <strong>${name}</strong> secara permanen? Semua data produk, transaksi, dan anggota toko ini akan ikut terhapus. Tindakan ini tidak bisa dibatalkan.`, async ()=>{
+    const { error } = await sb.from('companies').delete().eq('id', id);
+    if(error){ showToast('Gagal menghapus: ' + error.message); return; }
+    showToast('Toko berhasil dihapus');
+    loadStoresList();
+  });
+}
+
 async function approveUser(id){
   const { error } = await sb.from('profiles').update({ status: 'approved' }).eq('id', id);
   if(error){ showToast('Gagal: ' + error.message); return; }
@@ -1680,7 +1741,7 @@ async function loadCompanyList(){
   const errEl = document.getElementById('company-error');
   errEl.style.display='none';
   const { data, error } = await sb.from('company_members')
-    .select('role, name, companies(id, name)')
+    .select('role, name, companies(id, name, disabled)')
     .eq('user_id', AUTH_USER.id);
   if(error){ errEl.textContent = error.message; errEl.style.display='block'; return; }
   const listEl = document.getElementById('company-list');
@@ -1689,7 +1750,13 @@ async function loadCompanyList(){
   } else {
     window._companyChoices = {};
     listEl.innerHTML = data.map((m,i)=>{
+      const disabled = m.companies.disabled;
       window._companyChoices[i] = { id:m.companies.id, name:m.companies.name, role:m.role, memberName:m.name };
+      if(disabled){
+        return `<div class="company-item" style="opacity:0.55; cursor:not-allowed;">
+          <div><div class="cname">${m.companies.name}</div><div class="crole" style="color:#B5342A; font-weight:600;">Toko dinonaktifkan oleh pemilik aplikasi</div></div>
+        </div>`;
+      }
       return `<div class="company-item" onclick="enterCompanyByChoice(${i})">
         <div><div class="cname">${m.companies.name}</div><div class="crole">Peran: ${ROLE_LABELS[m.role] || m.role}</div></div>
         <div>&rarr;</div>
