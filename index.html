@@ -435,8 +435,6 @@
       <button class="btn outline sm approval-filter-btn" data-filter="approved">Disetujui</button>
       <button class="btn outline sm approval-filter-btn" data-filter="rejected">Ditolak</button>
       <button class="btn outline sm approval-filter-btn" data-filter="all">Semua</button>
-      <button class="btn outline sm approval-filter-btn" data-filter="toko">Toko</button>
-      <button class="btn outline sm approval-filter-btn" data-filter="stores">Toko</button>
     </div>
     <div id="approval-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px; overflow-y:auto;"></div>
     <div style="text-align:center; margin-top:8px; font-size:13px;">
@@ -1490,14 +1488,7 @@ async function loadApprovalList(){
     await loadUpgradeRequestsList();
     return;
   }
-  if(approvalFilter === 'toko'){
-    await loadStoresList();
-    return;
-  }
-  if(approvalFilter === 'stores'){
-    await loadStoresList();
-    return;
-  }
+
 
   let query = sb.from('profiles').select('id, email, name, status, disabled, created_at, is_superadmin, account_type').order('created_at', { ascending: false });
   if(approvalFilter !== 'all') query = query.eq('status', approvalFilter);
@@ -1509,21 +1500,31 @@ async function loadApprovalList(){
   }
 
   // Ambil daftar toko yang dimiliki (created_by) untuk semua profil di daftar ini
-  const { data: ownedCompanies } = await sb.from('companies').select('id, name, created_by');
+  const { data: ownedCompanies } = await sb.from('companies').select('id, name, disabled, created_by');
   // Ambil daftar keanggotaan toko (untuk karyawan) beserta nama tokonya
-  const { data: memberships } = await sb.from('company_members').select('user_id, companies(name)');
+  const { data: memberships } = await sb.from('company_members').select('user_id, companies(id, name, disabled)');
 
-  const ownedMap = {}; // user_id -> [nama toko]
+  const ownedMap = {}; // user_id -> [{id, name, disabled}]
   (ownedCompanies||[]).forEach(c=>{
     if(!ownedMap[c.created_by]) ownedMap[c.created_by] = [];
-    ownedMap[c.created_by].push(c.name);
+    ownedMap[c.created_by].push({id:c.id, name:c.name, disabled:c.disabled});
   });
-  const memberMap = {}; // user_id -> [nama toko]
+  const memberMap = {}; // user_id -> [{id, name, disabled}]
   (memberships||[]).forEach(m=>{
     if(!m.companies) return;
     if(!memberMap[m.user_id]) memberMap[m.user_id] = [];
-    memberMap[m.user_id].push(m.companies.name);
+    memberMap[m.user_id].push({id:m.companies.id, name:m.companies.name, disabled:m.companies.disabled});
   });
+
+  function renderStoreChip(store){
+    return `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px;">
+      <span style="font-size:11.5px;">${store.name}${store.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
+      ${store.disabled
+        ? `<button class="btn amber sm" onclick="setStoreDisabled('${store.id}', false)">Aktifkan</button>`
+        : `<button class="btn outline sm" onclick="setStoreDisabled('${store.id}', true)">Nonaktifkan</button>`}
+      <button class="btn danger sm" onclick="deleteStore('${store.id}','${store.name.replace(/'/g,"\\'")}')">Hapus</button>
+    </div>`;
+  }
 
   function renderCard(u){
     const isSelf = u.id === AUTH_USER.id;
@@ -1542,10 +1543,18 @@ async function loadApprovalList(){
     let storeInfo = '';
     if(u.account_type === 'owner'){
       const stores = ownedMap[u.id] || [];
-      storeInfo = `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">Memegang ${stores.length} toko${stores.length ? ': ' + stores.join(', ') : ''}</div>`;
+      storeInfo = `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">
+        Memegang ${stores.length} toko${stores.length ? ':' : ''}
+        ${stores.map(renderStoreChip).join('')}
+      </div>`;
     } else {
       const stores = memberMap[u.id] || [];
-      storeInfo = `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">${stores.length ? 'Karyawan di toko: ' + stores.join(', ') : 'Belum bergabung ke toko manapun'}</div>`;
+      storeInfo = stores.length
+        ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">
+            Karyawan di toko:
+            ${stores.map(renderStoreChip).join('')}
+          </div>`
+        : `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">Belum bergabung ke toko manapun</div>`;
     }
     return `
     <div class="approval-item">
@@ -1657,46 +1666,11 @@ async function decideUpgradeRequest(id, status){
   loadUpgradeRequestsList();
 }
 
-async function loadStoresList(){
-  const listEl = document.getElementById('approval-list');
-  const { data: companiesData, error } = await sb.from('companies').select('id, name, disabled, created_at, created_by, profiles(email, name)').order('created_at', { ascending:false });
-  if(error){ listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Gagal memuat: ' + error.message + '</div>'; return; }
-  if(!companiesData || companiesData.length === 0){
-    listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft);">Belum ada toko yang dibuat.</div>';
-    return;
-  }
-  const { data: membersData } = await sb.from('company_members').select('company_id');
-  const memberCount = {};
-  (membersData||[]).forEach(m=>{ memberCount[m.company_id] = (memberCount[m.company_id]||0) + 1; });
-
-  listEl.innerHTML = `<div style="display:flex; flex-direction:column; gap:10px;">` + companiesData.map(c=>{
-    const ownerEmail = c.profiles?.email || '-';
-    const ownerName = c.profiles?.name;
-    return `
-    <div class="approval-item">
-      <div>
-        <div class="aemail">${c.name}${c.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</div>
-        <div class="adate">
-          Pemilik: ${ownerName ? ownerName + ' &mdash; ' : ''}${ownerEmail}
-          &middot; ${memberCount[c.id]||0} anggota
-          &middot; Dibuat: ${new Date(c.created_at).toLocaleString('id-ID')}
-        </div>
-      </div>
-      <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">
-        ${c.disabled
-          ? `<button class="btn amber sm" onclick="setStoreDisabled('${c.id}', false)">Aktifkan</button>`
-          : `<button class="btn outline sm" onclick="setStoreDisabled('${c.id}', true)">Nonaktifkan</button>`}
-        <button class="btn danger sm" onclick="deleteStore('${c.id}','${c.name.replace(/'/g,"\\'")}')">Hapus</button>
-      </div>
-    </div>`;
-  }).join('') + `</div>`;
-}
-
 async function setStoreDisabled(id, disabled){
   const { error } = await sb.from('companies').update({ disabled }).eq('id', id);
   if(error){ showToast('Gagal: ' + error.message); return; }
   showToast(disabled ? 'Toko dinonaktifkan' : 'Toko diaktifkan kembali');
-  loadStoresList();
+  loadApprovalList();
 }
 
 async function deleteStore(id, name){
@@ -1704,7 +1678,7 @@ async function deleteStore(id, name){
     const { error } = await sb.from('companies').delete().eq('id', id);
     if(error){ showToast('Gagal menghapus: ' + error.message); return; }
     showToast('Toko berhasil dihapus');
-    loadStoresList();
+    loadApprovalList();
   });
 }
 
