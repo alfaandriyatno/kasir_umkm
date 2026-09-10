@@ -686,6 +686,28 @@
         </table>
         <div id="stocklog-empty" class="empty-state" style="display:none;">Belum ada riwayat perubahan stok pada rentang ini.</div>
       </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h3 class="display" style="margin-top:0;">Riwayat Perubahan Harga</h3>
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Catatan setiap perubahan harga beli/jual produk, beserta siapa yang mengubahnya — untuk mencegah dan melacak kecurangan.</div>
+        <div class="filter-bar" style="margin-bottom:16px;">
+          <div class="field">
+            <label>Dari Tanggal</label>
+            <input type="date" id="pricelog-from">
+          </div>
+          <div class="field">
+            <label>Sampai Tanggal</label>
+            <input type="date" id="pricelog-to">
+          </div>
+          <button class="btn outline" id="btn-pricelog-filter">Terapkan</button>
+          <button class="btn outline" id="btn-pricelog-export-csv">⬇ Export CSV</button>
+        </div>
+        <table id="pricelog-table">
+          <thead><tr><th>Tanggal</th><th>Produk</th><th>Satuan</th><th>Jenis Harga</th><th class="num">Harga Lama</th><th class="num">Harga Baru</th><th>Oleh</th></tr></thead>
+          <tbody id="pricelog-tbody"></tbody>
+        </table>
+        <div id="pricelog-empty" class="empty-state" style="display:none;">Belum ada riwayat perubahan harga pada rentang ini.</div>
+      </div>
     </section>
 
     <!-- ============ LAPORAN ============ -->
@@ -818,6 +840,12 @@
         <h3 class="display">Reset Data</h3>
         <p style="font-size:13px; color:var(--ink-soft);">Menghapus seluruh data produk dan transaksi dari perangkat ini. Tindakan ini tidak bisa dibatalkan.</p>
         <button class="btn danger" id="btn-reset-data">Hapus Semua Data</button>
+      </div>
+
+      <div class="card" style="max-width:420px; margin-bottom:20px;">
+        <h3 class="display" style="margin-top:0;">Keamanan Akun</h3>
+        <p style="font-size:13px; color:var(--ink-soft);">Kalau HP atau laptop kamu hilang, atau merasa akun dipakai orang lain, gunakan tombol ini untuk memutus akses akun kamu di <strong>semua device</strong> sekaligus (termasuk device ini) — kamu perlu login ulang setelahnya.</p>
+        <button class="btn danger" id="btn-logout-all">Keluar dari Semua Device</button>
       </div>
 
       <div class="card" style="max-width:420px; margin-bottom:20px;">
@@ -1071,7 +1099,7 @@ let SESSION = null;         // { role, name, email } peran user di perusahaan ak
 
 /* ================= STORAGE (tersinkron ke Supabase per perusahaan) ================= */
 const CACHE = {
-  products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [],
+  products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
 };
 let _saveTimer = null;
@@ -1083,7 +1111,7 @@ async function saveCompanyData(){
   if(!CURRENT_COMPANY || !AUTH_USER) return;
   const payload = {
     products: CACHE.products, transactions: CACHE.transactions,
-    adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs,
+    adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
     storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
   };
   const { error } = await sb.from('company_data').upsert({
@@ -1111,6 +1139,10 @@ const DB = {
   set customAccounts(v){ CACHE.customAccounts = v; scheduleSave(); },
   get stockLogs(){ return CACHE.stockLogs; },
   set stockLogs(v){ CACHE.stockLogs = v; scheduleSave(); },
+  get priceLogs(){ return CACHE.priceLogs; },
+  set priceLogs(v){ CACHE.priceLogs = v; scheduleSave(); },
+  get priceLogs(){ return CACHE.priceLogs; },
+  set priceLogs(v){ CACHE.priceLogs = v; scheduleSave(); },
 };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -1284,7 +1316,7 @@ function switchView(v){
   document.getElementById('view-'+v).classList.add('active');
   document.getElementById('view-title').textContent = titles[v];
   if(v==='dashboard'){ renderDashboard(); renderReport(); }
-  if(v==='produk'){ renderProducts(); renderStockLog(); }
+  if(v==='produk'){ renderProducts(); renderStockLog(); renderPriceLog(); }
   if(v==='laporan') renderRiwayat();
   if(v==='penyesuaian') renderAdjustments();
 }
@@ -1848,6 +1880,8 @@ async function enterCompany(id, name, role, memberName){
     CACHE.adjustments = d.adjustments || [];
     CACHE.customAccounts = d.customAccounts || [];
     CACHE.stockLogs = d.stockLogs || [];
+    CACHE.priceLogs = d.priceLogs || [];
+    CACHE.priceLogs = d.priceLogs || [];
     CACHE.storeName = d.storeName || name;
     CACHE.storeAddress = d.storeAddress || '';
     CACHE.ppnConfig = d.ppnConfig || {enabled:false, percent:11};
@@ -1868,6 +1902,8 @@ async function enterCompany(id, name, role, memberName){
     CACHE.adjustments = [];
     CACHE.customAccounts = [];
     CACHE.stockLogs = [];
+    CACHE.priceLogs = [];
+    CACHE.priceLogs = [];
     CACHE.storeName = name;
     CACHE.storeAddress = '';
     CACHE.ppnConfig = {enabled:false, percent:11};
@@ -1892,6 +1928,7 @@ async function enterCompany(id, name, role, memberName){
   renderCart();
   renderProducts();
   renderStockLog();
+  renderPriceLog();
   renderReport();
   renderRiwayat();
   renderDashboard();
@@ -2015,10 +2052,21 @@ function refreshStoreName(){
     addrEl.style.display = 'none';
   }
 }
-document.getElementById('btn-save-store').addEventListener('click', ()=>{
+async function saveSettingsPatch(patch){
+  const { data: newData, error } = await sb.rpc('save_settings_rpc', {
+    p_company_id: CURRENT_COMPANY.id,
+    p_patch: patch,
+  });
+  if(error){ showToast('Gagal menyimpan pengaturan: ' + error.message); return false; }
+  Object.assign(CACHE, patch); // update cache lokal langsung (RPC juga sudah menyimpan di server)
+  return true;
+}
+
+document.getElementById('btn-save-store').addEventListener('click', async ()=>{
   const v = document.getElementById('store-name-input').value.trim() || 'Toko Saya';
   const addr = document.getElementById('store-address-input').value.trim();
-  DB.storeName = v; DB.storeAddress = addr; refreshStoreName(); showToast('Profil toko disimpan');
+  const ok = await saveSettingsPatch({ storeName: v, storeAddress: addr });
+  if(ok){ refreshStoreName(); showToast('Profil toko disimpan'); }
 });
 
 function refreshPpnSettingsUI(){
@@ -2026,15 +2074,13 @@ function refreshPpnSettingsUI(){
   document.getElementById('ppn-enabled').checked = !!cfg.enabled;
   document.getElementById('ppn-percent').value = cfg.percent;
 }
-document.getElementById('btn-save-ppn').addEventListener('click', ()=>{
+document.getElementById('btn-save-ppn').addEventListener('click', async ()=>{
   const enabled = document.getElementById('ppn-enabled').checked;
   let percent = Number(document.getElementById('ppn-percent').value);
   if(isNaN(percent) || percent < 0) percent = 0;
   if(percent > 100) percent = 100;
-  DB.ppnConfig = { enabled, percent };
-  refreshPpnSettingsUI();
-  renderReceipt();
-  showToast('Pengaturan PPN disimpan');
+  const ok = await saveSettingsPatch({ ppnConfig: { enabled, percent } });
+  if(ok){ refreshPpnSettingsUI(); renderReceipt(); showToast('Pengaturan PPN disimpan'); }
 });
 refreshPpnSettingsUI();
 
@@ -2062,21 +2108,31 @@ function refreshPaperSizeUI(){
   document.getElementById('receipt-paper-size').value = DB.receiptPaperSize || '80mm';
   updatePrintPageStyle();
 }
-document.getElementById('btn-save-paper-size').addEventListener('click', ()=>{
+document.getElementById('btn-save-paper-size').addEventListener('click', async ()=>{
   const v = document.getElementById('receipt-paper-size').value;
-  DB.receiptPaperSize = v;
-  updatePrintPageStyle();
-  showToast('Ukuran kertas struk disimpan');
+  const ok = await saveSettingsPatch({ receiptPaperSize: v });
+  if(ok){ updatePrintPageStyle(); showToast('Ukuran kertas struk disimpan'); }
 });
 refreshPaperSizeUI();
 
+document.getElementById('btn-logout-all').addEventListener('click', ()=>{
+  showConfirm('Yakin ingin keluar dari akun kamu di <strong>semua device</strong>? Kamu (dan siapa pun yang login pakai akun ini di device lain) perlu login ulang setelah ini.', async ()=>{
+    const { error } = await sb.auth.signOut({ scope: 'global' });
+    if(error){ showToast('Gagal: ' + error.message); return; }
+    showToast('Berhasil keluar dari semua device');
+  });
+});
+
 document.getElementById('btn-reset-data').addEventListener('click', ()=>{
-  showConfirm('Yakin ingin menghapus <strong>semua</strong> data produk dan transaksi milik perusahaan <strong>' + CURRENT_COMPANY.name + '</strong>? Tindakan ini tidak bisa dibatalkan dan berlaku di semua device.', ()=>{
-    DB.products = [];
-    DB.transactions = [];
-    DB.stockLogs = [];
+  showConfirm('Yakin ingin menghapus <strong>semua</strong> data produk dan transaksi milik perusahaan <strong>' + CURRENT_COMPANY.name + '</strong>? Tindakan ini tidak bisa dibatalkan dan berlaku di semua device.', async ()=>{
+    const { data: newData, error } = await sb.rpc('reset_company_data_rpc', { p_company_id: CURRENT_COMPANY.id });
+    if(error){ showToast('Gagal menghapus data: ' + error.message); return; }
+    CACHE.products = newData.products || [];
+    CACHE.transactions = newData.transactions || [];
+    CACHE.stockLogs = newData.stockLogs || [];
+    CACHE.priceLogs = newData.priceLogs || [];
     showToast('Semua data telah dihapus');
-    renderProducts(); renderReport(); renderRiwayat(); renderStockLog(); cart=[]; renderCart(); renderDashboard();
+    renderProducts(); renderReport(); renderRiwayat(); renderStockLog(); renderPriceLog(); cart=[]; renderCart(); renderDashboard();
   });
 });
 refreshStoreName();
@@ -2209,7 +2265,7 @@ EXTRA_UNITS.forEach(u=>{
   });
 });
 
-document.getElementById('btn-save-product').addEventListener('click', ()=>{
+document.getElementById('btn-save-product').addEventListener('click', async ()=>{
   const id = document.getElementById('p-id').value;
   const barcode = document.getElementById('p-barcode').value.trim();
   const name = document.getElementById('p-name').value.trim();
@@ -2276,28 +2332,74 @@ document.getElementById('btn-save-product').addEventListener('click', ()=>{
   }
   const oldProduct = id ? products.find(p=>p.id===id) : null;
 
-  if(id){
-    const idx = products.findIndex(p=>p.id===id);
-    products[idx] = data;
-  } else {
-    products.push(data);
-  }
-  DB.products = products;
-
   // Catat riwayat persediaan: bandingkan stok lama vs baru per satuan
+  const stockLogs = [];
   const stockDiff = (Number(data.stock)||0) - (oldProduct ? (Number(oldProduct.stock)||0) : 0);
-  logStockChange(data.name, 'Eceran', stockDiff, oldProduct ? 'Edit Stok Manual' : 'Produk Baru');
+  if(stockDiff !== 0){
+    stockLogs.push({
+      id: uid(), date: new Date().toISOString(), productName: data.name, unitLabel: 'Eceran',
+      change: stockDiff, reason: oldProduct ? 'Edit Stok Manual' : 'Produk Baru',
+      byName: (SESSION && SESSION.name) ? SESSION.name : '-',
+      byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
+    });
+  }
   for(const u of EXTRA_UNITS){
     const dbKey = EXTRA_UNIT_DBKEY[u.key];
     const newStock = data[dbKey+'Enabled'] ? (Number(data[dbKey+'Stock'])||0) : 0;
     const oldStock = (oldProduct && oldProduct[dbKey+'Enabled']) ? (Number(oldProduct[dbKey+'Stock'])||0) : 0;
     const diff = newStock - oldStock;
-    if(diff !== 0) logStockChange(data.name, u.label, diff, oldProduct ? 'Edit Stok Manual' : 'Produk Baru');
+    if(diff !== 0){
+      stockLogs.push({
+        id: uid(), date: new Date().toISOString(), productName: data.name, unitLabel: u.label,
+        change: diff, reason: oldProduct ? 'Edit Stok Manual' : 'Produk Baru',
+        byName: (SESSION && SESSION.name) ? SESSION.name : '-',
+        byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
+      });
+    }
   }
+
+  // Catat riwayat perubahan harga (siapa mengubah harga apa, dari berapa ke berapa)
+  const priceLogs = [];
+  const logPriceIfChanged = (unitLabelText, field, fieldLabel, oldVal, newVal)=>{
+    if((oldVal||0) !== (newVal||0)){
+      priceLogs.push({
+        id: uid(), date: new Date().toISOString(), productName: data.name, unitLabel: unitLabelText,
+        field: fieldLabel, oldValue: oldVal||0, newValue: newVal||0,
+        byName: (SESSION && SESSION.name) ? SESSION.name : '-',
+        byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
+      });
+    }
+  };
+  logPriceIfChanged('Eceran', 'buyPrice', 'Harga Beli', oldProduct?.buyPrice, data.buyPrice);
+  logPriceIfChanged('Eceran', 'sellPrice', 'Harga Jual', oldProduct?.sellPrice, data.sellPrice);
+  for(const u of EXTRA_UNITS){
+    const dbKey = EXTRA_UNIT_DBKEY[u.key];
+    if(data[dbKey+'Enabled']){
+      logPriceIfChanged(u.label, dbKey+'BuyPrice', 'Harga Beli', oldProduct?.[dbKey+'BuyPrice'], data[dbKey+'BuyPrice']);
+      logPriceIfChanged(u.label, dbKey+'SellPrice', 'Harga Jual', oldProduct?.[dbKey+'SellPrice'], data[dbKey+'SellPrice']);
+    }
+  }
+
+  const btnSave = document.getElementById('btn-save-product');
+  btnSave.disabled = true;
+  const { data: newData, error } = await sb.rpc('save_product_rpc', {
+    p_company_id: CURRENT_COMPANY.id,
+    p_product: data,
+    p_stock_logs: stockLogs,
+    p_price_logs: priceLogs,
+  });
+  btnSave.disabled = false;
+
+  if(error){ showToast('Gagal menyimpan produk: ' + error.message); return; }
+
+  CACHE.products = newData.products || [];
+  CACHE.stockLogs = newData.stockLogs || [];
+  CACHE.priceLogs = newData.priceLogs || [];
 
   closeModal('modal-product');
   renderProducts();
   renderStockLog();
+  renderPriceLog();
   showToast('Produk disimpan');
 });
 
@@ -2329,8 +2431,13 @@ function editProduct(id){
 }
 function deleteProduct(id){
   const p = DB.products.find(p=>p.id===id);
-  showConfirm(`Hapus produk <strong>${p ? p.name : ''}</strong> dari daftar?`, ()=>{
-    DB.products = DB.products.filter(p=>p.id!==id);
+  showConfirm(`Hapus produk <strong>${p ? p.name : ''}</strong> dari daftar?`, async ()=>{
+    const { data: newData, error } = await sb.rpc('delete_product_rpc', {
+      p_company_id: CURRENT_COMPANY.id,
+      p_product_id: id,
+    });
+    if(error){ showToast('Gagal menghapus produk: ' + error.message); return; }
+    CACHE.products = newData.products || [];
     renderProducts();
     showToast('Produk dihapus');
   });
@@ -2533,6 +2640,55 @@ document.getElementById('btn-stocklog-export-pdf').addEventListener('click', ()=
   showToast('PDF berhasil dibuat');
 });
 
+/* ---- Riwayat Perubahan Harga ---- */
+function renderPriceLog(){
+  const tbody = document.getElementById('pricelog-tbody');
+  if(!tbody) return;
+  const from = document.getElementById('pricelog-from').value;
+  const to = document.getElementById('pricelog-to').value;
+  const logs = [...(DB.priceLogs||[])]
+    .filter(l=>{
+      const d = l.date.slice(0,10);
+      return (!from || d>=from) && (!to || d<=to);
+    })
+    .sort((a,b)=> new Date(b.date) - new Date(a.date));
+  tbody.innerHTML = '';
+  document.getElementById('pricelog-empty').style.display = logs.length ? 'none' : 'block';
+  logs.forEach(l=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(l.date).toLocaleString('id-ID')}</td>
+      <td>${l.productName}</td>
+      <td>${l.unitLabel}</td>
+      <td>${l.field}</td>
+      <td class="num mono">${rupiah(l.oldValue)}</td>
+      <td class="num mono" style="font-weight:600;">${rupiah(l.newValue)}</td>
+      <td>${l.byName}<div style="font-size:11px; color:var(--ink-soft);">${l.byRole}</div></td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('pricelog-from').value = todayStr();
+document.getElementById('pricelog-to').value = todayStr();
+document.getElementById('btn-pricelog-filter').addEventListener('click', renderPriceLog);
+
+document.getElementById('btn-pricelog-export-csv').addEventListener('click', ()=>{
+  const from = document.getElementById('pricelog-from').value;
+  const to = document.getElementById('pricelog-to').value;
+  const logs = (DB.priceLogs||[]).filter(l=>{
+    const d = l.date.slice(0,10);
+    return (!from || d>=from) && (!to || d<=to);
+  }).sort((a,b)=> new Date(a.date) - new Date(b.date));
+  let csv = 'Tanggal,Produk,Satuan,Jenis Harga,Harga Lama,Harga Baru,Oleh,Peran\n';
+  logs.forEach(l=>{
+    csv += `${l.date},"${l.productName}","${l.unitLabel}","${l.field}",${l.oldValue},${l.newValue},"${l.byName}","${l.byRole}"\n`;
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `riwayat-harga-${from}_${to}.csv`; a.click();
+  URL.revokeObjectURL(url);
+});
+
 function handleBarcodeSubmit(code){
   code = (code || document.getElementById('barcode-input').value).trim();
   if(!code) return;
@@ -2710,7 +2866,7 @@ document.getElementById('btn-clear-cart').addEventListener('click', ()=>{
   renderCart();
 });
 
-document.getElementById('btn-checkout').addEventListener('click', ()=>{
+document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   if(!cart.length) return;
   const subtotal = cart.reduce((s,i)=>s+i.sellPrice*i.qty,0);
   const discount = Number(document.getElementById('discount-input').value) || 0;
@@ -2724,16 +2880,17 @@ document.getElementById('btn-checkout').addEventListener('click', ()=>{
   }
   const totalModal = cart.reduce((s,i)=>s+i.buyPrice*i.qty,0);
 
-  // update stock (masing-masing satuan punya stok terpisah)
-  const products = DB.products;
-  cart.forEach(item=>{
-    const p = products.find(p=>p.id===item.id);
-    if(p){
-      deductUnitStock(p, item.unitType, item.qty);
-      logStockChange(p.name, item.unitLabel, -item.qty, 'Penjualan');
-    }
-  });
-  DB.products = products;
+  const btn = document.getElementById('btn-checkout');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+
+  const stockDeltas = cart.map(item=>({ product_id:item.id, unit_type:item.unitType, qty:item.qty }));
+  const stockLogEntries = cart.map(item=>({
+    id: uid(), date: new Date().toISOString(), productName: item.name, unitLabel: item.unitLabel,
+    change: -item.qty, reason: 'Penjualan',
+    byName: (SESSION && SESSION.name) ? SESSION.name : '-',
+    byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
+  }));
 
   const trx = {
     id: uid(),
@@ -2750,7 +2907,26 @@ document.getElementById('btn-checkout').addEventListener('click', ()=>{
     paid, change: paid - grandTotal,
     paymentMethod
   };
-  const trxs = DB.transactions; trxs.push(trx); DB.transactions = trxs;
+
+  const { data: newData, error } = await sb.rpc('checkout_transaction', {
+    p_company_id: CURRENT_COMPANY.id,
+    p_transaction: trx,
+    p_stock_deltas: stockDeltas,
+    p_stock_logs: stockLogEntries,
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Bayar & Cetak Struk';
+
+  if(error){
+    showToast('Gagal menyimpan transaksi: ' + error.message);
+    return;
+  }
+
+  // sinkronkan cache lokal dengan hasil terbaru dari server (bukan menimpanya)
+  CACHE.products = newData.products || [];
+  CACHE.transactions = newData.transactions || [];
+  CACHE.stockLogs = newData.stockLogs || [];
 
   printReceipt(trx);
   showToast('Transaksi berhasil disimpan');
@@ -2796,17 +2972,31 @@ function voidTransaction(id){
   const itemList = trx.items.map(i=>`${i.displayName || i.name} x${i.qty}`).join(', ');
   showConfirm(
     `Batalkan transaksi ini?<br><br><strong>${itemList}</strong><br>Total: ${rupiah(trx.total)}<br><br>Transaksi akan dihapus dari riwayat dan stok barang akan dikembalikan otomatis.`,
-    ()=>{
-      const products = DB.products;
-      trx.items.forEach(item=>{
-        const p = products.find(p=> p.id === item.productId || p.name === item.name);
-        if(p){
-          restoreUnitStock(p, item.unitType || 'eceran', item.qty);
-          logStockChange(p.name, item.unitLabel || item.name, item.qty, 'Pembatalan Transaksi');
-        }
+    async ()=>{
+      const stockRestores = trx.items.map(item=>({
+        product_id: item.productId || null, product_name: item.name,
+        unit_type: item.unitType || 'eceran', qty: item.qty,
+      }));
+      const stockLogEntries = trx.items.map(item=>({
+        id: uid(), date: new Date().toISOString(), productName: item.name, unitLabel: item.unitLabel || item.name,
+        change: item.qty, reason: 'Pembatalan Transaksi',
+        byName: (SESSION && SESSION.name) ? SESSION.name : '-',
+        byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
+      }));
+
+      const { data: newData, error } = await sb.rpc('void_transaction_rpc', {
+        p_company_id: CURRENT_COMPANY.id,
+        p_transaction_id: id,
+        p_stock_restores: stockRestores,
+        p_stock_logs: stockLogEntries,
       });
-      DB.products = products;
-      DB.transactions = DB.transactions.filter(t=>t.id !== id);
+
+      if(error){ showToast('Gagal membatalkan transaksi: ' + error.message); return; }
+
+      CACHE.products = newData.products || [];
+      CACHE.transactions = newData.transactions || [];
+      CACHE.stockLogs = newData.stockLogs || [];
+
       showToast('Transaksi dibatalkan, stok dikembalikan');
       renderReport();
       renderRiwayat();
