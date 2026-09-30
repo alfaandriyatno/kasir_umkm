@@ -1695,27 +1695,44 @@ async function loadApprovalList(){
   // Ambil daftar toko yang dimiliki (created_by) untuk semua profil di daftar ini
   const { data: ownedCompanies } = await sb.from('companies').select('id, name, disabled, created_by');
   // Ambil daftar keanggotaan toko (untuk karyawan) beserta nama tokonya
-  const { data: memberships } = await sb.from('company_members').select('user_id, companies(id, name, disabled)');
+  const { data: memberships } = await sb.from('company_members').select('id, user_id, companies(id, name, disabled)');
 
   const ownedMap = {}; // user_id -> [{id, name, disabled}]
   (ownedCompanies||[]).forEach(c=>{
     if(!ownedMap[c.created_by]) ownedMap[c.created_by] = [];
     ownedMap[c.created_by].push({id:c.id, name:c.name, disabled:c.disabled});
   });
-  const memberMap = {}; // user_id -> [{id, name, disabled}]
+  const memberMap = {}; // user_id -> [{membershipId, id, name, disabled}]
   (memberships||[]).forEach(m=>{
     if(!m.companies) return;
     if(!memberMap[m.user_id]) memberMap[m.user_id] = [];
-    memberMap[m.user_id].push({id:m.companies.id, name:m.companies.name, disabled:m.companies.disabled});
+    memberMap[m.user_id].push({membershipId:m.id, id:m.companies.id, name:m.companies.name, disabled:m.companies.disabled});
   });
 
+  // Dipakai di kartu Owner: aksi disini berlaku untuk toko itu sendiri (menonaktifkan/menghapus toko beneran)
   function renderStoreChip(store){
-    return `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px;">
-      <span style="font-size:11.5px;">${store.name}${store.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
-      ${store.disabled
-        ? `<button class="btn amber sm" onclick="setStoreDisabled('${store.id}', false)">Aktifkan</button>`
-        : `<button class="btn outline sm" onclick="setStoreDisabled('${store.id}', true)">Nonaktifkan</button>`}
-      <button class="btn danger sm" onclick="deleteStore('${store.id}','${store.name.replace(/'/g,"\\'")}')">Hapus</button>
+    return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">
+      <span style="font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${store.name}${store.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
+      <div style="display:flex; gap:6px; flex-shrink:0;">
+        ${store.disabled
+          ? `<button class="btn amber sm" onclick="setStoreDisabled('${store.id}', false)">Aktifkan</button>`
+          : `<button class="btn outline sm" onclick="setStoreDisabled('${store.id}', true)">Nonaktifkan</button>`}
+        <button class="btn danger sm" onclick="deleteStore('${store.id}','${store.name.replace(/'/g,"\\'")}')">Hapus</button>
+      </div>
+    </div>`;
+  }
+
+  // Dipakai di kartu Karyawan: "Hapus" disini cuma mencabut akses karyawan tsb dari toko ini,
+  // bukan menghapus tokonya — toko & datanya tetap utuh di sisi Owner.
+  function renderMembershipChip(m){
+    return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">
+      <span style="font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.name}${m.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
+      <div style="display:flex; gap:6px; flex-shrink:0;">
+        ${m.disabled
+          ? `<button class="btn amber sm" onclick="setStoreDisabled('${m.id}', false)">Aktifkan</button>`
+          : `<button class="btn outline sm" onclick="setStoreDisabled('${m.id}', true)">Nonaktifkan</button>`}
+        <button class="btn danger sm" onclick="removeMembership('${m.membershipId}','${m.name.replace(/'/g,"\\'")}')">Hapus</button>
+      </div>
     </div>`;
   }
 
@@ -1745,7 +1762,7 @@ async function loadApprovalList(){
       storeInfo = stores.length
         ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">
             Karyawan di toko:
-            ${stores.map(renderStoreChip).join('')}
+            ${stores.map(renderMembershipChip).join('')}
           </div>`
         : `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px;">Belum bergabung ke toko manapun</div>`;
     }
@@ -1871,6 +1888,15 @@ async function deleteStore(id, name){
     const { error } = await sb.from('companies').delete().eq('id', id);
     if(error){ showToast('Gagal menghapus: ' + error.message); return; }
     showToast('Toko berhasil dihapus');
+    loadApprovalList();
+  });
+}
+
+async function removeMembership(membershipId, storeName){
+  showConfirm(`Cabut akses karyawan ini dari toko <strong>${storeName}</strong>? Toko dan seluruh datanya <strong>tidak</strong> akan terhapus — hanya akses karyawan ini ke toko tersebut yang dicabut.`, async ()=>{
+    const { error } = await sb.from('company_members').delete().eq('id', membershipId);
+    if(error){ showToast('Gagal mencabut akses: ' + error.message); return; }
+    showToast('Akses karyawan ke toko tersebut sudah dicabut');
     loadApprovalList();
   });
 }
