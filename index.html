@@ -250,11 +250,14 @@
   .login-card .sub{font-size:13px; color:var(--ink-soft); margin-bottom:22px;}
   .approval-filter-btn.active{ background:var(--amber); color:#fff; border-color:var(--amber); }
   .approval-item{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
     padding:12px 14px; border:1px solid var(--line); border-radius:10px;
   }
   .approval-item .aemail{ font-weight:600; font-size:14px; word-break:break-all; }
   .approval-item .adate{ font-size:11px; color:var(--ink-soft); }
+  .approval-item .act-col{ display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
+  .approval-item .act-row{ display:flex; gap:6px; flex-shrink:0; }
+  .approval-item .act-btn{ min-width:96px; text-align:center; white-space:nowrap; }
   .company-item{
     display:flex; align-items:center; justify-content:space-between;
     padding:12px 14px; border:1px solid var(--line); border-radius:10px;
@@ -1713,11 +1716,11 @@ async function loadApprovalList(){
   function renderStoreChip(store){
     return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">
       <span style="font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${store.name}${store.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
-      <div style="display:flex; gap:6px; flex-shrink:0;">
+      <div class="act-row">
         ${store.disabled
-          ? `<button class="btn amber sm" onclick="setStoreDisabled('${store.id}', false)">Aktifkan</button>`
-          : `<button class="btn outline sm" onclick="setStoreDisabled('${store.id}', true)">Nonaktifkan</button>`}
-        <button class="btn danger sm" onclick="deleteStore('${store.id}','${store.name.replace(/'/g,"\\'")}')">Hapus</button>
+          ? `<button class="btn amber sm act-btn" onclick="setStoreDisabled('${store.id}', false)">Aktifkan</button>`
+          : `<button class="btn outline sm act-btn" onclick="setStoreDisabled('${store.id}', true)">Nonaktifkan</button>`}
+        <button class="btn danger sm act-btn" onclick="deleteStore('${store.id}','${store.name.replace(/'/g,"\\'")}')">Hapus</button>
       </div>
     </div>`;
   }
@@ -1727,11 +1730,11 @@ async function loadApprovalList(){
   function renderMembershipChip(m){
     return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">
       <span style="font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.name}${m.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
-      <div style="display:flex; gap:6px; flex-shrink:0;">
+      <div class="act-row">
         ${m.disabled
-          ? `<button class="btn amber sm" onclick="setStoreDisabled('${m.id}', false)">Aktifkan</button>`
-          : `<button class="btn outline sm" onclick="setStoreDisabled('${m.id}', true)">Nonaktifkan</button>`}
-        <button class="btn danger sm" onclick="removeMembership('${m.membershipId}','${m.name.replace(/'/g,"\\'")}')">Hapus</button>
+          ? `<button class="btn amber sm act-btn" onclick="setStoreDisabled('${m.id}', false)">Aktifkan</button>`
+          : `<button class="btn outline sm act-btn" onclick="setStoreDisabled('${m.id}', true)">Nonaktifkan</button>`}
+        <button class="btn danger sm act-btn" onclick="removeMembership('${m.membershipId}','${m.name.replace(/'/g,"\\'")}')">Hapus</button>
       </div>
     </div>`;
   }
@@ -1740,15 +1743,15 @@ async function loadApprovalList(){
     const isSelf = u.id === AUTH_USER.id;
     let actions = '';
     if(u.status === 'pending'){
-      actions += `<button class="btn amber sm" onclick="approveUser('${u.id}')">Setujui</button>
-                   <button class="btn danger sm" onclick="rejectUser('${u.id}')">Tolak</button>`;
+      actions += `<button class="btn amber sm act-btn" onclick="approveUser('${u.id}')">Setujui</button>
+                   <button class="btn danger sm act-btn" onclick="rejectUser('${u.id}')">Tolak</button>`;
     } else if(!isSelf) {
       actions += u.disabled
-        ? `<button class="btn amber sm" onclick="setDisabled('${u.id}', false)">Aktifkan</button>`
-        : `<button class="btn outline sm" onclick="setDisabled('${u.id}', true)">Nonaktifkan</button>`;
+        ? `<button class="btn amber sm act-btn" onclick="setDisabled('${u.id}', false)">Aktifkan</button>`
+        : `<button class="btn outline sm act-btn" onclick="setDisabled('${u.id}', true)">Nonaktifkan</button>`;
     }
     if(!isSelf && !u.is_superadmin){
-      actions += `<button class="btn danger sm" onclick="deleteAccount('${u.id}','${(u.email||'').replace(/'/g,"\\'")}')">Hapus</button>`;
+      actions += `<button class="btn danger sm act-btn" onclick="deleteAccount('${u.id}','${(u.email||'').replace(/'/g,"\\'")}')">Hapus</button>`;
     }
     let storeInfo = '';
     if(u.account_type === 'owner'){
@@ -1777,7 +1780,7 @@ async function loadApprovalList(){
         </div>
         ${storeInfo}
       </div>
-      <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">
+      <div class="act-col">
         ${actions}
       </div>
     </div>`;
