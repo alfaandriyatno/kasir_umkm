@@ -673,7 +673,6 @@
             <option value="">Semua Kategori</option>
           </select>
         </div>
-        <button class="btn amber" id="btn-new-product">+ Tambah Produk</button>
       </div>
       <div class="card" style="overflow-x:auto;">
         <table id="produk-table">
@@ -685,7 +684,7 @@
           </thead>
           <tbody id="produk-tbody"></tbody>
         </table>
-        <div id="produk-empty" class="empty-state" style="display:none;">Belum ada produk. Klik "Tambah Produk" untuk mulai mengisi data barang.</div>
+        <div id="produk-empty" class="empty-state" style="display:none;">Belum ada produk. Tambahkan produk baru lewat menu <strong>Pembelian</strong> saat mencatat barang masuk pertama kali.</div>
         <div id="produk-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
       </div>
 
@@ -741,14 +740,37 @@
     <section class="view-section" id="view-pembelian">
       <div class="card" style="max-width:600px; margin-bottom:20px;">
         <h3 class="display" style="margin-top:0;">Catat Barang Masuk</h3>
-        <div class="field">
-          <label>Produk</label>
-          <select id="pb-product"></select>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; margin-bottom:14px; cursor:pointer;">
+          <input type="checkbox" id="pb-is-new-product" style="width:16px; height:16px;">
+          + Ini produk baru (belum pernah ada di daftar produk)
+        </label>
+
+        <div id="pb-existing-product-fields">
+          <div class="field">
+            <label>Produk</label>
+            <select id="pb-product"></select>
+          </div>
+          <div class="field">
+            <label>Satuan</label>
+            <select id="pb-unit"></select>
+          </div>
         </div>
-        <div class="field">
-          <label>Satuan</label>
-          <select id="pb-unit"></select>
+
+        <div id="pb-new-product-fields" style="display:none;">
+          <div class="field">
+            <label>Nama Produk</label>
+            <input type="text" id="pb-new-name" placeholder="Nama produk baru">
+          </div>
+          <div class="field">
+            <label>Kategori</label>
+            <input type="text" id="pb-new-category" placeholder="Contoh: Sembako, Minuman">
+          </div>
+          <div class="field">
+            <label>Barcode (opsional)</label>
+            <input type="text" id="pb-new-barcode" placeholder="Boleh dikosongkan">
+          </div>
         </div>
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div class="field">
             <label>Jumlah Masuk</label>
@@ -758,6 +780,13 @@
             <label>Harga Beli Satuan Ini</label>
             <input type="number" id="pb-price" min="0" placeholder="0">
           </div>
+        </div>
+        <div class="field">
+          <label>Harga Jual Satuan Ini</label>
+          <input type="number" id="pb-sell-price" min="0" placeholder="0">
+        </div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin:-8px 0 14px 0;">
+          Harga Beli & Harga Jual produk otomatis dihitung ulang sebagai rata-rata dari riwayat pembelian sebelumnya + pembelian ini.
         </div>
         <div class="field">
           <label>Nama Supplier / Pemasok</label>
@@ -1004,6 +1033,7 @@
   <div class="modal">
     <button class="modal-close" data-close="modal-product">×</button>
     <h2 id="product-modal-title">Tambah Produk</h2>
+    <div style="font-size:11.5px; color:var(--ink-soft); margin:-6px 0 14px 0;">Harga Beli &amp; Harga Jual (semua satuan) dihitung otomatis dari rata-rata riwayat Pembelian, sehingga tidak bisa diubah manual di sini. Untuk mengubah harga, catat pembelian baru lewat menu <strong>Pembelian</strong>.</div>
     <input type="hidden" id="p-id">
     <div class="field">
       <label>Foto Produk (opsional)</label>
@@ -1029,8 +1059,8 @@
       </div>
       <div class="field"><label>Nama Satuan</label><input type="text" id="p-unit" placeholder="Contoh: pcs, botol, bungkus" value="pcs"></div>
       <div style="display:flex; gap:12px;">
-        <div class="field" style="flex:1;"><label>Harga Beli /Pcs (Rp)</label><input type="number" id="p-buy" min="0" placeholder="0"></div>
-        <div class="field" style="flex:1;"><label>Harga Jual /Pcs (Rp)</label><input type="number" id="p-sell" min="0" placeholder="0"></div>
+        <div class="field" style="flex:1;"><label>Harga Beli /Pcs (Rp)</label><input type="number" id="p-buy" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
+        <div class="field" style="flex:1;"><label>Harga Jual /Pcs (Rp)</label><input type="number" id="p-sell" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
       </div>
       <div style="display:flex; gap:12px;">
         <div class="field" style="flex:1;"><label>Stok Eceran (pcs)</label><input type="number" id="p-stock" min="0" placeholder="0"></div>
@@ -1056,8 +1086,8 @@
           </div>
         </div>
         <div style="display:flex; gap:12px;">
-          <div class="field" style="flex:1;"><label>Harga Beli /Karton (Rp)</label><input type="number" id="p-karton-buy" min="0" placeholder="0"></div>
-          <div class="field" style="flex:1;"><label>Harga Jual /Karton (Rp)</label><input type="number" id="p-karton-sell" min="0" placeholder="0"></div>
+          <div class="field" style="flex:1;"><label>Harga Beli /Karton (Rp)</label><input type="number" id="p-karton-buy" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
+          <div class="field" style="flex:1;"><label>Harga Jual /Karton (Rp)</label><input type="number" id="p-karton-sell" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
         </div>
         <div class="field"><label>Stok Karton (dus, terpisah dari stok eceran)</label><input type="number" id="p-karton-stock" min="0" placeholder="0"></div>
       </div>
@@ -1081,8 +1111,8 @@
           </div>
         </div>
         <div style="display:flex; gap:12px;">
-          <div class="field" style="flex:1;"><label>Harga Beli /Renceng (Rp)</label><input type="number" id="p-renceng-buy" min="0" placeholder="0"></div>
-          <div class="field" style="flex:1;"><label>Harga Jual /Renceng (Rp)</label><input type="number" id="p-renceng-sell" min="0" placeholder="0"></div>
+          <div class="field" style="flex:1;"><label>Harga Beli /Renceng (Rp)</label><input type="number" id="p-renceng-buy" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
+          <div class="field" style="flex:1;"><label>Harga Jual /Renceng (Rp)</label><input type="number" id="p-renceng-sell" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
         </div>
         <div class="field"><label>Stok Renceng (ikat, terpisah dari stok eceran)</label><input type="number" id="p-renceng-stock" min="0" placeholder="0"></div>
       </div>
@@ -1102,8 +1132,8 @@
           </div>
         </div>
         <div style="display:flex; gap:12px;">
-          <div class="field" style="flex:1;"><label>Harga Beli /Kg (Rp)</label><input type="number" id="p-kilo-buy" min="0" placeholder="0"></div>
-          <div class="field" style="flex:1;"><label>Harga Jual /Kg (Rp)</label><input type="number" id="p-kilo-sell" min="0" placeholder="0"></div>
+          <div class="field" style="flex:1;"><label>Harga Beli /Kg (Rp)</label><input type="number" id="p-kilo-buy" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
+          <div class="field" style="flex:1;"><label>Harga Jual /Kg (Rp)</label><input type="number" id="p-kilo-sell" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
         </div>
         <div class="field"><label>Stok 1 Kg (dalam kg utuh, terpisah dari satuan lain)</label><input type="number" id="p-kilo-stock" min="0" step="0.01" placeholder="0"></div>
       </div>
@@ -1123,8 +1153,8 @@
           </div>
         </div>
         <div style="display:flex; gap:12px;">
-          <div class="field" style="flex:1;"><label>Harga Beli /½Kg (Rp)</label><input type="number" id="p-halfkilo-buy" min="0" placeholder="0"></div>
-          <div class="field" style="flex:1;"><label>Harga Jual /½Kg (Rp)</label><input type="number" id="p-halfkilo-sell" min="0" placeholder="0"></div>
+          <div class="field" style="flex:1;"><label>Harga Beli /½Kg (Rp)</label><input type="number" id="p-halfkilo-buy" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
+          <div class="field" style="flex:1;"><label>Harga Jual /½Kg (Rp)</label><input type="number" id="p-halfkilo-sell" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
         </div>
         <div class="field"><label>Stok ½ Kg (dalam paket ½kg, terpisah dari satuan lain)</label><input type="number" id="p-halfkilo-stock" min="0" step="0.01" placeholder="0"></div>
       </div>
@@ -1144,8 +1174,8 @@
           </div>
         </div>
         <div style="display:flex; gap:12px;">
-          <div class="field" style="flex:1;"><label>Harga Beli /¼Kg (Rp)</label><input type="number" id="p-quarterkilo-buy" min="0" placeholder="0"></div>
-          <div class="field" style="flex:1;"><label>Harga Jual /¼Kg (Rp)</label><input type="number" id="p-quarterkilo-sell" min="0" placeholder="0"></div>
+          <div class="field" style="flex:1;"><label>Harga Beli /¼Kg (Rp)</label><input type="number" id="p-quarterkilo-buy" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
+          <div class="field" style="flex:1;"><label>Harga Jual /¼Kg (Rp)</label><input type="number" id="p-quarterkilo-sell" min="0" placeholder="0" disabled style="background:var(--paper-alt); cursor:not-allowed;"></div>
         </div>
         <div class="field"><label>Stok ¼ Kg (dalam paket ¼kg, terpisah dari satuan lain)</label><input type="number" id="p-quarterkilo-stock" min="0" step="0.01" placeholder="0"></div>
       </div>
@@ -2382,25 +2412,6 @@ const EXTRA_UNITS = [
 // field DB memakai penamaan camelCase khusus untuk kilo (kiloEnabled dst tetap konsisten karena kata "kilo" sudah satu suku kata)
 const EXTRA_UNIT_DBKEY = {karton:'karton', renceng:'renceng', kilo:'kilo', halfkilo:'halfKilo', quarterkilo:'quarterKilo'};
 
-document.getElementById('btn-new-product').addEventListener('click', ()=>{
-  document.getElementById('product-modal-title').textContent = 'Tambah Produk';
-  const baseIds = ['p-id','p-barcode','p-name','p-category','p-buy','p-sell','p-stock','p-minstock'];
-  const extraIds = [];
-  EXTRA_UNITS.forEach(u=>{
-    if(u.hasIsi) extraIds.push(`p-${u.key}-isi`);
-    extraIds.push(`p-${u.key}-barcode`, `p-${u.key}-buy`, `p-${u.key}-sell`, `p-${u.key}-stock`);
-  });
-  baseIds.concat(extraIds).forEach(id=>document.getElementById(id).value='');
-  document.getElementById('p-unit').value = 'pcs';
-  EXTRA_UNITS.forEach(u=>{
-    document.getElementById(`p-${u.key}-enabled`).checked = false;
-    document.getElementById(`${u.key}-fields`).style.display = 'none';
-  });
-  setPhotoPreview('');
-  document.getElementById('p-photo-file').value = '';
-  openModal('modal-product');
-});
-
 /* ---- Foto Produk: dikompres jadi thumbnail kecil sebelum disimpan ---- */
 function setPhotoPreview(dataUrl){
   document.getElementById('p-photo-data').value = dataUrl || '';
@@ -2445,6 +2456,7 @@ EXTRA_UNITS.forEach(u=>{
 });
 
 document.getElementById('btn-save-product').addEventListener('click', async ()=>{
+  if(!canManageProducts()){ showToast('Hanya SPV/Owner yang bisa mengedit produk'); return; }
   const id = document.getElementById('p-id').value;
   const barcode = document.getElementById('p-barcode').value.trim();
   const name = document.getElementById('p-name').value.trim();
@@ -2583,7 +2595,11 @@ document.getElementById('btn-save-product').addEventListener('click', async ()=>
   showToast('Produk disimpan');
 });
 
+function canManageProducts(){
+  return !!(SESSION && (SESSION.role === 'owner' || SESSION.role === 'spv'));
+}
 function editProduct(id){
+  if(!canManageProducts()){ showToast('Hanya SPV/Owner yang bisa mengedit produk'); return; }
   const p = DB.products.find(p=>p.id===id);
   if(!p) return;
   document.getElementById('product-modal-title').textContent = 'Edit Produk';
@@ -2612,6 +2628,7 @@ function editProduct(id){
   openModal('modal-product');
 }
 function deleteProduct(id){
+  if(!canManageProducts()){ showToast('Hanya SPV/Owner yang bisa menghapus produk'); return; }
   const p = DB.products.find(p=>p.id===id);
   showConfirm(`Hapus produk <strong>${p ? p.name : ''}</strong> dari daftar?`, async ()=>{
     const { data: newData, error } = await sb.rpc('delete_product_rpc', {
@@ -2685,9 +2702,10 @@ function renderProducts(){
       cells += `<td class="num mono ${low?'lowstock':''}">${r.enabled ? r.stock : '-'}</td>`;
       cells += `<td>${!r.enabled ? '-' : (low ? '<span class="badge low">Menipis</span>' : '<span class="badge ok">Aman</span>')}</td>`;
       if(idx === 0){
+        const canManage = SESSION && (SESSION.role === 'owner' || SESSION.role === 'spv');
         cells += `<td rowspan="${rows.length}" style="white-space:nowrap; vertical-align:top;">
-          <button class="btn outline sm" onclick="editProduct('${p.id}')">Edit</button>
-          <button class="btn danger sm" onclick="deleteProduct('${p.id}')">Hapus</button>
+          ${canManage ? `<button class="btn outline sm" onclick="editProduct('${p.id}')">Edit</button>
+          <button class="btn danger sm" onclick="deleteProduct('${p.id}')">Hapus</button>` : '<span style="color:var(--ink-soft); font-size:12px;">—</span>'}
         </td>`;
       }
       tr.innerHTML = cells;
@@ -2859,52 +2877,101 @@ function refreshPurchaseUnitSelect(){
 }
 document.getElementById('pb-product').addEventListener('change', refreshPurchaseUnitSelect);
 
+document.getElementById('pb-is-new-product').addEventListener('change', (e)=>{
+  const isNew = e.target.checked;
+  document.getElementById('pb-existing-product-fields').style.display = isNew ? 'none' : '';
+  document.getElementById('pb-new-product-fields').style.display = isNew ? '' : 'none';
+});
+
 document.getElementById('btn-save-purchase').addEventListener('click', async ()=>{
-  const productId = document.getElementById('pb-product').value;
-  const unitKey = document.getElementById('pb-unit').value;
+  const isNewProduct = document.getElementById('pb-is-new-product').checked;
   const qty = Number(document.getElementById('pb-qty').value) || 0;
   const price = Number(document.getElementById('pb-price').value) || 0;
+  const sellPrice = Number(document.getElementById('pb-sell-price').value) || 0;
   const supplier = document.getElementById('pb-supplier').value.trim();
   const note = document.getElementById('pb-note').value.trim();
 
-  if(!productId){ showToast('Pilih produk dulu'); return; }
   if(qty <= 0){ showToast('Jumlah masuk harus lebih dari 0'); return; }
   if(!supplier){ showToast('Nama supplier wajib diisi'); return; }
 
-  const p = DB.products.find(p=>p.id===productId);
-  if(!p){ showToast('Produk tidak ditemukan'); return; }
+  const btn = document.getElementById('btn-save-purchase');
+  const nowIso = new Date().toISOString();
+  const who = { byName: (SESSION && SESSION.name) ? SESSION.name : '-', byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-' };
 
-  const isEceran = unitKey === 'eceran';
-  const unitLabelText = isEceran ? 'Eceran' : (EXTRA_UNITS.find(u=>u.key===unitKey)||{}).label;
-  const stockField = isEceran ? 'stock' : EXTRA_UNIT_DBKEY[unitKey]+'Stock';
-  const buyPriceField = isEceran ? 'buyPrice' : EXTRA_UNIT_DBKEY[unitKey]+'BuyPrice';
+  let productToSave, unitLabelText, stockField, buyPriceField, sellPriceField, productName, oldStock, oldBuy, oldSell;
 
-  const oldStock = Number(p[stockField])||0;
-  const oldPrice = Number(p[buyPriceField])||0;
-  const updatedProduct = { ...p, [stockField]: oldStock + qty };
-  if(price > 0) updatedProduct[buyPriceField] = price;
+  if(isNewProduct){
+    const name = document.getElementById('pb-new-name').value.trim();
+    const category = document.getElementById('pb-new-category').value.trim();
+    const barcode = document.getElementById('pb-new-barcode').value.trim() || uid();
+    if(!name){ showToast('Nama produk baru wajib diisi'); return; }
+    if(price <= 0){ showToast('Harga beli wajib diisi untuk produk baru'); return; }
+    if(sellPrice <= 0){ showToast('Harga jual wajib diisi untuk produk baru'); return; }
 
-  const stockLogs = [{
-    id: uid(), date: new Date().toISOString(), productName: p.name, unitLabel: unitLabelText,
-    change: qty, reason: 'Pembelian dari Supplier: ' + supplier,
-    byName: (SESSION && SESSION.name) ? SESSION.name : '-',
-    byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
-  }];
-  const priceLogs = [];
-  if(price > 0 && price !== oldPrice){
-    priceLogs.push({
-      id: uid(), date: new Date().toISOString(), productName: p.name, unitLabel: unitLabelText,
-      field: 'Harga Beli', oldValue: oldPrice, newValue: price,
-      byName: (SESSION && SESSION.name) ? SESSION.name : '-',
-      byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
+    const existingBarcodes = DB.products.flatMap(p=>{
+      const list = [p.barcode];
+      EXTRA_UNITS.forEach(u=>{ const bc = p[EXTRA_UNIT_DBKEY[u.key]+'Barcode']; if(bc) list.push(bc); });
+      return list;
     });
+    if(existingBarcodes.includes(barcode)){ showToast('Barcode tersebut sudah dipakai produk lain'); return; }
+
+    productToSave = {
+      id: uid(), barcode, name, category, unit:'pcs',
+      buyPrice: price, sellPrice: sellPrice, stock: qty, minStock: 10,
+      kartonEnabled:false, kartonBarcode:'', kartonIsi:0, kartonBuyPrice:0, kartonSellPrice:0, kartonStock:0,
+      rencengEnabled:false, rencengBarcode:'', rencengIsi:0, rencengBuyPrice:0, rencengSellPrice:0, rencengStock:0,
+      kiloEnabled:false, kiloBarcode:'', kiloBuyPrice:0, kiloSellPrice:0, kiloStock:0,
+      halfKiloEnabled:false, halfKiloBarcode:'', halfKiloBuyPrice:0, halfKiloSellPrice:0, halfKiloStock:0,
+      quarterKiloEnabled:false, quarterKiloBarcode:'', quarterKiloBuyPrice:0, quarterKiloSellPrice:0, quarterKiloStock:0,
+    };
+    unitLabelText = 'Eceran'; stockField = 'stock'; buyPriceField = 'buyPrice'; sellPriceField = 'sellPrice';
+    productName = name; oldStock = 0; oldBuy = 0; oldSell = 0;
+  } else {
+    const productId = document.getElementById('pb-product').value;
+    const unitKey = document.getElementById('pb-unit').value;
+    if(!productId){ showToast('Pilih produk dulu'); return; }
+    const p = DB.products.find(p=>p.id===productId);
+    if(!p){ showToast('Produk tidak ditemukan'); return; }
+
+    const isEceran = unitKey === 'eceran';
+    unitLabelText = isEceran ? 'Eceran' : (EXTRA_UNITS.find(u=>u.key===unitKey)||{}).label;
+    stockField = isEceran ? 'stock' : EXTRA_UNIT_DBKEY[unitKey]+'Stock';
+    buyPriceField = isEceran ? 'buyPrice' : EXTRA_UNIT_DBKEY[unitKey]+'BuyPrice';
+    sellPriceField = isEceran ? 'sellPrice' : EXTRA_UNIT_DBKEY[unitKey]+'SellPrice';
+    productName = p.name;
+    oldStock = Number(p[stockField])||0;
+    oldBuy = Number(p[buyPriceField])||0;
+    oldSell = Number(p[sellPriceField])||0;
+
+    productToSave = { ...p, [stockField]: oldStock + qty };
+    // Harga otomatis jadi rata-rata tertimbang (bukan cuma diganti) dari stok lama + pembelian ini
+    if(price > 0){
+      productToSave[buyPriceField] = oldStock > 0 ? Math.round(((oldBuy*oldStock)+(price*qty)) / (oldStock+qty)) : price;
+    }
+    if(sellPrice > 0){
+      productToSave[sellPriceField] = oldStock > 0 ? Math.round(((oldSell*oldStock)+(sellPrice*qty)) / (oldStock+qty)) : sellPrice;
+    }
   }
 
-  const btn = document.getElementById('btn-save-purchase');
+  const stockLogs = [{
+    id: uid(), date: nowIso, productName, unitLabel: unitLabelText,
+    change: qty, reason: (isNewProduct ? 'Produk Baru dari Pembelian: ' : 'Pembelian dari Supplier: ') + supplier,
+    ...who,
+  }];
+  const priceLogs = [];
+  const newBuy = productToSave[buyPriceField];
+  const newSell = productToSave[sellPriceField];
+  if(price > 0 && newBuy !== oldBuy){
+    priceLogs.push({ id: uid(), date: nowIso, productName, unitLabel: unitLabelText, field: 'Harga Beli (rata-rata)', oldValue: oldBuy, newValue: newBuy, ...who });
+  }
+  if(sellPrice > 0 && newSell !== oldSell){
+    priceLogs.push({ id: uid(), date: nowIso, productName, unitLabel: unitLabelText, field: 'Harga Jual (rata-rata)', oldValue: oldSell, newValue: newSell, ...who });
+  }
+
   btn.disabled = true;
   const { data: newData, error } = await sb.rpc('save_product_rpc', {
     p_company_id: CURRENT_COMPANY.id,
-    p_product: updatedProduct,
+    p_product: productToSave,
     p_stock_logs: stockLogs,
     p_price_logs: priceLogs,
   });
@@ -2917,16 +2984,21 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
 
   const purchases = DB.purchases;
   purchases.push({
-    id: uid(), date: new Date().toISOString(), productName: p.name, unitLabel: unitLabelText,
-    qty, price: price || oldPrice, total: qty * (price || oldPrice),
-    supplier, note,
-    byName: (SESSION && SESSION.name) ? SESSION.name : '-',
-    byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
+    id: uid(), date: nowIso, productName, unitLabel: unitLabelText,
+    qty, price: price || oldBuy, total: qty * (price || oldBuy),
+    supplier, note, ...who,
   });
   DB.purchases = purchases;
 
+  document.getElementById('pb-is-new-product').checked = false;
+  document.getElementById('pb-existing-product-fields').style.display = '';
+  document.getElementById('pb-new-product-fields').style.display = 'none';
+  document.getElementById('pb-new-name').value = '';
+  document.getElementById('pb-new-category').value = '';
+  document.getElementById('pb-new-barcode').value = '';
   document.getElementById('pb-qty').value = 1;
   document.getElementById('pb-price').value = '';
+  document.getElementById('pb-sell-price').value = '';
   document.getElementById('pb-supplier').value = '';
   document.getElementById('pb-note').value = '';
 
@@ -2934,6 +3006,7 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
   renderStockLog();
   renderPriceLog();
   renderPurchases();
+  refreshPurchaseProductSelect();
   showToast('Barang masuk tercatat & stok bertambah');
 });
 
