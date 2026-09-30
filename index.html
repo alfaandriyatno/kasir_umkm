@@ -255,9 +255,8 @@
   }
   .approval-item .aemail{ font-weight:600; font-size:14px; word-break:break-all; }
   .approval-item .adate{ font-size:11px; color:var(--ink-soft); }
-  .approval-item .act-col{ display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
-  .approval-item .act-row{ display:flex; gap:6px; flex-shrink:0; }
-  .approval-item .act-btn{ min-width:96px; text-align:center; white-space:nowrap; }
+  .approval-item .act-row{ display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+  .approval-item .act-btn{ min-width:84px; text-align:center; white-space:nowrap; }
   .company-item{
     display:flex; align-items:center; justify-content:space-between;
     padding:12px 14px; border:1px solid var(--line); border-radius:10px;
@@ -1780,7 +1779,7 @@ async function loadApprovalList(){
         </div>
         ${storeInfo}
       </div>
-      <div class="act-col">
+      <div class="act-row">
         ${actions}
       </div>
     </div>`;
