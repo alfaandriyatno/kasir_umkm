@@ -1214,6 +1214,23 @@
   </div>
 </div>
 
+<!-- Modal: Konfirmasi sandi Owner (untuk tindakan sensitif seperti hapus semua data / keluar semua device) -->
+<div class="modal-bg" id="modal-owner-password">
+  <div class="modal" style="width:380px;">
+    <h2 style="font-size:18px;">Konfirmasi Sandi Owner</h2>
+    <div id="owner-password-message" style="font-size:13.5px; line-height:1.6; color:var(--ink-soft); margin-bottom:14px;"></div>
+    <div class="field">
+      <label>Sandi Akun Owner</label>
+      <input type="password" id="owner-password-input" placeholder="Masukkan sandi owner">
+    </div>
+    <div id="owner-password-error" style="font-size:12.5px; color:#B5342A; margin:-8px 0 12px 0; display:none;"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn outline" style="flex:1;" id="owner-password-cancel">Batal</button>
+      <button class="btn danger" style="flex:1;" id="owner-password-ok">Konfirmasi</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1332,6 +1349,58 @@ document.getElementById('confirm-ok').addEventListener('click', ()=>{
 document.getElementById('confirm-cancel').addEventListener('click', ()=>{
   document.getElementById('modal-confirm').classList.remove('show');
   _confirmCallback = null;
+});
+
+/* Modal konfirmasi sandi Owner - lapisan keamanan tambahan untuk tindakan sensitif
+   (hapus semua data, keluar dari semua device). Verifikasi dilakukan lewat fetch
+   langsung ke endpoint password-grant GoTrue supaya TIDAK mengganti sesi login yang
+   sedang aktif di device ini (tidak memakai sb.auth.signInWithPassword). */
+let _ownerPwCallback = null;
+function requestOwnerPasswordConfirm(messageHtml, onVerified){
+  document.getElementById('owner-password-message').innerHTML = messageHtml;
+  document.getElementById('owner-password-input').value = '';
+  document.getElementById('owner-password-error').style.display = 'none';
+  _ownerPwCallback = onVerified;
+  document.getElementById('modal-owner-password').classList.add('show');
+}
+async function verifyOwnerPassword(password){
+  if(!password) return false;
+  const { data: ownerEmail, error: rpcError } = await sb.rpc('get_company_owner_email', { p_company_id: CURRENT_COMPANY.id });
+  if(rpcError || !ownerEmail) return false;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email: ownerEmail, password }),
+    });
+    return res.ok;
+  }catch(e){
+    return false;
+  }
+}
+document.getElementById('owner-password-cancel').addEventListener('click', ()=>{
+  document.getElementById('modal-owner-password').classList.remove('show');
+  document.getElementById('owner-password-input').value = '';
+  _ownerPwCallback = null;
+});
+document.getElementById('owner-password-ok').addEventListener('click', async ()=>{
+  const btn = document.getElementById('owner-password-ok');
+  const password = document.getElementById('owner-password-input').value;
+  const errEl = document.getElementById('owner-password-error');
+  btn.disabled = true;
+  const ok = await verifyOwnerPassword(password);
+  btn.disabled = false;
+  if(!ok){
+    errEl.textContent = 'Sandi Owner salah. Silakan coba lagi.';
+    errEl.style.display = 'block';
+    document.getElementById('owner-password-input').value = '';
+    return;
+  }
+  document.getElementById('modal-owner-password').classList.remove('show');
+  document.getElementById('owner-password-input').value = '';
+  const cb = _ownerPwCallback;
+  _ownerPwCallback = null;
+  if(cb) cb();
 });
 
 /* ================= DASHBOARD ================= */
@@ -2315,23 +2384,27 @@ document.getElementById('btn-save-paper-size').addEventListener('click', async (
 refreshPaperSizeUI();
 
 document.getElementById('btn-logout-all').addEventListener('click', ()=>{
-  showConfirm('Yakin ingin keluar dari akun kamu di <strong>semua device</strong>? Kamu (dan siapa pun yang login pakai akun ini di device lain) perlu login ulang setelah ini.', async ()=>{
-    const { error } = await sb.auth.signOut({ scope: 'global' });
-    if(error){ showToast('Gagal: ' + error.message); return; }
-    showToast('Berhasil keluar dari semua device');
+  showConfirm('Yakin ingin keluar dari akun kamu di <strong>semua device</strong>? Kamu (dan siapa pun yang login pakai akun ini di device lain) perlu login ulang setelah ini.', ()=>{
+    requestOwnerPasswordConfirm('Demi keamanan, masukkan <strong>sandi akun Owner</strong> toko ini untuk melanjutkan keluar dari semua device.', async ()=>{
+      const { error } = await sb.auth.signOut({ scope: 'global' });
+      if(error){ showToast('Gagal: ' + error.message); return; }
+      showToast('Berhasil keluar dari semua device');
+    });
   });
 });
 
 document.getElementById('btn-reset-data').addEventListener('click', ()=>{
-  showConfirm('Yakin ingin menghapus <strong>semua</strong> data produk dan transaksi milik perusahaan <strong>' + CURRENT_COMPANY.name + '</strong>? Tindakan ini tidak bisa dibatalkan dan berlaku di semua device.', async ()=>{
-    const { data: newData, error } = await sb.rpc('reset_company_data_rpc', { p_company_id: CURRENT_COMPANY.id });
-    if(error){ showToast('Gagal menghapus data: ' + error.message); return; }
-    CACHE.products = newData.products || [];
-    CACHE.transactions = newData.transactions || [];
-    CACHE.stockLogs = newData.stockLogs || [];
-    CACHE.priceLogs = newData.priceLogs || [];
-    showToast('Semua data telah dihapus');
-    renderProducts(); renderReport(); renderRiwayat(); renderStockLog(); renderPriceLog(); cart=[]; renderCart(); renderDashboard();
+  showConfirm('Yakin ingin menghapus <strong>semua</strong> data produk dan transaksi milik perusahaan <strong>' + CURRENT_COMPANY.name + '</strong>? Tindakan ini tidak bisa dibatalkan dan berlaku di semua device.', ()=>{
+    requestOwnerPasswordConfirm('Demi keamanan, masukkan <strong>sandi akun Owner</strong> toko ini untuk melanjutkan menghapus semua data.', async ()=>{
+      const { data: newData, error } = await sb.rpc('reset_company_data_rpc', { p_company_id: CURRENT_COMPANY.id });
+      if(error){ showToast('Gagal menghapus data: ' + error.message); return; }
+      CACHE.products = newData.products || [];
+      CACHE.transactions = newData.transactions || [];
+      CACHE.stockLogs = newData.stockLogs || [];
+      CACHE.priceLogs = newData.priceLogs || [];
+      showToast('Semua data telah dihapus');
+      renderProducts(); renderReport(); renderRiwayat(); renderStockLog(); renderPriceLog(); cart=[]; renderCart(); renderDashboard();
+    });
   });
 });
 refreshStoreName();
