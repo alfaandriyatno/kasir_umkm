@@ -2651,7 +2651,7 @@ document.getElementById('btn-save-product').addEventListener('click', async ()=>
       isi: enabled ? isi : 0,
       buyPrice: enabled ? (Number(document.getElementById(`p-${u.key}-buy`).value) || 0) : 0,
       sellPrice: enabled ? (Number(document.getElementById(`p-${u.key}-sell`).value) || 0) : 0,
-      stock: enabled ? (Number(document.getElementById(`p-${u.key}-stock`).value) || 0) : 0,
+      stock: enabled ? Math.max(Number(document.getElementById(`p-${u.key}-stock`).value) || 0, 0) : 0,
     };
   }
   // Barcode antar satuan tambahan tidak boleh sama satu sama lain (yang enabled & tidak kosong)
@@ -2681,8 +2681,8 @@ document.getElementById('btn-save-product').addEventListener('click', async ()=>
     unit: document.getElementById('p-unit').value.trim() || 'pcs',
     buyPrice: Number(document.getElementById('p-buy').value) || 0,
     sellPrice: Number(document.getElementById('p-sell').value) || 0,
-    stock: Number(document.getElementById('p-stock').value) || 0,
-    minStock: Number(document.getElementById('p-minstock').value) || 0,
+    stock: Math.max(Number(document.getElementById('p-stock').value) || 0, 0),
+    minStock: Math.max(Number(document.getElementById('p-minstock').value) || 0, 0),
     photo: document.getElementById('p-photo-data').value || '',
   };
   for(const u of EXTRA_UNITS){
@@ -3470,7 +3470,7 @@ function calcTotals(subtotal, discount){
 function renderReceipt(){
   const linesEl = document.getElementById('receipt-lines');
   const subtotal = cart.reduce((s,i)=>s+cartItemTotal(i),0);
-  const discount = Number(document.getElementById('discount-input').value) || 0;
+  const discount = Math.min(Math.max(Number(document.getElementById('discount-input').value) || 0, 0), subtotal);
   const { preTax, ppnPercent, ppnAmount, grandTotal } = calcTotals(subtotal, discount);
 
   const ppnLine = document.getElementById('ppn-line');
@@ -3526,7 +3526,7 @@ document.getElementById('btn-clear-cart').addEventListener('click', ()=>{
 document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   if(!cart.length) return;
   const subtotal = cart.reduce((s,i)=>s+cartItemTotal(i),0);
-  const discount = Number(document.getElementById('discount-input').value) || 0;
+  const discount = Math.min(Math.max(Number(document.getElementById('discount-input').value) || 0, 0), subtotal);
   const { preTax, ppnPercent, ppnAmount, grandTotal } = calcTotals(subtotal, discount);
   let paid;
   if(paymentMethod === 'cash'){
