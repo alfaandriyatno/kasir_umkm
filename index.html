@@ -852,6 +852,17 @@
         <div id="riwayat-empty" class="empty-state" style="display:none;">Belum ada transaksi pada rentang tanggal ini.</div>
         <div id="riwayat-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
       </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h3 class="display" style="margin-top:0;">Riwayat Pembatalan Transaksi</h3>
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Jejak audit setiap transaksi yang dibatalkan — transaksi aslinya (tanggal, kasir, total, item), siapa yang membatalkan, dan kapan. Tidak bisa diubah/dihapus.</div>
+        <table id="voidlog-table">
+          <thead><tr><th>Dibatalkan Pada</th><th>Tanggal Transaksi Asli</th><th>Kasir Asli</th><th>Item</th><th class="num">Total</th><th>Dibatalkan Oleh</th></tr></thead>
+          <tbody id="voidlog-tbody"></tbody>
+        </table>
+        <div id="voidlog-empty" class="empty-state" style="display:none;">Belum ada transaksi yang dibatalkan.</div>
+        <div id="voidlog-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
+      </div>
     </section>
 
     <!-- ============ PENYESUAIAN (khusus SPV) ============ -->
@@ -955,8 +966,12 @@
         </div>
         <button class="btn amber" id="btn-save-store">Simpan</button>
         <div class="divider" style="border-top:1px solid var(--line); margin:20px 0;"></div>
+        <h3 class="display">Backup Data</h3>
+        <p style="font-size:13px; color:var(--ink-soft);">Unduh salinan lengkap semua data toko (produk, transaksi, pembelian, riwayat stok &amp; harga, dll) sebagai satu file. Simpan file ini di tempat aman — bisa jadi cadangan kalau sewaktu-waktu diperlukan.</p>
+        <button class="btn outline" id="btn-backup-data">⬇ Unduh Backup Data (JSON)</button>
+        <div class="divider" style="border-top:1px solid var(--line); margin:20px 0;"></div>
         <h3 class="display">Reset Data</h3>
-        <p style="font-size:13px; color:var(--ink-soft);">Menghapus seluruh data produk dan transaksi dari perangkat ini. Tindakan ini tidak bisa dibatalkan.</p>
+        <p style="font-size:13px; color:var(--ink-soft);">Menghapus seluruh data produk dan transaksi dari perangkat ini. Tindakan ini tidak bisa dibatalkan — sebaiknya unduh backup dulu sebelum melanjutkan.</p>
         <button class="btn danger" id="btn-reset-data">Hapus Semua Data</button>
       </div>
 
@@ -1245,7 +1260,7 @@ let SESSION = null;         // { role, name, email } peran user di perusahaan ak
 
 /* ================= STORAGE (tersinkron ke Supabase per perusahaan) ================= */
 const CACHE = {
-  products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [], customers: [], purchases: [],
+  products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [], customers: [], purchases: [], voidLogs: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
 };
 let _saveTimer = null;
@@ -1258,7 +1273,7 @@ async function saveCompanyData(){
   const payload = {
     products: CACHE.products, transactions: CACHE.transactions,
     adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
-    customers: CACHE.customers, purchases: CACHE.purchases,
+    customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
     storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
   };
   const { error } = await sb.from('company_data').upsert({
@@ -1292,11 +1307,40 @@ const DB = {
   set customers(v){ CACHE.customers = v; scheduleSave(); },
   get purchases(){ return CACHE.purchases; },
   set purchases(v){ CACHE.purchases = v; scheduleSave(); },
+  get voidLogs(){ return CACHE.voidLogs; },
 };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+// Keamanan: escape teks yang diketik pengguna (nama pelanggan, nama produk, dll) sebelum
+// disisipkan ke innerHTML, supaya tidak bisa jadi celah XSS (misal nama berisi kode <script>).
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 function rupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
+// Amankan teks bebas (nama pelanggan/produk/kasir/dll) sebelum disisipkan ke innerHTML,
+// supaya tidak bisa dipakai untuk menyuntik script (XSS) lewat input yang terlihat wajar
+// seperti nama pelanggan atau nama karyawan.
+function esc(s){
+  if(s === null || s === undefined) return '';
+  return String(s)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+// Amankan teks bebas yang disisipkan ke DALAM string JS di atribut onclick="fn('...')" —
+// backslash dulu, lalu kutip satu (biar string JS-nya tidak rusak), lalu kutip dua jadi
+// &quot; (biar tidak keluar dari atribut HTML-nya). Dipakai untuk nama toko/nama akun/email
+// yang ditulis pengguna sendiri saat mendaftar, supaya tidak bisa dipakai menyuntik HTML/JS.
+function escJsAttr(s){
+  return String(s === null || s === undefined ? '' : s)
+    .replaceAll('\\','\\\\').replaceAll("'","\\'").replaceAll('"','&quot;');
+}
 
 /* ================= PAGINATION GENERIK ================= */
 const PAGE_SIZE = 20;
@@ -1512,9 +1556,9 @@ function renderLowStock(){
   rows.forEach(r=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${r.name}</td>
-      <td>${r.category}</td>
-      <td>${r.unit}</td>
+      <td>${esc(r.name)}</td>
+      <td>${esc(r.category)}</td>
+      <td>${esc(r.unit)}</td>
       <td class="num mono lowstock">${r.stock}</td>
       <td><span class="badge low">Stok Menipis</span></td>`;
     tbody.appendChild(tr);
@@ -1550,7 +1594,7 @@ function switchView(v){
   if(v==='produk'){ renderProducts(); renderStockLog(); renderPriceLog(); }
   if(v==='pembelian'){ refreshPurchaseProductSelect(); renderPurchases(); }
   if(v==='pelanggan') renderCustomers();
-  if(v==='laporan') renderRiwayat();
+  if(v==='laporan'){ renderRiwayat(); renderVoidLog(); }
   if(v==='penyesuaian') renderAdjustments();
 }
 
@@ -1784,12 +1828,12 @@ async function loadApprovalList(){
   // Dipakai di kartu Owner: aksi disini berlaku untuk toko itu sendiri (menonaktifkan/menghapus toko beneran)
   function renderStoreChip(store){
     return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">
-      <span style="font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${store.name}${store.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
+      <span style="font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(store.name)}${store.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
       <div class="act-row">
         ${store.disabled
           ? `<button class="btn amber sm act-btn" onclick="setStoreDisabled('${store.id}', false)">Aktifkan</button>`
           : `<button class="btn outline sm act-btn" onclick="setStoreDisabled('${store.id}', true)">Nonaktifkan</button>`}
-        <button class="btn danger sm act-btn" onclick="deleteStore('${store.id}','${store.name.replace(/'/g,"\\'")}')">Hapus</button>
+        <button class="btn danger sm act-btn" onclick="deleteStore('${store.id}','${escJsAttr(store.name)}')">Hapus</button>
       </div>
     </div>`;
   }
@@ -1798,12 +1842,12 @@ async function loadApprovalList(){
   // bukan menghapus tokonya — toko & datanya tetap utuh di sisi Owner.
   function renderMembershipChip(m){
     return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">
-      <span style="font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.name}${m.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
+      <span style="font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(m.name)}${m.disabled ? ' <span style="color:#B5342A; font-weight:600;">(Nonaktif)</span>' : ''}</span>
       <div class="act-row">
         ${m.disabled
           ? `<button class="btn amber sm act-btn" onclick="setStoreDisabled('${m.id}', false)">Aktifkan</button>`
           : `<button class="btn outline sm act-btn" onclick="setStoreDisabled('${m.id}', true)">Nonaktifkan</button>`}
-        <button class="btn danger sm act-btn" onclick="removeMembership('${m.membershipId}','${m.name.replace(/'/g,"\\'")}')">Hapus</button>
+        <button class="btn danger sm act-btn" onclick="removeMembership('${m.membershipId}','${escJsAttr(m.name)}')">Hapus</button>
       </div>
     </div>`;
   }
@@ -1820,7 +1864,7 @@ async function loadApprovalList(){
         : `<button class="btn outline sm act-btn" onclick="setDisabled('${u.id}', true)">Nonaktifkan</button>`;
     }
     if(!isSelf && !u.is_superadmin){
-      actions += `<button class="btn danger sm act-btn" onclick="deleteAccount('${u.id}','${(u.email||'').replace(/'/g,"\\'")}')">Hapus</button>`;
+      actions += `<button class="btn danger sm act-btn" onclick="deleteAccount('${u.id}','${escJsAttr(u.email||'')}')">Hapus</button>`;
     }
     let storeInfo = '';
     if(u.account_type === 'owner'){
@@ -1841,7 +1885,7 @@ async function loadApprovalList(){
     return `
     <div class="approval-item">
       <div>
-        <div class="aemail">${u.name ? u.name + ' &mdash; ' : ''}${u.email}${isSelf ? ' <span style="opacity:.6;">(kamu)</span>' : ''}${u.is_superadmin ? ' <span style="opacity:.6;">(pemilik)</span>' : ''}</div>
+        <div class="aemail">${u.name ? esc(u.name) + ' &mdash; ' : ''}${esc(u.email)}${isSelf ? ' <span style="opacity:.6;">(kamu)</span>' : ''}${u.is_superadmin ? ' <span style="opacity:.6;">(pemilik)</span>' : ''}</div>
         <div class="adate">
           <span style="color:${STATUS_COLORS[u.status]}; font-weight:600;">${STATUS_LABELS[u.status] || u.status}</span>
           ${u.disabled ? ' &middot; <span style="color:#B5342A; font-weight:600;">Nonaktif</span>' : ''}
@@ -1870,7 +1914,7 @@ async function loadApprovalList(){
     return `
     <div class="approval-item" style="background:var(--paper-alt);">
       <div>
-        <div class="aemail">🔔 ${name ? name + ' &mdash; ' : ''}${email}</div>
+        <div class="aemail">🔔 ${name ? esc(name) + ' &mdash; ' : ''}${esc(email)}</div>
         <div class="adate">
           Permintaan: <span style="font-weight:600;">${UPGRADE_REQUEST_LABELS[r.request_type] || r.request_type}</span>
           &middot; <span style="color:${STATUS_COLORS[r.status]}; font-weight:600;">${STATUS_LABELS[r.status] || r.status}</span>
@@ -1927,7 +1971,7 @@ async function loadUpgradeRequestsList(){
     return `
     <div class="approval-item">
       <div>
-        <div class="aemail">${name ? name + ' &mdash; ' : ''}${email}</div>
+        <div class="aemail">${name ? esc(name) + ' &mdash; ' : ''}${esc(email)}</div>
         <div class="adate">
           <span style="font-weight:600;">${UPGRADE_REQUEST_LABELS[r.request_type] || r.request_type}</span>
           &middot; <span style="color:${STATUS_COLORS[r.status]}; font-weight:600;">${STATUS_LABELS[r.status] || r.status}</span>
@@ -1956,7 +2000,7 @@ async function setStoreDisabled(id, disabled){
 }
 
 async function deleteStore(id, name){
-  showConfirm(`Hapus toko <strong>${name}</strong> secara permanen? Semua data produk, transaksi, dan anggota toko ini akan ikut terhapus. Tindakan ini tidak bisa dibatalkan.`, async ()=>{
+  showConfirm(`Hapus toko <strong>${esc(name)}</strong> secara permanen? Semua data produk, transaksi, dan anggota toko ini akan ikut terhapus. Tindakan ini tidak bisa dibatalkan.`, async ()=>{
     const { error } = await sb.from('companies').delete().eq('id', id);
     if(error){ showToast('Gagal menghapus: ' + error.message); return; }
     showToast('Toko berhasil dihapus');
@@ -1965,7 +2009,7 @@ async function deleteStore(id, name){
 }
 
 async function removeMembership(membershipId, storeName){
-  showConfirm(`Cabut akses karyawan ini dari toko <strong>${storeName}</strong>? Toko dan seluruh datanya <strong>tidak</strong> akan terhapus — hanya akses karyawan ini ke toko tersebut yang dicabut.`, async ()=>{
+  showConfirm(`Cabut akses karyawan ini dari toko <strong>${esc(storeName)}</strong>? Toko dan seluruh datanya <strong>tidak</strong> akan terhapus — hanya akses karyawan ini ke toko tersebut yang dicabut.`, async ()=>{
     const { error } = await sb.from('company_members').delete().eq('id', membershipId);
     if(error){ showToast('Gagal mencabut akses: ' + error.message); return; }
     showToast('Akses karyawan ke toko tersebut sudah dicabut');
@@ -1992,7 +2036,7 @@ async function setDisabled(id, disabled){
   loadApprovalList();
 }
 async function deleteAccount(id, email){
-  showConfirm(`Hapus akun <strong>${email}</strong> secara permanen? Tindakan ini tidak bisa dibatalkan.`, async ()=>{
+  showConfirm(`Hapus akun <strong>${esc(email)}</strong> secara permanen? Tindakan ini tidak bisa dibatalkan.`, async ()=>{
     const { data, error } = await sb.functions.invoke('admin-delete-user', { body: { target_user_id: id } });
     if(error){ showToast('Gagal menghapus: ' + error.message); return; }
     if(data && data.error){ showToast('Gagal menghapus: ' + data.error); return; }
@@ -2019,11 +2063,11 @@ async function loadCompanyList(){
       window._companyChoices[i] = { id:m.companies.id, name:m.companies.name, role:m.role, memberName:m.name };
       if(disabled){
         return `<div class="company-item" style="opacity:0.55; cursor:not-allowed;">
-          <div><div class="cname">${m.companies.name}</div><div class="crole" style="color:#B5342A; font-weight:600;">Toko dinonaktifkan oleh pemilik aplikasi</div></div>
+          <div><div class="cname">${esc(m.companies.name)}</div><div class="crole" style="color:#B5342A; font-weight:600;">Toko dinonaktifkan oleh pemilik aplikasi</div></div>
         </div>`;
       }
       return `<div class="company-item" onclick="enterCompanyByChoice(${i})">
-        <div><div class="cname">${m.companies.name}</div><div class="crole">Peran: ${ROLE_LABELS[m.role] || m.role}</div></div>
+        <div><div class="cname">${esc(m.companies.name)}</div><div class="crole">Peran: ${esc(ROLE_LABELS[m.role] || m.role)}</div></div>
         <div>&rarr;</div>
       </div>`;
     }).join('');
@@ -2149,6 +2193,7 @@ async function enterCompany(id, name, role, memberName){
     CACHE.priceLogs = d.priceLogs || [];
     CACHE.customers = d.customers || [];
     CACHE.purchases = d.purchases || [];
+    CACHE.voidLogs = d.voidLogs || [];
     CACHE.storeName = d.storeName || name;
     CACHE.storeAddress = d.storeAddress || '';
     CACHE.ppnConfig = d.ppnConfig || {enabled:false, percent:11};
@@ -2172,6 +2217,7 @@ async function enterCompany(id, name, role, memberName){
     CACHE.priceLogs = [];
     CACHE.customers = [];
     CACHE.purchases = [];
+    CACHE.voidLogs = [];
     CACHE.storeName = name;
     CACHE.storeAddress = '';
     CACHE.ppnConfig = {enabled:false, percent:11};
@@ -2185,8 +2231,8 @@ async function enterCompany(id, name, role, memberName){
   document.getElementById('brand-fixed').classList.add('app-hidden');
   document.getElementById('main-app').classList.remove('app-hidden');
   document.getElementById('session-info').innerHTML =
-    `<div style="font-size:13px; font-weight:600; color:#fff;">${SESSION.name}</div>
-     <div style="font-size:11px; color:#B9C2D6;">Peran: ${ROLE_LABELS[SESSION.role] || SESSION.role}</div>`;
+    `<div style="font-size:13px; font-weight:600; color:#fff;">${esc(SESSION.name)}</div>
+     <div style="font-size:11px; color:#B9C2D6;">Peran: ${esc(ROLE_LABELS[SESSION.role] || SESSION.role)}</div>`;
   document.getElementById('company-info').textContent = 'Perusahaan: ' + name;
   applyRolePermissions(SESSION.role);
   const allowedViews = ROLE_PERMISSIONS[SESSION.role] || ['dashboard'];
@@ -2289,8 +2335,8 @@ async function renderUsers(){
     const isSelf = u.user_id === AUTH_USER.id;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${u.name}${isSelf ? ' <span style="opacity:.6;">(kamu)</span>' : ''}</td>
-      <td>${ROLE_LABELS[u.role] || u.role}</td>
+      <td>${esc(u.name)}${isSelf ? ' <span style="opacity:.6;">(kamu)</span>' : ''}</td>
+      <td>${esc(ROLE_LABELS[u.role] || u.role)}</td>
       <td style="white-space:nowrap;">
         <button class="btn outline sm" onclick="editUser('${u.id}')">Edit</button>
         <button class="btn danger sm" onclick="deleteUser('${u.id}', ${isSelf})">Hapus</button>
@@ -2382,6 +2428,31 @@ document.getElementById('btn-save-paper-size').addEventListener('click', async (
   if(ok){ updatePrintPageStyle(); showToast('Ukuran kertas struk disimpan'); }
 });
 refreshPaperSizeUI();
+
+document.getElementById('btn-backup-data').addEventListener('click', ()=>{
+  const backup = {
+    exportedAt: new Date().toISOString(),
+    companyId: CURRENT_COMPANY.id,
+    companyName: CURRENT_COMPANY.name,
+    data: {
+      products: CACHE.products, transactions: CACHE.transactions, adjustments: CACHE.adjustments,
+      customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
+      purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
+      storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
+    },
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `backup-${(CURRENT_COMPANY.name||'toko').replace(/[^a-z0-9]+/gi,'-')}-${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('Backup data berhasil diunduh');
+});
 
 document.getElementById('btn-logout-all').addEventListener('click', ()=>{
   showConfirm('Yakin ingin keluar dari akun kamu di <strong>semua device</strong>? Kamu (dan siapa pun yang login pakai akun ini di device lain) perlu login ulang setelah ini.', ()=>{
@@ -2732,7 +2803,7 @@ function editProduct(id){
 function deleteProduct(id){
   if(!canManageProducts()){ showToast('Hanya SPV/Owner yang bisa menghapus produk'); return; }
   const p = DB.products.find(p=>p.id===id);
-  showConfirm(`Hapus produk <strong>${p ? p.name : ''}</strong> dari daftar?`, async ()=>{
+  showConfirm(`Hapus produk <strong>${p ? esc(p.name) : ''}</strong> dari daftar?`, async ()=>{
     const { data: newData, error } = await sb.rpc('delete_product_rpc', {
       p_company_id: CURRENT_COMPANY.id,
       p_product_id: id,
@@ -2790,13 +2861,13 @@ function renderProducts(){
     rows.forEach((r, idx)=>{
       const low = r.enabled && r.stock <= p.minStock;
       const tr = document.createElement('tr');
-      let cells = `<td class="mono">${r.enabled ? (r.barcode || '-') : '-'}</td>`;
+      let cells = `<td class="mono">${r.enabled ? esc(r.barcode || '-') : '-'}</td>`;
       if(idx === 0){
         const photoImg = p.photo
           ? `<img src="${p.photo}" alt="" style="width:34px; height:34px; object-fit:cover; border-radius:6px; margin-right:8px; vertical-align:middle;">`
           : `<span style="display:inline-flex; width:34px; height:34px; border-radius:6px; background:var(--paper-alt); align-items:center; justify-content:center; margin-right:8px; vertical-align:middle; font-size:15px;">🖼️</span>`;
-        cells += `<td rowspan="${rows.length}">${photoImg}${p.name}</td>`;
-        cells += `<td rowspan="${rows.length}">${p.category}</td>`;
+        cells += `<td rowspan="${rows.length}">${photoImg}${esc(p.name)}</td>`;
+        cells += `<td rowspan="${rows.length}">${esc(p.category)}</td>`;
       }
       cells += `<td>${r.label}</td>`;
       cells += `<td class="num mono">${r.enabled ? rupiah(r.buy) : '-'}</td>`;
@@ -2819,6 +2890,11 @@ document.getElementById('produk-search').addEventListener('input', ()=>{ paginat
 
 /* ================= KASIR / CART ================= */
 let cart = [];
+// Idempotensi checkout: kalau submit sebelumnya gagal (misal koneksi putus) dan kasir
+// klik "Bayar" lagi TANPA mengubah keranjang, pakai id transaksi yang SAMA supaya
+// server (checkout_transaction RPC) bisa mendeteksi ini retry dan tidak potong stok 2x.
+let _pendingCheckoutId = null;
+let _pendingCheckoutSig = null;
 
 // cari produk berdasarkan barcode apapun (eceran atau satuan lain), kembalikan {product, unitType}
 function findProductByBarcode(code){
@@ -2894,11 +2970,11 @@ function renderStockLog(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${new Date(l.date).toLocaleString('id-ID')}</td>
-      <td>${l.productName}</td>
-      <td>${l.unitLabel}</td>
+      <td>${esc(l.productName)}</td>
+      <td>${esc(l.unitLabel)}</td>
       <td class="num mono" style="color:${positive?'var(--green)':'var(--rust)'}; font-weight:600;">${positive?'+':''}${l.change}</td>
-      <td>${l.reason}</td>
-      <td>${l.byName}<div style="font-size:11px; color:var(--ink-soft);">${l.byRole}</div></td>`;
+      <td>${esc(l.reason)}</td>
+      <td>${esc(l.byName)}<div style="font-size:11px; color:var(--ink-soft);">${esc(l.byRole)}</div></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -2945,8 +3021,8 @@ function renderCustomers(){
     const poin = Math.floor(c.total / 10000); // 1 poin tiap belanja Rp 10.000
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${c.name}</td>
-      <td>${c.phone}</td>
+      <td>${esc(c.name)}</td>
+      <td>${esc(c.phone)}</td>
       <td class="num mono">${c.trxCount}</td>
       <td class="num mono">${rupiah(c.total)}</td>
       <td class="num mono">${poin}</td>`;
@@ -2961,7 +3037,7 @@ document.getElementById('pelanggan-search').addEventListener('input', ()=>{ pagi
 function refreshPurchaseProductSelect(){
   const sel = document.getElementById('pb-product');
   const prevVal = sel.value;
-  sel.innerHTML = DB.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  sel.innerHTML = DB.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
   if(prevVal) sel.value = prevVal;
   refreshPurchaseUnitSelect();
 }
@@ -3084,13 +3160,17 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
   CACHE.stockLogs = newData.stockLogs || [];
   CACHE.priceLogs = newData.priceLogs || [];
 
-  const purchases = DB.purchases;
-  purchases.push({
-    id: uid(), date: nowIso, productName, unitLabel: unitLabelText,
-    qty, price: price || oldBuy, total: qty * (price || oldBuy),
-    supplier, note, ...who,
+  const { data: purchaseData, error: purchaseError } = await sb.rpc('append_to_company_array_rpc', {
+    p_company_id: CURRENT_COMPANY.id,
+    p_field: 'purchases',
+    p_item: {
+      id: uid(), date: nowIso, productName, unitLabel: unitLabelText,
+      qty, price: price || oldBuy, total: qty * (price || oldBuy),
+      supplier, note, ...who,
+    },
   });
-  DB.purchases = purchases;
+  if(purchaseError){ showToast('Gagal menyimpan riwayat pembelian: ' + purchaseError.message); return; }
+  CACHE.purchases = purchaseData.purchases || [];
 
   document.getElementById('pb-is-new-product').checked = false;
   document.getElementById('pb-existing-product-fields').style.display = '';
@@ -3126,13 +3206,13 @@ function renderPurchases(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${new Date(r.date).toLocaleString('id-ID')}</td>
-      <td>${r.productName}</td>
-      <td>${r.unitLabel}</td>
+      <td>${esc(r.productName)}</td>
+      <td>${esc(r.unitLabel)}</td>
       <td class="num mono">${r.qty}</td>
       <td class="num mono">${rupiah(r.price)}</td>
       <td class="num mono">${rupiah(r.total)}</td>
-      <td>${r.supplier}</td>
-      <td>${r.byName}<div style="font-size:11px; color:var(--ink-soft);">${r.byRole}</div></td>`;
+      <td>${esc(r.supplier)}</td>
+      <td>${esc(r.byName)}<div style="font-size:11px; color:var(--ink-soft);">${esc(r.byRole)}</div></td>`;
     tbody.appendChild(tr);
   });
   renderPaginationControls('purchase-pagination', 'purchase', page, totalPages, totalItems);
@@ -3218,12 +3298,12 @@ function renderPriceLog(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${new Date(l.date).toLocaleString('id-ID')}</td>
-      <td>${l.productName}</td>
-      <td>${l.unitLabel}</td>
-      <td>${l.field}</td>
+      <td>${esc(l.productName)}</td>
+      <td>${esc(l.unitLabel)}</td>
+      <td>${esc(l.field)}</td>
       <td class="num mono">${rupiah(l.oldValue)}</td>
       <td class="num mono" style="font-weight:600;">${rupiah(l.newValue)}</td>
-      <td>${l.byName}<div style="font-size:11px; color:var(--ink-soft);">${l.byRole}</div></td>`;
+      <td>${esc(l.byName)}<div style="font-size:11px; color:var(--ink-soft);">${esc(l.byRole)}</div></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -3290,12 +3370,12 @@ function updateBarcodePreview(){
     const low = avail <= 0;
     preview.style.background = low ? 'var(--rust-bg)' : 'var(--green-bg)';
     preview.style.color = low ? 'var(--rust)' : 'var(--green)';
-    const labelTag = unitType==='eceran' ? ` · ${product.unit}` : ` · <strong>${unitLabel(product,unitType)}</strong> (isi ${unitIsi(product,unitType)})`;
-    preview.innerHTML = `<span><strong>${product.name}</strong>${labelTag}</span><span class="mono">${rupiah(unitPrice(product,unitType,'sellPrice'))} · Stok ${avail} ${unitType==='eceran'?product.unit:unitLabel(product,unitType).toLowerCase()}</span>`;
+    const labelTag = unitType==='eceran' ? ` · ${esc(product.unit)}` : ` · <strong>${esc(unitLabel(product,unitType))}</strong> (isi ${unitIsi(product,unitType)})`;
+    preview.innerHTML = `<span><strong>${esc(product.name)}</strong>${labelTag}</span><span class="mono">${rupiah(unitPrice(product,unitType,'sellPrice'))} · Stok ${avail} ${esc(unitType==='eceran'?product.unit:unitLabel(product,unitType).toLowerCase())}</span>`;
   } else {
     preview.style.background = 'var(--paper-alt)';
     preview.style.color = 'var(--ink-soft)';
-    preview.innerHTML = `<span>Barang dengan kode "${code}" belum terdaftar</span>`;
+    preview.innerHTML = `<span>Barang dengan kode "${esc(code)}" belum terdaftar</span>`;
   }
 }
 document.getElementById('barcode-input').addEventListener('input', updateBarcodePreview);
@@ -3304,12 +3384,12 @@ function refreshBarcodeSuggestions(){
   const dl = document.getElementById('barcode-suggestions');
   let opts = '';
   DB.products.forEach(p=>{
-    opts += `<option value="${p.barcode}">${p.name} — Eceran — ${rupiah(p.sellPrice)}</option>`;
+    opts += `<option value="${esc(p.barcode)}">${esc(p.name)} — Eceran — ${rupiah(p.sellPrice)}</option>`;
     for(const u of EXTRA_UNITS){
       const dbKey = EXTRA_UNIT_DBKEY[u.key];
       if(p[dbKey+'Enabled']){
         const isiTag = u.hasIsi ? ` (isi ${p[dbKey+'Isi']})` : '';
-        opts += `<option value="${p[dbKey+'Barcode']}">${p.name} — ${u.label}${isiTag} — ${rupiah(p[dbKey+'SellPrice'])}</option>`;
+        opts += `<option value="${esc(p[dbKey+'Barcode'])}">${esc(p.name)} — ${esc(u.label)}${isiTag} — ${rupiah(p[dbKey+'SellPrice'])}</option>`;
       }
     }
   });
@@ -3346,9 +3426,9 @@ function renderCart(){
   cart.forEach(item=>{
     const div = document.createElement('div');
     div.className = 'cart-item';
-    const badge = item.unitType !== 'eceran' ? `<span class="badge ok" style="margin-left:6px;">${item.unitLabel}</span>` : '';
+    const badge = item.unitType !== 'eceran' ? `<span class="badge ok" style="margin-left:6px;">${esc(item.unitLabel)}</span>` : '';
     div.innerHTML = `
-      <div class="name">${item.name}${badge}<div class="price">${rupiah(item.sellPrice)} / ${item.unitLabel}</div>
+      <div class="name">${esc(item.name)}${badge}<div class="price">${rupiah(item.sellPrice)} / ${esc(item.unitLabel)}</div>
         <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
           <span style="font-size:10.5px; color:var(--ink-soft);">Diskon Rp</span>
           <input type="number" min="0" value="${item.itemDiscount||0}" onchange="setItemDiscount('${item.key}', this.value)" style="width:70px; padding:3px 6px; font-size:11.5px; border:1px solid var(--line); border-radius:6px;">
@@ -3426,7 +3506,7 @@ function renderReceipt(){
   cart.forEach(item=>{
     const l = document.createElement('div');
     l.className='line';
-    l.innerHTML = `<span>${item.name} (${item.unitLabel}) ×${item.qty}${item.itemDiscount ? ' <span style="color:var(--rust);">(-'+rupiah(item.itemDiscount)+')</span>' : ''}</span><span class="mono">${rupiah(cartItemTotal(item))}</span>`;
+    l.innerHTML = `<span>${esc(item.name)} (${esc(item.unitLabel)}) ×${item.qty}${item.itemDiscount ? ' <span style="color:var(--rust);">(-'+rupiah(item.itemDiscount)+')</span>' : ''}</span><span class="mono">${rupiah(cartItemTotal(item))}</span>`;
     linesEl.appendChild(l);
   });
   document.getElementById('r-subtotal').textContent = rupiah(subtotal);
@@ -3469,8 +3549,16 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
     byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
   }));
 
+  const checkoutSig = JSON.stringify({ cart, discount, paid, paymentMethod });
+  if(_pendingCheckoutId && _pendingCheckoutSig === checkoutSig){
+    // Percobaan ulang dari submit sebelumnya yang gagal (keranjang & pembayaran persis sama) — pakai id yang sama
+  } else {
+    _pendingCheckoutId = uid();
+    _pendingCheckoutSig = checkoutSig;
+  }
+
   const trx = {
-    id: uid(),
+    id: _pendingCheckoutId,
     date: new Date().toISOString(),
     cashierName: (SESSION && SESSION.name) ? SESSION.name : '-',
     customerName: (document.getElementById('customer-name-input').value || '').trim(),
@@ -3507,6 +3595,9 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   CACHE.transactions = newData.transactions || [];
   CACHE.stockLogs = newData.stockLogs || [];
 
+  _pendingCheckoutId = null;
+  _pendingCheckoutSig = null;
+
   printReceipt(trx);
   showToast('Transaksi berhasil disimpan');
   cart = []; document.getElementById('discount-input').value = 0; document.getElementById('paid-input').value = '';
@@ -3518,15 +3609,15 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
 
 function printReceipt(trx){
   const area = document.getElementById('print-area');
-  const itemsHtml = trx.items.map(i=>`<div style="display:flex;justify-content:space-between;font-size:12px;"><span>${i.displayName || i.name} x${i.qty}</span><span>${rupiah((i.sellPrice*i.qty) - (i.itemDiscount||0))}</span></div>`).join('');
-  const addressHtml = DB.storeAddress ? `<div style="text-align:center; font-size:10.5px;">${DB.storeAddress}</div>` : '';
+  const itemsHtml = trx.items.map(i=>`<div style="display:flex;justify-content:space-between;font-size:12px;"><span>${esc(i.displayName || i.name)} x${i.qty}</span><span>${rupiah((i.sellPrice*i.qty) - (i.itemDiscount||0))}</span></div>`).join('');
+  const addressHtml = DB.storeAddress ? `<div style="text-align:center; font-size:10.5px;">${esc(DB.storeAddress)}</div>` : '';
   const trxDate = new Date(trx.date);
   const tanggalStr = trxDate.toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'});
   const jamStr = trxDate.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
   const ppnHtml = trx.ppnAmount > 0 ? `<div style="display:flex;justify-content:space-between;font-size:12px;"><span>PPN (${trx.ppnPercent}%)</span><span>${rupiah(trx.ppnAmount)}</span></div>` : '';
   area.innerHTML = `
     <div style="font-family:'Courier New',monospace; padding:10px;">
-      <div style="text-align:center; font-weight:bold; font-size:13px;">${DB.storeName}</div>
+      <div style="text-align:center; font-weight:bold; font-size:13px;">${esc(DB.storeName)}</div>
       ${addressHtml}
       <div style="text-align:center; font-size:11px; margin-top:4px;">${tanggalStr} · ${jamStr}</div>
       <hr>
@@ -3547,9 +3638,10 @@ function printReceipt(trx){
 }
 
 function voidTransaction(id){
+  if(!canManageProducts()){ showToast('Hanya SPV/Owner yang bisa membatalkan transaksi'); return; }
   const trx = DB.transactions.find(t=>t.id===id);
   if(!trx) return;
-  const itemList = trx.items.map(i=>`${i.displayName || i.name} x${i.qty}`).join(', ');
+  const itemList = trx.items.map(i=>`${esc(i.displayName || i.name)} x${i.qty}`).join(', ');
   showConfirm(
     `Batalkan transaksi ini?<br><br><strong>${itemList}</strong><br>Total: ${rupiah(trx.total)}<br><br>Transaksi akan dihapus dari riwayat dan stok barang akan dikembalikan otomatis.`,
     async ()=>{
@@ -3576,14 +3668,41 @@ function voidTransaction(id){
       CACHE.products = newData.products || [];
       CACHE.transactions = newData.transactions || [];
       CACHE.stockLogs = newData.stockLogs || [];
+      CACHE.voidLogs = newData.voidLogs || [];
 
       showToast('Transaksi dibatalkan, stok dikembalikan');
       renderReport();
       renderRiwayat();
       renderProducts();
       renderStockLog();
+      renderVoidLog();
     }
   );
+}
+
+function renderVoidLog(){
+  const tbody = document.getElementById('voidlog-tbody');
+  if(!tbody) return;
+  const logs = [...DB.voidLogs].sort((a,b)=> new Date(b.date) - new Date(a.date));
+  document.getElementById('voidlog-empty').style.display = logs.length ? 'none' : 'block';
+
+  paginationRerender['voidlog'] = renderVoidLog;
+  const { pageItems, page, totalPages, totalItems } = paginate('voidlog', logs);
+  renderPaginationControls('voidlog-pagination', 'voidlog', page, totalPages, totalItems);
+
+  tbody.innerHTML = '';
+  pageItems.forEach(l=>{
+    const itemSummary = (l.transactionItems||[]).map(i=>`${esc(i.displayName || i.name)} x${i.qty}`).join(', ');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(l.date).toLocaleString('id-ID')}</td>
+      <td>${l.transactionDate ? new Date(l.transactionDate).toLocaleString('id-ID') : '-'}</td>
+      <td>${esc(l.originalCashierName) || '-'}</td>
+      <td style="max-width:260px;">${itemSummary || '-'}</td>
+      <td class="num mono">${rupiah(l.transactionTotal || 0)}</td>
+      <td>${esc(l.byName)}<div style="font-size:11px; color:var(--ink-soft);">${esc(l.byRole)}</div></td>`;
+    tbody.appendChild(tr);
+  });
 }
 
 /* ================= LAPORAN ================= */
@@ -3636,7 +3755,7 @@ function renderReport(){
     }
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${p.name}</td>
+      <td>${esc(p.name)}</td>
       <td class="num mono">${rupiah(p.buyPrice)}</td>
       <td class="num mono">${rupiah(p.sellPrice)}</td>
       <td class="num mono" style="color:${margin>=0?'var(--green)':'var(--rust)'};">${rupiah(margin)}</td>
@@ -3992,12 +4111,12 @@ function renderRiwayat(){
   const { pageItems, page, totalPages, totalItems } = paginate('riwayat', trxs);
   renderPaginationControls('riwayat-pagination', 'riwayat', page, totalPages, totalItems);
   pageItems.forEach(t=>{
-    const itemSummary = t.items.map(i=>`${i.displayName || i.name} x${i.qty}`).join(', ');
+    const itemSummary = t.items.map(i=>`${esc(i.displayName || i.name)} x${i.qty}`).join(', ');
     const methodBadgeColor = {cash:'var(--green)', transfer:'var(--amber-dark)', qris:'var(--ink-soft)'}[t.paymentMethod] || 'var(--ink-soft)';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${new Date(t.date).toLocaleString('id-ID')}</td>
-      <td>${t.cashierName || '-'}</td>
+      <td>${esc(t.cashierName) || '-'}</td>
       <td style="max-width:260px;">${itemSummary}</td>
       <td style="color:${methodBadgeColor}; font-weight:600; font-size:12.5px;">${PAY_METHOD_LABELS[t.paymentMethod] || 'Tunai'}</td>
       <td class="num mono">${rupiah(t.total)}</td>
@@ -4005,7 +4124,7 @@ function renderRiwayat(){
       <td class="num mono">${rupiah(t.totalModal)}</td>
       <td class="num mono" style="color:${t.profit>=0?'var(--green)':'var(--rust)'};">${rupiah(t.profit)}</td>
       <td>
-        <button class="btn danger sm" onclick="voidTransaction('${t.id}')" title="Menghapus transaksi & mengembalikan stok barang">Batalkan</button>
+        ${canManageProducts() ? `<button class="btn danger sm" onclick="voidTransaction('${t.id}')" title="Menghapus transaksi & mengembalikan stok barang">Batalkan</button>` : '<span style="color:var(--ink-soft); font-size:12px;">—</span>'}
       </td>`;
     rtbody.appendChild(tr);
   });
@@ -4144,7 +4263,7 @@ function refreshAccountUI(){
   const select = document.getElementById('adj-type');
   const prevValue = select.value;
   select.innerHTML = getAllAccounts().map(a=>
-    `<option value="${a.key}">${a.name} (${a.category==='beban' ? '−' : '+'})</option>`
+    `<option value="${a.key}">${esc(a.name)} (${a.category==='beban' ? '−' : '+'})</option>`
   ).join('');
   if(getAllAccounts().some(a=>a.key===prevValue)) select.value = prevValue;
 
@@ -4154,11 +4273,24 @@ function refreshAccountUI(){
     const color = a.category==='beban' ? 'var(--rust)' : 'var(--green)';
     const bg = a.category==='beban' ? 'var(--rust-bg)' : 'var(--green-bg)';
     const removeBtn = a.builtin ? '' : `<button onclick="deleteCustomAccount('${a.key}')" style="background:none; border:none; cursor:pointer; color:${color}; font-weight:700; margin-left:6px; line-height:1;">×</button>`;
-    return `<span style="display:inline-flex; align-items:center; background:${bg}; color:${color}; font-size:12px; font-weight:600; padding:5px 10px; border-radius:20px;">${a.name}${a.builtin ? ' <span style="opacity:0.6; font-weight:400;">(bawaan)</span>' : ''}${removeBtn}</span>`;
+    return `<span style="display:inline-flex; align-items:center; background:${bg}; color:${color}; font-size:12px; font-weight:600; padding:5px 10px; border-radius:20px;">${esc(a.name)}${a.builtin ? ' <span style="opacity:0.6; font-weight:400;">(bawaan)</span>' : ''}${removeBtn}</span>`;
   }).join('');
 }
 
-document.getElementById('btn-add-account').addEventListener('click', ()=>{
+// Simpan array penuh (customAccounts/adjustments) lewat RPC terkunci (row-lock),
+// supaya tidak saling timpa kalau ada device lain menyimpan pada saat bersamaan.
+async function saveCompanyArrayField(field, value){
+  const { data, error } = await sb.rpc('replace_company_array_rpc', {
+    p_company_id: CURRENT_COMPANY.id,
+    p_field: field,
+    p_value: value,
+  });
+  if(error){ showToast('Gagal menyimpan: ' + error.message); return false; }
+  CACHE[field] = data[field] || [];
+  return true;
+}
+
+document.getElementById('btn-add-account').addEventListener('click', async ()=>{
   const name = document.getElementById('new-account-name').value.trim();
   const category = document.getElementById('new-account-category').value;
   if(!name){ showToast('Nama akun wajib diisi'); return; }
@@ -4166,9 +4298,9 @@ document.getElementById('btn-add-account').addEventListener('click', ()=>{
   const exists = getAllAccounts().some(a=>a.name.toLowerCase() === name.toLowerCase());
   if(exists){ showToast('Akun dengan nama itu sudah ada'); return; }
 
-  const list = DB.customAccounts;
-  list.push({ key, name, category, builtin:false });
-  DB.customAccounts = list;
+  const list = [...DB.customAccounts, { key, name, category, builtin:false }];
+  const ok = await saveCompanyArrayField('customAccounts', list);
+  if(!ok) return;
 
   document.getElementById('new-account-name').value = '';
   refreshAccountUI();
@@ -4180,9 +4312,10 @@ function deleteCustomAccount(key){
   const usedCount = DB.adjustments.filter(a=>a.type===key).length;
   const msg = usedCount > 0
     ? `Akun ini sudah dipakai di ${usedCount} catatan penyesuaian. Menghapus akun TIDAK menghapus catatannya, tapi labelnya akan hilang dari laporan. Lanjutkan?`
-    : `Hapus akun <strong>${accountLabel(key)}</strong>?`;
-  showConfirm(msg, ()=>{
-    DB.customAccounts = DB.customAccounts.filter(a=>a.key!==key);
+    : `Hapus akun <strong>${esc(accountLabel(key))}</strong>?`;
+  showConfirm(msg, async ()=>{
+    const ok = await saveCompanyArrayField('customAccounts', DB.customAccounts.filter(a=>a.key!==key));
+    if(!ok) return;
     refreshAccountUI();
     renderAdjustments();
     showToast('Akun dihapus');
@@ -4194,7 +4327,7 @@ document.getElementById('adj-from').value = todayStr();
 document.getElementById('adj-to').value = todayStr();
 refreshAccountUI();
 
-document.getElementById('btn-add-adjustment').addEventListener('click', ()=>{
+document.getElementById('btn-add-adjustment').addEventListener('click', async ()=>{
   const date = document.getElementById('adj-date').value;
   const type = document.getElementById('adj-type').value;
   const desc = document.getElementById('adj-desc').value.trim();
@@ -4203,9 +4336,9 @@ document.getElementById('btn-add-adjustment').addEventListener('click', ()=>{
   if(!desc){ showToast('Keterangan wajib diisi'); return; }
   if(amount <= 0){ showToast('Nominal harus lebih dari 0'); return; }
 
-  const list = DB.adjustments;
-  list.push({ id: uid(), date, type, desc, amount });
-  DB.adjustments = list;
+  const list = [...DB.adjustments, { id: uid(), date, type, desc, amount }];
+  const ok = await saveCompanyArrayField('adjustments', list);
+  if(!ok) return;
 
   document.getElementById('adj-desc').value = '';
   document.getElementById('adj-amount').value = '';
@@ -4216,8 +4349,9 @@ document.getElementById('btn-add-adjustment').addEventListener('click', ()=>{
 function deleteAdjustment(id){
   const item = DB.adjustments.find(a=>a.id===id);
   if(!item) return;
-  showConfirm(`Hapus catatan <strong>${accountLabel(item.type)}</strong>: "${item.desc}" (${rupiah(item.amount)})?`, ()=>{
-    DB.adjustments = DB.adjustments.filter(a=>a.id!==id);
+  showConfirm(`Hapus catatan <strong>${esc(accountLabel(item.type))}</strong>: "${esc(item.desc)}" (${rupiah(item.amount)})?`, async ()=>{
+    const ok = await saveCompanyArrayField('adjustments', DB.adjustments.filter(a=>a.id!==id));
+    if(!ok) return;
     showToast('Penyesuaian dihapus');
     renderAdjustments();
   });
@@ -4249,8 +4383,8 @@ function renderAdjustments(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${new Date(a.date).toLocaleDateString('id-ID')}</td>
-      <td>${accountLabel(a.type)}</td>
-      <td>${a.desc}</td>
+      <td>${esc(accountLabel(a.type))}</td>
+      <td>${esc(a.desc)}</td>
       <td class="num mono" style="color:${isExpense?'var(--rust)':'var(--green)'};">${isExpense?'−':'+'}${rupiah(a.amount)}</td>
       <td><button class="btn danger sm" onclick="deleteAdjustment('${a.id}')">Hapus</button></td>`;
     tbody.appendChild(tr);
