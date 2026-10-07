@@ -473,6 +473,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/><circle cx="18" cy="8" r="3"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
       <span>Pelanggan</span>
     </button>
+    <button data-view="pemasok">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h3.5a1 1 0 0 1 .9.56L22 12v4a1 1 0 0 1-1 1h-2"/><circle cx="6.5" cy="18.5" r="2"/><circle cx="18" cy="18.5" r="2"/></svg>
+      <span>Pemasok</span>
+    </button>
     <button data-view="laporan">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9M12 19V5M20 19v-7"/></svg>
       <span>Laporan</span>
@@ -785,7 +789,10 @@
           </div>
           <div class="field">
             <label id="pb-new-barcode-label">Barcode (opsional)</label>
-            <input type="text" id="pb-new-barcode" placeholder="Boleh dikosongkan">
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="pb-new-barcode" placeholder="Boleh dikosongkan">
+              <button class="btn outline sm" id="btn-scan-pb-new-barcode" type="button">📷</button>
+            </div>
           </div>
           <div style="font-size:11.5px; color:var(--ink-soft); margin:-8px 0 14px 0;">
             Produk baru akan dibuat dengan satuan eceran (pcs) sebagai dasar. Kalau barang ini pertama masuk dalam bentuk Karton/Renceng/Kiloan, satuan tersebut langsung diaktifkan untuk produk ini sesuai pilihan di atas.
@@ -811,7 +818,8 @@
         </div>
         <div class="field">
           <label>Nama Supplier / Pemasok</label>
-          <input type="text" id="pb-supplier" placeholder="Contoh: CV Sumber Rejeki">
+          <input type="text" id="pb-supplier" placeholder="Contoh: CV Sumber Rejeki" list="pemasok-suggestions">
+          <datalist id="pemasok-suggestions"></datalist>
         </div>
         <div class="field">
           <label>Catatan (opsional)</label>
@@ -844,6 +852,22 @@
         </table>
         <div id="pelanggan-empty" class="empty-state" style="display:none;">Belum ada data pelanggan. Pelanggan otomatis tercatat saat namanya diisi di halaman Kasir.</div>
         <div id="pelanggan-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
+      </div>
+    </section>
+
+    <!-- ============ PEMASOK ============ -->
+    <section class="view-section" id="view-pemasok">
+      <div class="card" style="overflow-x:auto;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+          <h3 class="display" style="margin:0;">Daftar Pemasok</h3>
+          <input type="text" id="pemasok-search" placeholder="Cari nama pemasok..." style="max-width:260px;">
+        </div>
+        <table id="pemasok-table">
+          <thead><tr><th>Nama Pemasok</th><th class="num">Jumlah Pembelian</th><th class="num">Total Pembelian</th><th>Pembelian Terakhir</th></tr></thead>
+          <tbody id="pemasok-tbody"></tbody>
+        </table>
+        <div id="pemasok-empty" class="empty-state" style="display:none;">Belum ada data pemasok. Pemasok otomatis tercatat saat namanya diisi di halaman Pembelian.</div>
+        <div id="pemasok-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
       </div>
     </section>
     <section class="view-section" id="view-laporan">
@@ -1584,14 +1608,14 @@ function renderLowStock(){
 }
 
 /* ================= ROLE & LOGIN ================= */
-const titles = {dashboard:'Dashboard', kasir:'Kasir', produk:'Produk & Stok', pembelian:'Pembelian', pelanggan:'Pelanggan', laporan:'Laporan', penyesuaian:'Penyesuaian', pengaturan:'Pengaturan'};
+const titles = {dashboard:'Dashboard', kasir:'Kasir', produk:'Produk & Stok', pembelian:'Pembelian', pelanggan:'Pelanggan', pemasok:'Pemasok', laporan:'Laporan', penyesuaian:'Penyesuaian', pengaturan:'Pengaturan'};
 const ROLE_LABELS = {owner:'Owner', admin:'Admin', user:'User', gudang:'Gudang', spv:'SPV'};
 const ROLE_PERMISSIONS = {
-  owner:  ['dashboard','kasir','produk','pembelian','pelanggan','laporan','penyesuaian','pengaturan'],
+  owner:  ['dashboard','kasir','produk','pembelian','pelanggan','pemasok','laporan','penyesuaian','pengaturan'],
   admin:  ['kasir'],
   user:   ['kasir','laporan','pelanggan'],
-  gudang: ['produk','pembelian'],
-  spv:    ['dashboard','kasir','produk','pembelian','pelanggan','laporan','penyesuaian','pengaturan'],
+  gudang: ['produk','pembelian','pemasok'],
+  spv:    ['dashboard','kasir','produk','pembelian','pelanggan','pemasok','laporan','penyesuaian','pengaturan'],
 };
 
 function applyRolePermissions(role){
@@ -1612,8 +1636,9 @@ function switchView(v){
   document.getElementById('view-title').textContent = titles[v];
   if(v==='dashboard'){ renderDashboard(); renderReport(); }
   if(v==='produk'){ renderProducts(); renderStockLog(); renderPriceLog(); }
-  if(v==='pembelian'){ refreshPurchaseProductSelect(); renderPurchases(); }
+  if(v==='pembelian'){ refreshPurchaseProductSelect(); renderPurchases(); refreshSupplierSuggestions(); }
   if(v==='pelanggan') renderCustomers();
+  if(v==='pemasok') renderSuppliers();
   if(v==='laporan'){ renderRiwayat(); renderVoidLog(); }
   if(v==='penyesuaian') renderAdjustments();
 }
@@ -2527,7 +2552,7 @@ document.getElementById('btn-restore-data').addEventListener('click', ()=>{
           showToast('Data berhasil dipulihkan dari backup');
           refreshStoreName(); refreshPaperSizeUI(); refreshAccountUI();
           renderProducts(); renderStockLog(); renderPriceLog(); renderReport(); renderRiwayat();
-          renderVoidLog(); renderPurchases(); renderCustomers(); renderDashboard();
+          renderVoidLog(); renderPurchases(); renderCustomers(); renderSuppliers(); renderDashboard();
           cart = []; renderCart();
         });
       }
@@ -2654,6 +2679,7 @@ document.getElementById('btn-scan-renceng-modal').addEventListener('click', ()=>
 document.getElementById('btn-scan-kilo-modal').addEventListener('click', ()=>{ scanTargetInputId='p-kilo-barcode'; startScanner(); });
 document.getElementById('btn-scan-halfkilo-modal').addEventListener('click', ()=>{ scanTargetInputId='p-halfkilo-barcode'; startScanner(); });
 document.getElementById('btn-scan-quarterkilo-modal').addEventListener('click', ()=>{ scanTargetInputId='p-quarterkilo-barcode'; startScanner(); });
+document.getElementById('btn-scan-pb-new-barcode').addEventListener('click', ()=>{ scanTargetInputId='pb-new-barcode'; startScanner(); });
 document.querySelector('[data-close="modal-scanner"]').addEventListener('click', stopScanner);
 
 /* ================= PRODUK CRUD ================= */
@@ -3102,6 +3128,56 @@ function renderCustomers(){
 }
 document.getElementById('pelanggan-search').addEventListener('input', ()=>{ paginationState['pelanggan']=1; renderCustomers(); });
 
+/* ---- Pemasok (otomatis terkumpul dari nama supplier yang diisi saat Pembelian) ---- */
+function refreshSupplierSuggestions(){
+  const dl = document.getElementById('pemasok-suggestions');
+  if(!dl) return;
+  const names = [...new Set(DB.purchases.filter(p=>p.supplier).map(p=>p.supplier))];
+  dl.innerHTML = names.map(n=>`<option value="${esc(n)}">`).join('');
+}
+
+function renderSuppliers(){
+  const tbody = document.getElementById('pemasok-tbody');
+  if(!tbody) return;
+  const search = (document.getElementById('pemasok-search').value || '').toLowerCase();
+
+  const bySupplier = {};
+  DB.purchases.forEach(p=>{
+    if(!p.supplier) return;
+    const key = p.supplier.trim().toLowerCase();
+    if(!bySupplier[key]){
+      bySupplier[key] = { name:p.supplier, purchaseCount:0, total:0, lastDate:p.date };
+    }
+    bySupplier[key].purchaseCount += 1;
+    bySupplier[key].total += p.total;
+    if(new Date(p.date) > new Date(bySupplier[key].lastDate)) bySupplier[key].lastDate = p.date;
+  });
+
+  let rows = Object.values(bySupplier);
+  if(search){
+    rows = rows.filter(s=> s.name.toLowerCase().includes(search));
+  }
+  rows.sort((a,b)=> b.total - a.total);
+
+  const { pageItems, page, totalPages, totalItems } = paginate('pemasok', rows);
+  paginationRerender['pemasok'] = renderSuppliers;
+
+  tbody.innerHTML = '';
+  document.getElementById('pemasok-empty').style.display = rows.length ? 'none' : 'block';
+  pageItems.forEach(s=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(s.name)}</td>
+      <td class="num mono">${s.purchaseCount}</td>
+      <td class="num mono">${rupiah(s.total)}</td>
+      <td>${new Date(s.lastDate).toLocaleDateString('id-ID')}</td>`;
+    tbody.appendChild(tr);
+  });
+  renderPaginationControls('pemasok-pagination', 'pemasok', page, totalPages, totalItems);
+  refreshSupplierSuggestions();
+}
+document.getElementById('pemasok-search').addEventListener('input', ()=>{ paginationState['pemasok']=1; renderSuppliers(); });
+
 /* ---- Pembelian dari Supplier (menambah stok + riwayat harga beli) ---- */
 function refreshPurchaseProductSelect(){
   const sel = document.getElementById('pb-product');
@@ -3312,6 +3388,7 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
   renderPriceLog();
   renderPurchases();
   refreshPurchaseProductSelect();
+  refreshSupplierSuggestions();
   showToast('Barang masuk tercatat & stok bertambah');
 });
 
