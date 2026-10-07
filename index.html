@@ -969,6 +969,13 @@
         <h3 class="display">Backup Data</h3>
         <p style="font-size:13px; color:var(--ink-soft);">Unduh salinan lengkap semua data toko (produk, transaksi, pembelian, riwayat stok &amp; harga, dll) sebagai satu file. Simpan file ini di tempat aman — bisa jadi cadangan kalau sewaktu-waktu diperlukan.</p>
         <button class="btn outline" id="btn-backup-data">⬇ Unduh Backup Data (JSON)</button>
+        <div id="restore-data-section" style="display:none; margin-top:16px;">
+          <div class="divider" style="border-top:1px solid var(--line); margin-bottom:16px;"></div>
+          <h3 class="display">Pulihkan dari Backup</h3>
+          <p style="font-size:13px; color:var(--ink-soft);">Khusus Owner. Pulihkan data toko dari file backup JSON yang pernah diunduh. <strong>Tindakan ini akan MENIMPA seluruh data toko saat ini</strong> dengan isi file backup — gunakan hanya kalau ada masalah pada sistem dan perlu mengembalikan data ke kondisi backup tersebut.</p>
+          <input type="file" id="restore-data-file" accept="application/json,.json" style="margin-bottom:10px;">
+          <button class="btn danger" id="btn-restore-data">Pulihkan Data dari File Ini</button>
+        </div>
         <div class="divider" style="border-top:1px solid var(--line); margin:20px 0;"></div>
         <h3 class="display">Reset Data</h3>
         <p style="font-size:13px; color:var(--ink-soft);">Menghapus seluruh data produk dan transaksi dari perangkat ini. Tindakan ini tidak bisa dibatalkan — sebaiknya unduh backup dulu sebelum melanjutkan.</p>
@@ -1581,6 +1588,8 @@ function applyRolePermissions(role){
   document.querySelectorAll('.nav button').forEach(btn=>{
     btn.style.display = allowed.includes(btn.dataset.view) ? '' : 'none';
   });
+  const restoreSection = document.getElementById('restore-data-section');
+  if(restoreSection) restoreSection.style.display = (role === 'owner') ? '' : 'none';
 }
 
 function switchView(v){
@@ -2452,6 +2461,63 @@ document.getElementById('btn-backup-data').addEventListener('click', ()=>{
   a.remove();
   URL.revokeObjectURL(url);
   showToast('Backup data berhasil diunduh');
+});
+
+document.getElementById('btn-restore-data').addEventListener('click', ()=>{
+  if(!SESSION || SESSION.role !== 'owner'){ showToast('Hanya Owner yang bisa memulihkan data dari backup'); return; }
+  const fileInput = document.getElementById('restore-data-file');
+  const file = fileInput.files[0];
+  if(!file){ showToast('Pilih file backup (.json) terlebih dahulu'); return; }
+
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let parsed;
+    try{ parsed = JSON.parse(reader.result); }
+    catch(e){ showToast('File bukan JSON yang valid'); return; }
+    const payload = (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data))
+      ? parsed.data : parsed;
+    if(!payload || typeof payload !== 'object' || Array.isArray(payload)){
+      showToast('Format file backup tidak dikenali'); return;
+    }
+
+    showConfirm(
+      `Yakin ingin memulihkan data dari file <strong>${esc(file.name)}</strong>? Seluruh data toko saat ini (produk, transaksi, pembelian, dll) akan <strong>DITIMPA</strong> dengan isi file ini dan tidak bisa dikembalikan lagi kecuali kamu punya backup lain.`,
+      ()=>{
+        requestOwnerPasswordConfirm('Demi keamanan, masukkan <strong>sandi akun Owner</strong> untuk melanjutkan memulihkan data dari backup.', async ()=>{
+          const btn = document.getElementById('btn-restore-data');
+          btn.disabled = true;
+          const { data: newData, error } = await sb.rpc('restore_company_data_rpc', {
+            p_company_id: CURRENT_COMPANY.id,
+            p_data: payload,
+          });
+          btn.disabled = false;
+          if(error){ showToast('Gagal memulihkan data: ' + error.message); return; }
+
+          CACHE.products = newData.products || [];
+          CACHE.transactions = newData.transactions || [];
+          CACHE.adjustments = newData.adjustments || [];
+          CACHE.customAccounts = newData.customAccounts || [];
+          CACHE.stockLogs = newData.stockLogs || [];
+          CACHE.priceLogs = newData.priceLogs || [];
+          CACHE.customers = newData.customers || [];
+          CACHE.purchases = newData.purchases || [];
+          CACHE.voidLogs = newData.voidLogs || [];
+          CACHE.storeName = newData.storeName || CACHE.storeName;
+          CACHE.storeAddress = newData.storeAddress || '';
+          CACHE.ppnConfig = newData.ppnConfig || {enabled:false, percent:11};
+          CACHE.receiptPaperSize = newData.receiptPaperSize || '80mm';
+
+          fileInput.value = '';
+          showToast('Data berhasil dipulihkan dari backup');
+          refreshStoreName(); refreshPaperSizeUI(); refreshAccountUI();
+          renderProducts(); renderStockLog(); renderPriceLog(); renderReport(); renderRiwayat();
+          renderVoidLog(); renderPurchases(); renderCustomers(); renderDashboard();
+          cart = []; renderCart();
+        });
+      }
+    );
+  };
+  reader.readAsText(file);
 });
 
 document.getElementById('btn-logout-all').addEventListener('click', ()=>{
