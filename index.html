@@ -1270,11 +1270,13 @@ const CACHE = {
   products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [], customers: [], purchases: [], voidLogs: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
 };
-let _saveTimer = null;
-function scheduleSave(){
-  clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(saveCompanyData, 400);
-}
+// Catatan: saveCompanyData() HANYA dipakai sekali, untuk menulis data awal (seed)
+// saat sebuah perusahaan baru pertama kali dibuat (belum ada baris company_data
+// sama sekali, jadi belum mungkin ada penulisan bersamaan dari device lain).
+// Untuk SEMUA perubahan data setelah itu, aplikasi ini wajib memakai RPC yang
+// row-locked (lihat pemanggilan sb.rpc(...) di seluruh file) supaya aman dari
+// race condition saat dipakai banyak device/kasir sekaligus. Jangan menambah
+// pemanggilan saveCompanyData() baru di luar alur pembuatan perusahaan baru.
 async function saveCompanyData(){
   if(!CURRENT_COMPANY || !AUTH_USER) return;
   const payload = {
@@ -1289,31 +1291,22 @@ async function saveCompanyData(){
   });
   if(error){ showToast('Gagal menyimpan ke server: ' + error.message); }
 }
+// DB: akses baca-saja (read-only) ke data yang sudah dimuat di CACHE. Semua
+// PENULISAN data wajib lewat RPC yang row-locked, bukan lewat setter di sini —
+// karena itu objek ini sengaja hanya punya getter, tidak ada setter.
 const DB = {
   get products(){ return CACHE.products; },
-  set products(v){ CACHE.products = v; scheduleSave(); },
   get transactions(){ return CACHE.transactions; },
-  set transactions(v){ CACHE.transactions = v; scheduleSave(); },
   get storeName(){ return CACHE.storeName; },
-  set storeName(v){ CACHE.storeName = v; scheduleSave(); },
   get storeAddress(){ return CACHE.storeAddress; },
-  set storeAddress(v){ CACHE.storeAddress = v; scheduleSave(); },
   get ppnConfig(){ return CACHE.ppnConfig; },
-  set ppnConfig(v){ CACHE.ppnConfig = v; scheduleSave(); },
   get receiptPaperSize(){ return CACHE.receiptPaperSize; },
-  set receiptPaperSize(v){ CACHE.receiptPaperSize = v; scheduleSave(); },
   get adjustments(){ return CACHE.adjustments; },
-  set adjustments(v){ CACHE.adjustments = v; scheduleSave(); },
   get customAccounts(){ return CACHE.customAccounts; },
-  set customAccounts(v){ CACHE.customAccounts = v; scheduleSave(); },
   get stockLogs(){ return CACHE.stockLogs; },
-  set stockLogs(v){ CACHE.stockLogs = v; scheduleSave(); },
   get priceLogs(){ return CACHE.priceLogs; },
-  set priceLogs(v){ CACHE.priceLogs = v; scheduleSave(); },
   get customers(){ return CACHE.customers; },
-  set customers(v){ CACHE.customers = v; scheduleSave(); },
   get purchases(){ return CACHE.purchases; },
-  set purchases(v){ CACHE.purchases = v; scheduleSave(); },
   get voidLogs(){ return CACHE.voidLogs; },
 };
 
@@ -2468,6 +2461,11 @@ document.getElementById('btn-restore-data').addEventListener('click', ()=>{
   const fileInput = document.getElementById('restore-data-file');
   const file = fileInput.files[0];
   if(!file){ showToast('Pilih file backup (.json) terlebih dahulu'); return; }
+  const MAX_RESTORE_FILE_SIZE = 20 * 1024 * 1024; // 20MB — backup data toko UMKM wajar jauh di bawah ini
+  if(file.size > MAX_RESTORE_FILE_SIZE){
+    showToast('File backup terlalu besar (maks 20MB). Pastikan file benar berasal dari fitur Unduh Backup Data.');
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = ()=>{
@@ -3000,19 +2998,6 @@ function deductUnitStock(product, unitType, qty){
 function restoreUnitStock(product, unitType, qty){
   if(unitType === 'eceran') product.stock = (product.stock||0) + qty;
   else product[unitType+'Stock'] = (product[unitType+'Stock']||0) + qty;
-}
-
-function logStockChange(productName, unitLabelText, change, reason){
-  if(!change) return;
-  const logs = DB.stockLogs;
-  logs.push({
-    id: uid(),
-    date: new Date().toISOString(),
-    productName, unitLabel: unitLabelText, change, reason,
-    byName: (SESSION && SESSION.name) ? SESSION.name : '-',
-    byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
-  });
-  DB.stockLogs = logs;
 }
 
 function renderStockLog(){
