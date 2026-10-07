@@ -1572,7 +1572,7 @@ function renderDashboardSoldTable(){
     const laba = d.revenue - d.modal;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${name}</td>
+      <td>${esc(name)}</td>
       <td class="num mono">${d.qty}</td>
       <td class="num mono">${rupiah(d.revenue)}</td>
       <td class="num mono" style="color:${laba>=0?'var(--green)':'var(--rust)'};">${rupiah(laba)}</td>`;
@@ -3082,7 +3082,7 @@ function refreshCustomerSuggestions(){
   const dl = document.getElementById('customer-suggestions');
   if(!dl) return;
   const names = [...new Set(DB.transactions.filter(t=>t.customerName).map(t=>t.customerName))];
-  dl.innerHTML = names.map(n=>`<option value="${n}">`).join('');
+  dl.innerHTML = names.map(n=>`<option value="${esc(n)}">`).join('');
 }
 
 function renderCustomers(){
