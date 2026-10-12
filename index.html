@@ -1554,7 +1554,22 @@ function escapeHtml(str){
     .replace(/'/g, '&#039;');
 }
 function rupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+// Format tanggal LOKAL (bukan UTC) jadi "YYYY-MM-DD". Dipakai di mana saja kita
+// perlu tahu "tanggal kalender hari ini" versi device pengguna (WIB untuk toko di
+// Indonesia) — BUKAN toISOString() yang selalu UTC. Kalau pakai toISOString().slice(0,10)
+// langsung, maka antara jam 00:00-06:59 WIB tanggal UTC masih "kemarin", sehingga transaksi
+// yang terjadi di jam-jam itu salah masuk hitungan hari sebelumnya begitu dilihat lagi
+// setelah jam 07:00 WIB (saat UTC baru "berganti hari").
+function localDateStr(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+// Ubah timestamp ISO (UTC) yang tersimpan di field "date" sebuah transaksi/log jadi
+// tanggal kalender LOKAL, untuk pengelompokan per-hari/per-bulan yang benar.
+function localDateFromIso(iso){ return localDateStr(new Date(iso)); }
+function todayStr(){ return localDateStr(new Date()); }
 // Amankan teks bebas (nama pelanggan/produk/kasir/dll) sebelum disisipkan ke innerHTML,
 // supaya tidak bisa dipakai untuk menyuntik script (XSS) lewat input yang terlihat wajar
 // seperti nama pelanggan atau nama karyawan.
@@ -1685,7 +1700,7 @@ document.getElementById('dash-date').addEventListener('change', renderDashboardS
 function renderDashboard(){
   const trxs = DB.transactions;
   const today = todayStr();
-  const todayTrxs = trxs.filter(t=>t.date.slice(0,10) === today);
+  const todayTrxs = trxs.filter(t=>localDateFromIso(t.date) === today);
 
   const qtyToday = todayTrxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
   const revenueToday = todayTrxs.reduce((s,t)=>s+t.total,0);
@@ -1702,7 +1717,7 @@ function renderDashboard(){
 }
 
 const MONTH_LABELS_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-function monthKey(d){ return d.toISOString().slice(0,7); } // "YYYY-MM"
+function monthKey(d){ return localDateStr(d).slice(0,7); } // "YYYY-MM" (lokal, bukan UTC)
 function monthLabel(key){
   const [y,m] = key.split('-');
   return MONTH_LABELS_ID[Number(m)-1] + ' ' + y.slice(2);
@@ -1716,7 +1731,7 @@ function renderMonthlyTarget(){
   document.getElementById('target-month-label').textContent = monthLabel(key);
   const target = (DB.monthlyTarget || {})[key];
 
-  const monthTrxs = DB.transactions.filter(t=>t.date.slice(0,7) === key);
+  const monthTrxs = DB.transactions.filter(t=>localDateFromIso(t.date).slice(0,7) === key);
   const revenueActual = monthTrxs.reduce((s,t)=>s + (t.total - (t.ppnAmount||0)), 0);
   const profitActual = monthTrxs.reduce((s,t)=>s + (t.profit||0), 0);
 
@@ -1784,7 +1799,7 @@ function renderMonthlyTrendCharts(){
   const revByMonth = {}, profitByMonth = {};
   months.forEach(m=>{ revByMonth[m]=0; profitByMonth[m]=0; });
   DB.transactions.forEach(t=>{
-    const m = t.date.slice(0,7);
+    const m = localDateFromIso(t.date).slice(0,7);
     if(m in revByMonth){
       revByMonth[m] += (t.total - (t.ppnAmount||0));
       profitByMonth[m] += (t.profit||0);
@@ -1819,7 +1834,7 @@ function lastNDays(n){
   for(let i=n-1; i>=0; i--){
     const d = new Date();
     d.setDate(d.getDate()-i);
-    arr.push(d.toISOString().slice(0,10));
+    arr.push(localDateStr(d));
   }
   return arr;
 }
@@ -1829,7 +1844,7 @@ function renderTrendCharts(trxs){
   const qtyByDay = {}, revByDay = {};
   days.forEach(d=>{ qtyByDay[d]=0; revByDay[d]=0; });
   trxs.forEach(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     if(d in qtyByDay){
       qtyByDay[d] += t.items.reduce((a,i)=>a+i.qty,0);
       revByDay[d] += t.total;
@@ -1859,7 +1874,7 @@ function renderTrendCharts(trxs){
 
 function renderDashboardSoldTable(){
   const date = document.getElementById('dash-date').value || todayStr();
-  const trxs = DB.transactions.filter(t=>t.date.slice(0,10) === date);
+  const trxs = DB.transactions.filter(t=>localDateFromIso(t.date) === date);
   const byProduct = {};
   trxs.forEach(t=>{
     t.items.forEach(item=>{
@@ -2846,7 +2861,7 @@ document.getElementById('btn-backup-data').addEventListener('click', ()=>{
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const dateStr = new Date().toISOString().slice(0,10);
+  const dateStr = todayStr();
   a.href = url;
   a.download = `backup-${(CURRENT_COMPANY.name||'toko').replace(/[^a-z0-9]+/gi,'-')}-${dateStr}.json`;
   document.body.appendChild(a);
@@ -3557,7 +3572,7 @@ function renderStockLog(){
   const to = document.getElementById('stocklog-to').value;
   const logs = [...DB.stockLogs]
     .filter(l=>{
-      const d = l.date.slice(0,10);
+      const d = localDateFromIso(l.date);
       return (!from || d>=from) && (!to || d<=to);
     })
     .sort((a,b)=> new Date(b.date) - new Date(a.date));
@@ -3997,7 +4012,7 @@ document.getElementById('btn-stocklog-export-csv').addEventListener('click', ()=
   const from = document.getElementById('stocklog-from').value;
   const to = document.getElementById('stocklog-to').value;
   const logs = DB.stockLogs.filter(l=>{
-    const d = l.date.slice(0,10);
+    const d = localDateFromIso(l.date);
     return (!from || d>=from) && (!to || d<=to);
   }).sort((a,b)=> new Date(a.date) - new Date(b.date));
   let csv = 'Tanggal,Produk,Satuan,Perubahan,Alasan,Oleh,Peran\n';
@@ -4021,7 +4036,7 @@ document.getElementById('btn-stocklog-export-pdf').addEventListener('click', ()=
   const from = document.getElementById('stocklog-from').value;
   const to = document.getElementById('stocklog-to').value;
   const logs = DB.stockLogs.filter(l=>{
-    const d = l.date.slice(0,10);
+    const d = localDateFromIso(l.date);
     return (!from || d>=from) && (!to || d<=to);
   }).sort((a,b)=> new Date(a.date) - new Date(b.date));
 
@@ -4059,7 +4074,7 @@ function renderPriceLog(){
   const to = document.getElementById('pricelog-to').value;
   const logs = [...(DB.priceLogs||[])]
     .filter(l=>{
-      const d = l.date.slice(0,10);
+      const d = localDateFromIso(l.date);
       return (!from || d>=from) && (!to || d<=to);
     })
     .sort((a,b)=> new Date(b.date) - new Date(a.date));
@@ -4089,7 +4104,7 @@ document.getElementById('btn-pricelog-export-csv').addEventListener('click', ()=
   const from = document.getElementById('pricelog-from').value;
   const to = document.getElementById('pricelog-to').value;
   const logs = (DB.priceLogs||[]).filter(l=>{
-    const d = l.date.slice(0,10);
+    const d = localDateFromIso(l.date);
     return (!from || d>=from) && (!to || d<=to);
   }).sort((a,b)=> new Date(a.date) - new Date(b.date));
   let csv = 'Tanggal,Produk,Satuan,Jenis Harga,Harga Lama,Harga Baru,Oleh,Peran\n';
@@ -4602,7 +4617,7 @@ function renderReport(){
   const from = document.getElementById('lap-from').value;
   const to = document.getElementById('lap-to').value;
   const trxs = DB.transactions.filter(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     return (!from || d>=from) && (!to || d<=to);
   }).sort((a,b)=> new Date(b.date) - new Date(a.date));
 
@@ -4650,7 +4665,7 @@ function renderReport(){
   // chart per day
   const byDay = {};
   trxs.forEach(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     byDay[d] = (byDay[d]||0) + t.profit;
   });
   const days = Object.keys(byDay).sort();
@@ -4692,7 +4707,7 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   const from = document.getElementById('lap-from').value;
   const to = document.getElementById('lap-to').value;
   const trxs = DB.transactions.filter(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     return (!from || d>=from) && (!to || d<=to);
   });
   const totalPenjualan = trxs.reduce((s,t)=>s + (t.total - (t.ppnAmount||0)), 0);
@@ -4702,7 +4717,7 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
 
   // Statistik hari ini (tidak dipengaruhi filter tanggal)
   const today = todayStr();
-  const todayTrxs = DB.transactions.filter(t=>t.date.slice(0,10) === today);
+  const todayTrxs = DB.transactions.filter(t=>localDateFromIso(t.date) === today);
   const qtyToday = todayTrxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
   const revenueToday = todayTrxs.reduce((s,t)=>s+t.total,0);
 
@@ -4716,7 +4731,7 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   const qtyByDay7 = {}, revByDay7 = {};
   days7.forEach(d=>{ qtyByDay7[d]=0; revByDay7[d]=0; });
   DB.transactions.forEach(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     if(d in qtyByDay7){
       qtyByDay7[d] += t.items.reduce((a,i)=>a+i.qty,0);
       revByDay7[d] += t.total;
@@ -4741,13 +4756,13 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   csv += 'GRAFIK LABA PER HARI (sesuai filter tanggal)\n';
   csv += 'Tanggal,Laba/Rugi\n';
   const byDay = {};
-  trxs.forEach(t=>{ const d = t.date.slice(0,10); byDay[d] = (byDay[d]||0) + t.profit; });
+  trxs.forEach(t=>{ const d = localDateFromIso(t.date); byDay[d] = (byDay[d]||0) + t.profit; });
   Object.keys(byDay).sort().forEach(d=>{ csv += `${d},${byDay[d]}\n`; });
   csv += '\n';
 
   // Produk Terjual per Hari (sesuai tanggal terpilih di kartu Produk Terjual)
   const dashDate = document.getElementById('dash-date').value || todayStr();
-  const dashDateTrxs = DB.transactions.filter(t=>t.date.slice(0,10) === dashDate);
+  const dashDateTrxs = DB.transactions.filter(t=>localDateFromIso(t.date) === dashDate);
   const byProductDay = {};
   dashDateTrxs.forEach(t=>{
     t.items.forEach(item=>{
@@ -4827,7 +4842,7 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   const from = document.getElementById('lap-from').value;
   const to = document.getElementById('lap-to').value;
   const trxs = DB.transactions.filter(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     return (!from || d>=from) && (!to || d<=to);
   });
 
@@ -4851,7 +4866,7 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   doc.setFontSize(11);
   doc.text('Statistik Per Hari Ini', 14, 44);
   const today = todayStr();
-  const todayTrxs = DB.transactions.filter(t=>t.date.slice(0,10) === today);
+  const todayTrxs = DB.transactions.filter(t=>localDateFromIso(t.date) === today);
   const qtyToday = todayTrxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
   const revenueToday = todayTrxs.reduce((s,t)=>s+t.total,0);
   doc.autoTable({
@@ -4867,7 +4882,7 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   const qtyByDay7 = {}, revByDay7 = {};
   days7.forEach(d=>{ qtyByDay7[d]=0; revByDay7[d]=0; });
   DB.transactions.forEach(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     if(d in qtyByDay7){
       qtyByDay7[d] += t.items.reduce((a,i)=>a+i.qty,0);
       revByDay7[d] += t.total;
@@ -4902,7 +4917,7 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   });
 
   const byDay = {};
-  trxs.forEach(t=>{ const d = t.date.slice(0,10); byDay[d] = (byDay[d]||0) + t.profit; });
+  trxs.forEach(t=>{ const d = localDateFromIso(t.date); byDay[d] = (byDay[d]||0) + t.profit; });
   const days = Object.keys(byDay).sort();
 
   nextY = doc.lastAutoTable.finalY + 10;
@@ -4920,7 +4935,7 @@ document.getElementById('btn-dash-export-pdf').addEventListener('click', ()=>{
   });
 
   const dashDate = document.getElementById('dash-date').value || todayStr();
-  const dashDateTrxs = DB.transactions.filter(t=>t.date.slice(0,10) === dashDate);
+  const dashDateTrxs = DB.transactions.filter(t=>localDateFromIso(t.date) === dashDate);
   const byProductDay = {};
   dashDateTrxs.forEach(t=>{
     t.items.forEach(item=>{
@@ -4984,7 +4999,7 @@ function renderRiwayat(){
   const from = document.getElementById('riw-from').value;
   const to = document.getElementById('riw-to').value;
   const trxs = DB.transactions.filter(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     return (!from || d>=from) && (!to || d<=to);
   }).sort((a,b)=> new Date(b.date) - new Date(a.date));
 
@@ -5018,7 +5033,7 @@ document.getElementById('btn-export-csv').addEventListener('click', ()=>{
   const from = document.getElementById('riw-from').value;
   const to = document.getElementById('riw-to').value;
   const trxs = DB.transactions.filter(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     return (!from || d>=from) && (!to || d<=to);
   });
   let csv = 'Tanggal,Kasir,Item,Metode,Subtotal,Diskon,PPN (%),PPN (Rp),Total,Modal,Laba\n';
@@ -5044,7 +5059,7 @@ document.getElementById('btn-export-pdf').addEventListener('click', ()=>{
   const from = document.getElementById('riw-from').value;
   const to = document.getElementById('riw-to').value;
   const trxs = DB.transactions.filter(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     return (!from || d>=from) && (!to || d<=to);
   }).sort((a,b)=> new Date(a.date) - new Date(b.date));
 
@@ -5252,7 +5267,7 @@ function getFilteredTrxForAdjustment(){
   const from = document.getElementById('adj-from').value;
   const to = document.getElementById('adj-to').value;
   return DB.transactions.filter(t=>{
-    const d = t.date.slice(0,10);
+    const d = localDateFromIso(t.date);
     return (!from || d>=from) && (!to || d<=to);
   });
 }
