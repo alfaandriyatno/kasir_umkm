@@ -528,6 +528,34 @@
         <div class="stat"><div class="label">Transaksi Per Hari Ini</div><div class="value mono" id="d-trx-today">0</div></div>
       </div>
 
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+          <h3 class="display" style="margin:0;">Target Bulan Ini (<span id="target-month-label"></span>)</h3>
+          <button class="btn outline sm" id="btn-edit-target">Atur Target</button>
+        </div>
+        <div id="target-empty" style="display:none; font-size:13px; color:var(--ink-soft);">Belum ada target untuk bulan ini. Klik "Atur Target" untuk menentukan target omzet &amp; laba bulan ini.</div>
+        <div id="target-progress-wrap" style="display:none;">
+          <div style="margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px;">
+              <span style="color:var(--ink-soft);">Omzet: <strong id="target-revenue-actual" style="color:var(--ink);"></strong> / <span id="target-revenue-target"></span></span>
+              <strong id="target-revenue-pct"></strong>
+            </div>
+            <div style="background:var(--paper-alt); border-radius:999px; height:10px; overflow:hidden;">
+              <div id="target-revenue-bar" style="height:100%; border-radius:999px; background:var(--amber); width:0%;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px;">
+              <span style="color:var(--ink-soft);">Laba: <strong id="target-profit-actual" style="color:var(--ink);"></strong> / <span id="target-profit-target"></span></span>
+              <strong id="target-profit-pct"></strong>
+            </div>
+            <div style="background:var(--paper-alt); border-radius:999px; height:10px; overflow:hidden;">
+              <div id="target-profit-bar" style="height:100%; border-radius:999px; background:var(--green); width:0%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid" style="grid-template-columns:1fr 1fr; margin-bottom:20px;">
         <div class="card">
           <h3 class="display" style="margin-top:0;">Grafik Penjualan</h3>
@@ -538,6 +566,19 @@
           <h3 class="display" style="margin-top:0;">Grafik Pendapatan</h3>
           <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Total pendapatan penjualan per hari, dalam 7 hari terakhir</div>
           <div id="chart-revenue" style="display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:10px; overflow-x:auto;"></div>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 1fr; margin-bottom:20px;">
+        <div class="card">
+          <h3 class="display" style="margin-top:0;">Tren Omzet Bulanan</h3>
+          <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Penjualan bersih (di luar PPN) per bulan, 6 bulan terakhir</div>
+          <div id="chart-monthly-revenue" style="display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:10px; overflow-x:auto;"></div>
+        </div>
+        <div class="card">
+          <h3 class="display" style="margin-top:0;">Tren Laba Bulanan</h3>
+          <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Laba per bulan, 6 bulan terakhir</div>
+          <div id="chart-monthly-profit" style="display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:10px; overflow-x:auto;"></div>
         </div>
       </div>
 
@@ -566,6 +607,16 @@
           <tbody id="dash-lowstock-tbody"></tbody>
         </table>
         <div id="dash-lowstock-empty" class="empty-state" style="display:none;">Semua stok barang masih aman (10 atau lebih).</div>
+      </div>
+
+      <div class="card" style="overflow-x:auto; margin-bottom:20px;">
+        <h3 class="display" style="margin-top:0; color:var(--rust);">⚠ Mendekati/Lewat Kadaluarsa</h3>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin:-8px 0 12px 0;">Produk dengan Tanggal Kadaluarsa yang sudah lewat atau tinggal 7 hari lagi. Diisi manual per produk di halaman Produk &amp; Stok.</div>
+        <table id="dash-expiry-table">
+          <thead><tr><th>Nama Produk</th><th>Kategori</th><th>Tanggal Kadaluarsa</th><th>Status</th></tr></thead>
+          <tbody id="dash-expiry-tbody"></tbody>
+        </table>
+        <div id="dash-expiry-empty" class="empty-state" style="display:none;">Tidak ada produk yang mendekati/lewat kadaluarsa.</div>
       </div>
 
       <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
@@ -609,7 +660,22 @@
 
     <!-- ============ KASIR ============ -->
     <section class="view-section" id="view-kasir">
-      <div class="kasir-layout">
+      <div id="kasir-shift-gate" class="card" style="display:none; max-width:420px; text-align:center;">
+        <h3 class="display" style="margin-top:0;">Shift Kasir Belum Dibuka</h3>
+        <p style="font-size:13.5px; color:var(--ink-soft);">Masukkan modal awal kas di laci sebelum mulai jualan, supaya nanti bisa dicocokkan saat tutup shift.</p>
+        <div class="field" style="text-align:left;">
+          <label>Modal Awal Kas (Rp)</label>
+          <input type="number" id="shift-start-cash" min="0" placeholder="0">
+        </div>
+        <button class="btn amber" style="width:100%;" id="btn-open-shift">Buka Shift</button>
+      </div>
+      <div id="kasir-shift-bar" class="card" style="display:none; margin-bottom:14px; padding:10px 16px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <div style="font-size:12.5px; color:var(--ink-soft);">
+          Shift dibuka oleh <strong id="shift-bar-opener" style="color:var(--ink);"></strong> &middot; Modal awal <strong id="shift-bar-startcash" style="color:var(--ink);"></strong> &middot; sejak <span id="shift-bar-time"></span>
+        </div>
+        <button class="btn outline sm" id="btn-close-shift">Tutup Shift</button>
+      </div>
+      <div class="kasir-layout" id="kasir-layout-main" style="display:none;">
         <div class="card">
           <div class="scan-row">
             <input type="text" id="barcode-input" placeholder="Scan atau ketik barcode, lalu tekan Enter" list="barcode-suggestions" autocomplete="off">
@@ -633,6 +699,7 @@
               <span>Diskon (Rp)</span>
               <input type="number" id="discount-input" value="0" min="0" style="width:100px; text-align:right; padding:4px 8px;">
             </div>
+            <div class="line" id="point-discount-line" style="display:none;"><span>Diskon Poin</span><span class="mono" id="r-point-discount">Rp 0</span></div>
             <div class="line" id="ppn-line" style="display:none;"><span id="ppn-label">PPN</span><span class="mono" id="r-ppn">Rp 0</span></div>
             <div class="line total"><span>Total</span><span class="mono" id="r-total">Rp 0</span></div>
             <div class="divider"></div>
@@ -646,14 +713,20 @@
               <label>No. HP Pelanggan (opsional)</label>
               <input type="text" id="customer-phone-input" placeholder="08xxxxxxxxxx">
             </div>
+            <div class="field" id="point-redeem-field" style="display:none;">
+              <label>Poin Pelanggan (tersedia: <span id="point-available">0</span>)</label>
+              <input type="number" id="point-redeem-input" min="0" value="0" placeholder="0">
+            </div>
             <div class="field">
               <label>Metode Pembayaran</label>
-              <div style="display:flex; gap:6px;">
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
                 <button type="button" class="btn outline sm pay-method-btn active" data-method="cash" style="flex:1;">💵 Tunai</button>
                 <button type="button" class="btn outline sm pay-method-btn" data-method="transfer" style="flex:1;">🏦 Transfer</button>
                 <button type="button" class="btn outline sm pay-method-btn" data-method="qris" style="flex:1;">📱 QRIS</button>
+                <button type="button" class="btn outline sm pay-method-btn" data-method="tempo" style="flex:1;">🧾 Bayar Nanti</button>
               </div>
             </div>
+            <div id="tempo-note" style="display:none; font-size:12px; color:var(--ink-soft); background:var(--paper-alt); border-radius:8px; padding:8px 10px; margin:-6px 0 14px 0;">Nama &amp; No. HP pelanggan wajib diisi untuk mencatat piutang.</div>
             <div class="field" id="paid-input-field">
               <label>Uang Dibayar</label>
               <input type="number" id="paid-input" placeholder="0" min="0">
@@ -847,11 +920,22 @@
           <input type="text" id="pelanggan-search" placeholder="Cari nama / nomor HP..." style="max-width:260px;">
         </div>
         <table id="pelanggan-table">
-          <thead><tr><th>Nama</th><th>No. HP</th><th class="num">Jumlah Transaksi</th><th class="num">Total Belanja</th><th class="num">Poin</th></tr></thead>
+          <thead><tr><th>Nama</th><th>No. HP</th><th class="num">Jumlah Transaksi</th><th class="num">Total Belanja</th><th class="num">Poin</th><th class="num">Sisa Hutang</th></tr></thead>
           <tbody id="pelanggan-tbody"></tbody>
         </table>
         <div id="pelanggan-empty" class="empty-state" style="display:none;">Belum ada data pelanggan. Pelanggan otomatis tercatat saat namanya diisi di halaman Kasir.</div>
         <div id="pelanggan-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h3 class="display" style="margin-top:0;">Piutang Belum Lunas</h3>
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Daftar transaksi "Bayar Nanti" yang belum lunas, diurutkan dari yang paling lama. Klik "Terima Pembayaran" saat pelanggan membayar/mencicil.</div>
+        <table id="piutang-table">
+          <thead><tr><th>Tanggal</th><th>Pelanggan</th><th class="num">Total</th><th class="num">Sudah Dibayar</th><th class="num">Sisa</th><th></th></tr></thead>
+          <tbody id="piutang-tbody"></tbody>
+        </table>
+        <div id="piutang-empty" class="empty-state" style="display:none;">Tidak ada piutang yang belum lunas.</div>
+        <div id="piutang-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
       </div>
     </section>
 
@@ -904,6 +988,17 @@
         </table>
         <div id="voidlog-empty" class="empty-state" style="display:none;">Belum ada transaksi yang dibatalkan.</div>
         <div id="voidlog-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h3 class="display" style="margin-top:0;">Riwayat Shift Kasir</h3>
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Catatan setiap shift: siapa yang buka, modal awal, kas yang seharusnya ada menurut sistem vs kas fisik yang dihitung saat tutup shift, dan selisihnya.</div>
+        <table id="shift-table">
+          <thead><tr><th>Dibuka</th><th>Ditutup</th><th>Oleh</th><th class="num">Modal Awal</th><th class="num">Kas Sistem</th><th class="num">Kas Fisik</th><th class="num">Selisih</th></tr></thead>
+          <tbody id="shift-tbody"></tbody>
+        </table>
+        <div id="shift-empty" class="empty-state" style="display:none;">Belum ada riwayat shift.</div>
+        <div id="shift-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
       </div>
     </section>
 
@@ -1007,6 +1102,14 @@
           <input type="text" id="store-address-input" placeholder="Contoh: Jl. Merdeka No. 10, Magelang">
         </div>
         <button class="btn amber" id="btn-save-store">Simpan</button>
+        <div class="divider" style="border-top:1px solid var(--line); margin:20px 0;"></div>
+        <h3 class="display">Poin Pelanggan</h3>
+        <p style="font-size:13px; color:var(--ink-soft);">Pelanggan mendapat 1 poin tiap belanja Rp10.000. Atur di sini berapa nilai Rp tiap 1 poin saat ditukar (dipakai sebagai potongan) di halaman Kasir.</p>
+        <div class="field">
+          <label>Nilai Tukar per Poin (Rp)</label>
+          <input type="number" id="loyalty-redeem-value-input" min="0" placeholder="Contoh: 100">
+        </div>
+        <button class="btn amber" id="btn-save-loyalty">Simpan</button>
         <div class="divider" style="border-top:1px solid var(--line); margin:20px 0;"></div>
         <h3 class="display">Backup Data</h3>
         <p style="font-size:13px; color:var(--ink-soft);">Unduh salinan lengkap semua data toko (produk, transaksi, pembelian, riwayat stok &amp; harga, dll) sebagai satu file. Simpan file ini di tempat aman — bisa jadi cadangan kalau sewaktu-waktu diperlukan.</p>
@@ -1132,6 +1235,11 @@
       <div style="display:flex; gap:12px;">
         <div class="field" style="flex:1;"><label>Stok Eceran (pcs)</label><input type="number" id="p-stock" min="0" placeholder="0"></div>
         <div class="field" style="flex:1;"><label>Stok Minimum Eceran</label><input type="number" id="p-minstock" min="0" placeholder="5"></div>
+      </div>
+      <div class="field">
+        <label>Tanggal Kadaluarsa (opsional)</label>
+        <input type="date" id="p-expiry">
+        <div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">Perkiraan kadaluarsa stok yang ada sekarang (bukan per-batch). Perbarui tanggal ini kalau stok baru datang dengan tanggal kadaluarsa yang berbeda.</div>
       </div>
     </div>
 
@@ -1278,6 +1386,77 @@
   </div>
 </div>
 
+<!-- Modal: Tutup Shift Kasir -->
+<div class="modal-bg" id="modal-close-shift">
+  <div class="modal" style="width:400px;">
+    <button class="modal-close" data-close="modal-close-shift">×</button>
+    <h2 style="font-size:18px;">Tutup Shift</h2>
+    <div style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">
+      Modal awal: <strong id="cs-start-cash" style="color:var(--ink);"></strong><br>
+      Penjualan tunai selama shift ini: <strong id="cs-cash-sales" style="color:var(--ink);"></strong><br>
+      Kas seharusnya ada di laci: <strong id="cs-expected-cash" style="color:var(--ink);"></strong>
+    </div>
+    <div class="field">
+      <label>Kas Fisik yang Dihitung Sekarang (Rp)</label>
+      <input type="number" id="cs-actual-cash" min="0" placeholder="0">
+    </div>
+    <div id="cs-diff-preview" style="font-size:13px; font-weight:600; margin:-6px 0 12px 0;"></div>
+    <div class="field">
+      <label>Catatan (opsional)</label>
+      <input type="text" id="cs-note" placeholder="Contoh: selisih karena kembalian kurang">
+    </div>
+    <button class="btn danger" style="width:100%;" id="btn-confirm-close-shift">Tutup Shift Ini</button>
+  </div>
+</div>
+
+<!-- Modal: Atur Target Bulanan -->
+<div class="modal-bg" id="modal-edit-target">
+  <div class="modal" style="width:380px;">
+    <button class="modal-close" data-close="modal-edit-target">×</button>
+    <h2 style="font-size:18px;">Atur Target Bulan <span id="target-modal-month"></span></h2>
+    <div class="field">
+      <label>Target Omzet (Rp)</label>
+      <input type="number" id="target-revenue-input" min="0" placeholder="Contoh: 20000000">
+    </div>
+    <div class="field">
+      <label>Target Laba (Rp)</label>
+      <input type="number" id="target-profit-input" min="0" placeholder="Contoh: 5000000">
+    </div>
+    <button class="btn amber" style="width:100%;" id="btn-save-target">Simpan Target</button>
+  </div>
+</div>
+
+<!-- Modal: Terima Pembayaran Piutang -->
+<div class="modal-bg" id="modal-receivable-payment">
+  <div class="modal" style="width:400px;">
+    <button class="modal-close" data-close="modal-receivable-payment">×</button>
+    <h2 style="font-size:18px;">Terima Pembayaran Piutang</h2>
+    <div style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">
+      <span id="rp-customer-name" style="font-weight:600; color:var(--ink);"></span><br>
+      Sisa piutang: <strong id="rp-remaining" style="color:var(--ink);"></strong>
+    </div>
+    <input type="hidden" id="rp-receivable-id">
+    <div class="field">
+      <label>Jumlah Dibayar (Rp)</label>
+      <input type="number" id="rp-amount" min="0" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Diterima Via</label>
+      <select id="rp-method">
+        <option value="cash">Tunai</option>
+        <option value="transfer">Transfer Bank</option>
+        <option value="qris">QRIS</option>
+      </select>
+      <div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">Kalau diterima Tunai dan ada shift kasir yang sedang terbuka, jumlah ini otomatis ikut dihitung di rekonsiliasi kas saat tutup shift.</div>
+    </div>
+    <div class="field">
+      <label>Catatan (opsional)</label>
+      <input type="text" id="rp-note" placeholder="Contoh: cicilan pertama">
+    </div>
+    <button class="btn amber" style="width:100%;" id="btn-confirm-receivable-payment">Simpan Pembayaran</button>
+  </div>
+</div>
+
 <!-- Modal: Konfirmasi sandi Owner (untuk tindakan sensitif seperti hapus semua data / keluar semua device) -->
 <div class="modal-bg" id="modal-owner-password">
   <div class="modal" style="width:380px;">
@@ -1306,11 +1485,14 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let AUTH_USER = null;       // user Supabase Auth yang sedang login (1 akun, bisa dipakai di banyak device)
 let CURRENT_COMPANY = null; // { id, name } perusahaan yang sedang aktif
 let SESSION = null;         // { role, name, email } peran user di perusahaan aktif
+let CURRENT_SHIFT = null;   // shift kasir yang sedang terbuka (status:'open') di toko ini, atau null kalau belum ada yang buka shift
 
 /* ================= STORAGE (tersinkron ke Supabase per perusahaan) ================= */
 const CACHE = {
   products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [], customers: [], purchases: [], voidLogs: [],
+  receivables: [], pointRedemptions: [], shifts: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
+  loyaltyConfig: {redeemValue:100}, monthlyTarget: {},
 };
 // Catatan: saveCompanyData() HANYA dipakai sekali, untuk menulis data awal (seed)
 // saat sebuah perusahaan baru pertama kali dibuat (belum ada baris company_data
@@ -1325,7 +1507,9 @@ async function saveCompanyData(){
     products: CACHE.products, transactions: CACHE.transactions,
     adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
     customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
+    receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
     storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
+    loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
   };
   const { error } = await sb.from('company_data').upsert({
     company_id: CURRENT_COMPANY.id, data: payload,
@@ -1350,6 +1534,11 @@ const DB = {
   get customers(){ return CACHE.customers; },
   get purchases(){ return CACHE.purchases; },
   get voidLogs(){ return CACHE.voidLogs; },
+  get receivables(){ return CACHE.receivables; },
+  get pointRedemptions(){ return CACHE.pointRedemptions; },
+  get shifts(){ return CACHE.shifts; },
+  get loyaltyConfig(){ return CACHE.loyaltyConfig; },
+  get monthlyTarget(){ return CACHE.monthlyTarget; },
 };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -1507,6 +1696,122 @@ function renderDashboard(){
   renderTrendCharts(trxs);
   renderDashboardSoldTable();
   renderLowStock();
+  renderExpiryWarnings();
+  renderMonthlyTarget();
+  renderMonthlyTrendCharts();
+}
+
+const MONTH_LABELS_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function monthKey(d){ return d.toISOString().slice(0,7); } // "YYYY-MM"
+function monthLabel(key){
+  const [y,m] = key.split('-');
+  return MONTH_LABELS_ID[Number(m)-1] + ' ' + y.slice(2);
+}
+
+// Target Bulan Ini: dibandingkan dengan omzet (penjualan bersih di luar PPN, sama seperti
+// di Laporan) & laba bulan berjalan. Target disimpan per-bulan (key "YYYY-MM") supaya tiap
+// bulan bisa punya target sendiri dan histori target bulan lalu tidak hilang.
+function renderMonthlyTarget(){
+  const key = monthKey(new Date());
+  document.getElementById('target-month-label').textContent = monthLabel(key);
+  const target = (DB.monthlyTarget || {})[key];
+
+  const monthTrxs = DB.transactions.filter(t=>t.date.slice(0,7) === key);
+  const revenueActual = monthTrxs.reduce((s,t)=>s + (t.total - (t.ppnAmount||0)), 0);
+  const profitActual = monthTrxs.reduce((s,t)=>s + (t.profit||0), 0);
+
+  const emptyEl = document.getElementById('target-empty');
+  const wrapEl = document.getElementById('target-progress-wrap');
+  if(!target || (!target.revenue && !target.profit)){
+    emptyEl.style.display = 'block';
+    wrapEl.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  wrapEl.style.display = 'block';
+
+  const fillBar = (actual, goal, barId, pctId, actualId, targetId)=>{
+    const pct = goal > 0 ? Math.round((actual / goal) * 100) : 0;
+    document.getElementById(barId).style.width = Math.min(pct, 100) + '%';
+    document.getElementById(pctId).textContent = pct + '%';
+    document.getElementById(pctId).style.color = pct >= 100 ? 'var(--green)' : 'var(--ink)';
+    document.getElementById(actualId).textContent = rupiah(actual);
+    document.getElementById(targetId).textContent = rupiah(goal);
+  };
+  fillBar(revenueActual, target.revenue||0, 'target-revenue-bar', 'target-revenue-pct', 'target-revenue-actual', 'target-revenue-target');
+  fillBar(profitActual, target.profit||0, 'target-profit-bar', 'target-profit-pct', 'target-profit-actual', 'target-profit-target');
+}
+
+document.getElementById('btn-edit-target').addEventListener('click', ()=>{
+  const key = monthKey(new Date());
+  const target = (DB.monthlyTarget || {})[key] || {};
+  document.getElementById('target-modal-month').textContent = monthLabel(key);
+  document.getElementById('target-revenue-input').value = target.revenue || '';
+  document.getElementById('target-profit-input').value = target.profit || '';
+  openModal('modal-edit-target');
+});
+
+document.getElementById('btn-save-target').addEventListener('click', async ()=>{
+  const key = monthKey(new Date());
+  const revenue = Math.max(Number(document.getElementById('target-revenue-input').value) || 0, 0);
+  const profit = Math.max(Number(document.getElementById('target-profit-input').value) || 0, 0);
+  const btn = document.getElementById('btn-save-target');
+  btn.disabled = true;
+  const newTarget = { ...(DB.monthlyTarget||{}), [key]: { revenue, profit } };
+  const ok = await saveSettingsPatch({ monthlyTarget: newTarget });
+  btn.disabled = false;
+  if(!ok) return;
+  closeModal('modal-edit-target');
+  renderMonthlyTarget();
+  showToast('Target bulan ini disimpan');
+});
+
+// Tren 6 bulan terakhir (termasuk bulan berjalan), dihitung dari transaksi — bukan dari
+// target — supaya tetap tampil walau target belum pernah diatur.
+function last6Months(){
+  const arr = [];
+  const d = new Date();
+  d.setDate(1); // hindari masalah akhir bulan (misal 31 Jan -> setMonth jadi lompat)
+  for(let i=5; i>=0; i--){
+    const m = new Date(d);
+    m.setMonth(m.getMonth()-i);
+    arr.push(monthKey(m));
+  }
+  return arr;
+}
+function renderMonthlyTrendCharts(){
+  const months = last6Months();
+  const revByMonth = {}, profitByMonth = {};
+  months.forEach(m=>{ revByMonth[m]=0; profitByMonth[m]=0; });
+  DB.transactions.forEach(t=>{
+    const m = t.date.slice(0,7);
+    if(m in revByMonth){
+      revByMonth[m] += (t.total - (t.ppnAmount||0));
+      profitByMonth[m] += (t.profit||0);
+    }
+  });
+
+  const drawMonthlyBars = (containerId, dataObj, allowNegative) => {
+    const el = document.getElementById(containerId);
+    el.innerHTML = '';
+    const vals = months.map(m=>dataObj[m]);
+    const maxAbs = Math.max(...vals.map(v=>Math.abs(v)), 1);
+    months.forEach(m=>{
+      const val = dataObj[m];
+      const h = Math.max((Math.abs(val)/maxAbs)*110, val!==0?4:2);
+      const positive = val >= 0;
+      const color = allowNegative ? (positive ? 'var(--green)' : 'var(--rust)') : (val>0 ? 'var(--amber)' : 'var(--paper-alt)');
+      const col = document.createElement('div');
+      col.style.cssText = 'flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:48px;';
+      col.innerHTML = `
+        <div class="mono" style="font-size:9.5px; margin-bottom:4px; color:var(--ink-soft); white-space:nowrap;">${rupiah(val).replace('Rp ','')}</div>
+        <div style="width:70%; height:${h}px; background:${color}; border-radius:5px 5px 0 0;"></div>
+        <div style="font-size:10px; color:var(--ink-soft); margin-top:6px;">${monthLabel(m)}</div>`;
+      el.appendChild(col);
+    });
+  };
+  drawMonthlyBars('chart-monthly-revenue', revByMonth, false);
+  drawMonthlyBars('chart-monthly-profit', profitByMonth, true);
 }
 
 function lastNDays(n){
@@ -1607,6 +1912,35 @@ function renderLowStock(){
   });
 }
 
+// Produk mendekati/lewat kadaluarsa: dicek dari field expiryDate yang diisi manual per produk
+// (bukan per-batch pembelian — aplikasi ini belum melacak stok per batch, jadi tanggal ini mewakili
+// perkiraan kadaluarsa stok yang ada sekarang; sebaiknya diperbarui saat stok baru datang kalau beda).
+function renderExpiryWarnings(){
+  const rows = [];
+  const today = new Date(); today.setHours(0,0,0,0);
+  DB.products.forEach(p=>{
+    if(!p.expiryDate) return;
+    const exp = new Date(p.expiryDate + 'T00:00:00');
+    const diffDays = Math.round((exp - today) / 86400000);
+    if(diffDays <= 7) rows.push({name:p.name, category:p.category, expiryDate:p.expiryDate, diffDays});
+  });
+  rows.sort((a,b)=>a.diffDays-b.diffDays);
+  const tbody = document.getElementById('dash-expiry-tbody');
+  tbody.innerHTML = '';
+  document.getElementById('dash-expiry-empty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(r=>{
+    const expired = r.diffDays < 0;
+    const statusText = expired ? `Lewat ${Math.abs(r.diffDays)} hari` : (r.diffDays===0 ? 'Hari ini' : `${r.diffDays} hari lagi`);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(r.name)}</td>
+      <td>${esc(r.category)}</td>
+      <td>${new Date(r.expiryDate + 'T00:00:00').toLocaleDateString('id-ID')}</td>
+      <td><span class="badge ${expired ? 'low' : 'low'}" style="background:${expired ? 'var(--rust-bg)' : 'var(--amber-bg, #fdf0d5)'}; color:${expired ? 'var(--rust)' : 'var(--amber-dark)'};">${statusText}</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
 /* ================= ROLE & LOGIN ================= */
 const titles = {dashboard:'Dashboard', kasir:'Kasir', produk:'Produk & Stok', pembelian:'Pembelian', pelanggan:'Pelanggan', pemasok:'Pemasok', laporan:'Laporan', penyesuaian:'Penyesuaian', pengaturan:'Pengaturan'};
 const ROLE_LABELS = {owner:'Owner', admin:'Admin', user:'User', gudang:'Gudang', spv:'SPV'};
@@ -1639,7 +1973,7 @@ function switchView(v){
   if(v==='pembelian'){ refreshPurchaseProductSelect(); renderPurchases(); refreshSupplierSuggestions(); }
   if(v==='pelanggan') renderCustomers();
   if(v==='pemasok') renderSuppliers();
-  if(v==='laporan'){ renderRiwayat(); renderVoidLog(); }
+  if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderShiftHistory(); }
   if(v==='penyesuaian') renderAdjustments();
 }
 
@@ -2239,10 +2573,15 @@ async function enterCompany(id, name, role, memberName){
     CACHE.customers = d.customers || [];
     CACHE.purchases = d.purchases || [];
     CACHE.voidLogs = d.voidLogs || [];
+    CACHE.receivables = d.receivables || [];
+    CACHE.pointRedemptions = d.pointRedemptions || [];
+    CACHE.shifts = d.shifts || [];
     CACHE.storeName = d.storeName || name;
     CACHE.storeAddress = d.storeAddress || '';
     CACHE.ppnConfig = d.ppnConfig || {enabled:false, percent:11};
     CACHE.receiptPaperSize = d.receiptPaperSize || '80mm';
+    CACHE.loyaltyConfig = d.loyaltyConfig || {redeemValue:100};
+    CACHE.monthlyTarget = d.monthlyTarget || {};
   } else {
     CACHE.products = [
       {id:uid(), barcode:'8991234567890', name:'Indomie Goreng', category:'Sembako', unit:'pcs', buyPrice:2800, sellPrice:3500, stock:80, minStock:10,
@@ -2263,10 +2602,15 @@ async function enterCompany(id, name, role, memberName){
     CACHE.customers = [];
     CACHE.purchases = [];
     CACHE.voidLogs = [];
+    CACHE.receivables = [];
+    CACHE.pointRedemptions = [];
+    CACHE.shifts = [];
     CACHE.storeName = name;
     CACHE.storeAddress = '';
     CACHE.ppnConfig = {enabled:false, percent:11};
     CACHE.receiptPaperSize = '80mm';
+    CACHE.loyaltyConfig = {redeemValue:100};
+    CACHE.monthlyTarget = {};
     await saveCompanyData();
   }
 
@@ -2292,6 +2636,7 @@ async function enterCompany(id, name, role, memberName){
   renderRiwayat();
   renderDashboard();
   renderUsers();
+  refreshShiftState();
   switchView(allowedViews[0]);
 }
 
@@ -2428,6 +2773,16 @@ document.getElementById('btn-save-store').addEventListener('click', async ()=>{
   if(ok){ refreshStoreName(); showToast('Profil toko disimpan'); }
 });
 
+function refreshLoyaltySettingsUI(){
+  document.getElementById('loyalty-redeem-value-input').value = (DB.loyaltyConfig && DB.loyaltyConfig.redeemValue) || 100;
+}
+document.getElementById('btn-save-loyalty').addEventListener('click', async ()=>{
+  const v = Math.max(Number(document.getElementById('loyalty-redeem-value-input').value) || 0, 0);
+  const ok = await saveSettingsPatch({ loyaltyConfig: { redeemValue: v } });
+  if(ok){ refreshLoyaltySettingsUI(); showToast('Pengaturan poin disimpan'); }
+});
+refreshLoyaltySettingsUI();
+
 function refreshPpnSettingsUI(){
   const cfg = DB.ppnConfig;
   document.getElementById('ppn-enabled').checked = !!cfg.enabled;
@@ -2483,7 +2838,9 @@ document.getElementById('btn-backup-data').addEventListener('click', ()=>{
       products: CACHE.products, transactions: CACHE.transactions, adjustments: CACHE.adjustments,
       customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
       purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
+      receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
       storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
+      loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
     },
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -2543,16 +2900,22 @@ document.getElementById('btn-restore-data').addEventListener('click', ()=>{
           CACHE.customers = newData.customers || [];
           CACHE.purchases = newData.purchases || [];
           CACHE.voidLogs = newData.voidLogs || [];
+          CACHE.receivables = newData.receivables || [];
+          CACHE.pointRedemptions = newData.pointRedemptions || [];
+          CACHE.shifts = newData.shifts || [];
           CACHE.storeName = newData.storeName || CACHE.storeName;
           CACHE.storeAddress = newData.storeAddress || '';
           CACHE.ppnConfig = newData.ppnConfig || {enabled:false, percent:11};
           CACHE.receiptPaperSize = newData.receiptPaperSize || '80mm';
+          CACHE.loyaltyConfig = newData.loyaltyConfig || {redeemValue:100};
+          CACHE.monthlyTarget = newData.monthlyTarget || {};
 
           fileInput.value = '';
           showToast('Data berhasil dipulihkan dari backup');
-          refreshStoreName(); refreshPaperSizeUI(); refreshAccountUI();
+          refreshStoreName(); refreshPaperSizeUI(); refreshAccountUI(); refreshLoyaltySettingsUI();
           renderProducts(); renderStockLog(); renderPriceLog(); renderReport(); renderRiwayat();
           renderVoidLog(); renderPurchases(); renderCustomers(); renderSuppliers(); renderDashboard();
+          renderReceivables(); refreshShiftState();
           cart = []; renderCart();
         });
       }
@@ -2792,6 +3155,7 @@ document.getElementById('btn-save-product').addEventListener('click', async ()=>
     stock: Math.max(Number(document.getElementById('p-stock').value) || 0, 0),
     minStock: Math.max(Number(document.getElementById('p-minstock').value) || 0, 0),
     photo: document.getElementById('p-photo-data').value || '',
+    expiryDate: document.getElementById('p-expiry').value || '',
   };
   for(const u of EXTRA_UNITS){
     const dbKey = EXTRA_UNIT_DBKEY[u.key];
@@ -2895,6 +3259,7 @@ function editProduct(id){
   document.getElementById('p-sell').value = p.sellPrice;
   document.getElementById('p-stock').value = p.stock;
   document.getElementById('p-minstock').value = p.minStock;
+  document.getElementById('p-expiry').value = p.expiryDate || '';
   EXTRA_UNITS.forEach(u=>{
     const dbKey = EXTRA_UNIT_DBKEY[u.key];
     const enabled = !!p[dbKey+'Enabled'];
@@ -2995,6 +3360,147 @@ function renderProducts(){
   });
 }
 document.getElementById('produk-search').addEventListener('input', ()=>{ paginationState['produk']=1; renderProducts(); });
+
+/* ================= SHIFT KASIR (modal awal kas & rekonsiliasi tutup shift) ================= */
+// Cari shift yang statusnya masih 'open' (seharusnya maksimal satu, dijaga oleh open_shift_rpc di server),
+// lalu tampilkan/sembunyikan gerbang "Buka Shift" vs halaman Kasir sesuai itu.
+function refreshShiftState(){
+  CURRENT_SHIFT = DB.shifts.find(s=>s.status==='open') || null;
+  const gate = document.getElementById('kasir-shift-gate');
+  const bar = document.getElementById('kasir-shift-bar');
+  const main = document.getElementById('kasir-layout-main');
+  if(!gate || !bar || !main) return; // elemen kasir belum siap (mis. sebelum login)
+  if(CURRENT_SHIFT){
+    gate.style.display = 'none';
+    bar.style.display = 'flex';
+    main.style.display = '';
+    document.getElementById('shift-bar-opener').textContent = CURRENT_SHIFT.openedByName || '-';
+    document.getElementById('shift-bar-startcash').textContent = rupiah(CURRENT_SHIFT.startCash || 0);
+    document.getElementById('shift-bar-time').textContent = new Date(CURRENT_SHIFT.openedAt).toLocaleString('id-ID');
+  } else {
+    gate.style.display = 'block';
+    bar.style.display = 'none';
+    main.style.display = 'none';
+  }
+}
+
+document.getElementById('btn-open-shift').addEventListener('click', async ()=>{
+  const startCash = Math.max(Number(document.getElementById('shift-start-cash').value) || 0, 0);
+  const btn = document.getElementById('btn-open-shift');
+  btn.disabled = true;
+  const { data: newData, error } = await sb.rpc('open_shift_rpc', {
+    p_company_id: CURRENT_COMPANY.id, p_start_cash: startCash, p_note: '',
+  });
+  btn.disabled = false;
+  if(error){ showToast('Gagal membuka shift: ' + error.message); return; }
+  CACHE.shifts = newData.shifts || [];
+  document.getElementById('shift-start-cash').value = '';
+  refreshShiftState();
+  renderShiftHistory();
+  showToast('Shift dibuka, selamat berjualan!');
+});
+
+// Hitung uang tunai yang masuk selama shift yang sedang berjalan, untuk dicocokkan
+// dengan uang fisik di laci saat tutup shift nanti. Ini termasuk 2 sumber:
+// 1) Penjualan tunai langsung dari Kasir.
+// 2) Pembayaran cicilan piutang yang diterima secara tunai selama shift ini berjalan
+//    (kalau tidak dihitung, kas di laci akan kelihatan "lebih" padahal sebenarnya pas,
+//    karena uang cicilan tunai itu nyata masuk ke laci juga).
+function calcShiftCashSales(shiftId){
+  const cashSalesTotal = DB.transactions
+    .filter(t=>t.shiftId === shiftId && t.paymentMethod === 'cash')
+    .reduce((s,t)=>s + (t.total||0), 0);
+  let cashReceivablePayments = 0;
+  (DB.receivables||[]).forEach(r=>{
+    (r.payments||[]).forEach(p=>{
+      if(p.shiftId === shiftId && (p.method||'cash') === 'cash') cashReceivablePayments += (Number(p.amount)||0);
+    });
+  });
+  return cashSalesTotal + cashReceivablePayments;
+}
+
+document.getElementById('btn-close-shift').addEventListener('click', ()=>{
+  if(!CURRENT_SHIFT) return;
+  const cashSales = calcShiftCashSales(CURRENT_SHIFT.id);
+  const expectedCash = (CURRENT_SHIFT.startCash||0) + cashSales;
+  document.getElementById('cs-start-cash').textContent = rupiah(CURRENT_SHIFT.startCash||0);
+  document.getElementById('cs-cash-sales').textContent = rupiah(cashSales);
+  document.getElementById('cs-expected-cash').textContent = rupiah(expectedCash);
+  document.getElementById('cs-actual-cash').value = '';
+  document.getElementById('cs-note').value = '';
+  document.getElementById('cs-diff-preview').textContent = '';
+  openModal('modal-close-shift');
+});
+
+document.getElementById('cs-actual-cash').addEventListener('input', ()=>{
+  if(!CURRENT_SHIFT) return;
+  const cashSales = calcShiftCashSales(CURRENT_SHIFT.id);
+  const expectedCash = (CURRENT_SHIFT.startCash||0) + cashSales;
+  const actual = Number(document.getElementById('cs-actual-cash').value) || 0;
+  const diff = actual - expectedCash;
+  const preview = document.getElementById('cs-diff-preview');
+  if(diff === 0){
+    preview.style.color = 'var(--green)';
+    preview.textContent = 'Pas, tidak ada selisih.';
+  } else if(diff > 0){
+    preview.style.color = 'var(--green)';
+    preview.textContent = `Lebih ${rupiah(diff)}`;
+  } else {
+    preview.style.color = 'var(--rust)';
+    preview.textContent = `Kurang ${rupiah(Math.abs(diff))}`;
+  }
+});
+
+document.getElementById('btn-confirm-close-shift').addEventListener('click', async ()=>{
+  if(!CURRENT_SHIFT) return;
+  const cashSales = calcShiftCashSales(CURRENT_SHIFT.id);
+  const expectedCash = (CURRENT_SHIFT.startCash||0) + cashSales;
+  const actualCash = Number(document.getElementById('cs-actual-cash').value);
+  if(document.getElementById('cs-actual-cash').value === '' || isNaN(actualCash) || actualCash < 0){
+    showToast('Isi jumlah kas fisik yang dihitung terlebih dahulu'); return;
+  }
+  const note = document.getElementById('cs-note').value.trim();
+  const btn = document.getElementById('btn-confirm-close-shift');
+  btn.disabled = true;
+  const { data: newData, error } = await sb.rpc('close_shift_rpc', {
+    p_company_id: CURRENT_COMPANY.id, p_shift_id: CURRENT_SHIFT.id,
+    p_expected_cash: expectedCash, p_actual_cash: actualCash, p_note: note,
+  });
+  btn.disabled = false;
+  if(error){ showToast('Gagal menutup shift: ' + error.message); return; }
+  CACHE.shifts = newData.shifts || [];
+  closeModal('modal-close-shift');
+  refreshShiftState();
+  renderShiftHistory();
+  showToast('Shift ditutup');
+});
+
+function renderShiftHistory(){
+  const tbody = document.getElementById('shift-tbody');
+  if(!tbody) return;
+  const rows = [...DB.shifts].sort((a,b)=> new Date(b.openedAt) - new Date(a.openedAt));
+  document.getElementById('shift-empty').style.display = rows.length ? 'none' : 'block';
+  paginationRerender['shift'] = renderShiftHistory;
+  const { pageItems, page, totalPages, totalItems } = paginate('shift', rows);
+  renderPaginationControls('shift-pagination', 'shift', page, totalPages, totalItems);
+  tbody.innerHTML = '';
+  pageItems.forEach(s=>{
+    const isOpen = s.status === 'open';
+    const diff = s.diff;
+    const diffText = isOpen ? '—' : (diff===0 ? 'Pas' : (diff>0 ? `Lebih ${rupiah(diff)}` : `Kurang ${rupiah(Math.abs(diff))}`));
+    const diffColor = isOpen ? 'var(--ink-soft)' : (diff===0 ? 'var(--ink-soft)' : (diff>0 ? 'var(--green)' : 'var(--rust)'));
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(s.openedAt).toLocaleString('id-ID')}</td>
+      <td>${s.closedAt ? new Date(s.closedAt).toLocaleString('id-ID') : '<span class="badge ok">Sedang Buka</span>'}</td>
+      <td>${esc(s.openedByName)}</td>
+      <td class="num mono">${rupiah(s.startCash||0)}</td>
+      <td class="num mono">${isOpen ? '—' : rupiah(s.expectedCash||0)}</td>
+      <td class="num mono">${isOpen ? '—' : rupiah(s.actualCash||0)}</td>
+      <td class="num mono" style="color:${diffColor}; font-weight:600;">${diffText}</td>`;
+    tbody.appendChild(tr);
+  });
+}
 
 /* ================= KASIR / CART ================= */
 let cart = [];
@@ -3113,19 +3619,87 @@ function renderCustomers(){
   tbody.innerHTML = '';
   document.getElementById('pelanggan-empty').style.display = rows.length ? 'none' : 'block';
   pageItems.forEach(c=>{
-    const poin = Math.floor(c.total / 10000); // 1 poin tiap belanja Rp 10.000
+    const poin = getCustomerAvailablePoints(c.name, c.phone === '-' ? '' : c.phone); // poin yang masih bisa ditukar (sudah dikurangi yang terpakai)
+    const key = customerKey(c.name, c.phone === '-' ? '' : c.phone);
+    const debt = DB.receivables
+      .filter(r=>r.status==='belum_lunas' && customerKey(r.customerName, r.customerPhone)===key)
+      .reduce((s,r)=> s + (Number(r.amount)||0) - (Number(r.paidAmount)||0), 0);
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${esc(c.name)}</td>
       <td>${esc(c.phone)}</td>
       <td class="num mono">${c.trxCount}</td>
       <td class="num mono">${rupiah(c.total)}</td>
-      <td class="num mono">${poin}</td>`;
+      <td class="num mono">${poin}</td>
+      <td class="num mono" style="${debt>0?'color:var(--rust); font-weight:600;':''}">${debt>0 ? rupiah(debt) : '—'}</td>`;
     tbody.appendChild(tr);
   });
   renderPaginationControls('pelanggan-pagination', 'pelanggan', page, totalPages, totalItems);
   refreshCustomerSuggestions();
 }
+
+/* ---- Piutang (Bayar Nanti) ---- */
+function renderReceivables(){
+  const tbody = document.getElementById('piutang-tbody');
+  if(!tbody) return;
+  const rows = DB.receivables.filter(r=>r.status==='belum_lunas').sort((a,b)=> new Date(a.date) - new Date(b.date));
+  document.getElementById('piutang-empty').style.display = rows.length ? 'none' : 'block';
+  paginationRerender['piutang'] = renderReceivables;
+  const { pageItems, page, totalPages, totalItems } = paginate('piutang', rows);
+  renderPaginationControls('piutang-pagination', 'piutang', page, totalPages, totalItems);
+  tbody.innerHTML = '';
+  pageItems.forEach(r=>{
+    const remaining = (Number(r.amount)||0) - (Number(r.paidAmount)||0);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(r.date).toLocaleDateString('id-ID')}</td>
+      <td>${esc(r.customerName)}<div style="font-size:11px; color:var(--ink-soft);">${esc(r.customerPhone)}</div></td>
+      <td class="num mono">${rupiah(r.amount)}</td>
+      <td class="num mono">${rupiah(r.paidAmount||0)}</td>
+      <td class="num mono" style="color:var(--rust); font-weight:600;">${rupiah(remaining)}</td>
+      <td><button class="btn amber sm" onclick="openReceivablePaymentModal('${r.id}')">Terima Pembayaran</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openReceivablePaymentModal(receivableId){
+  const r = DB.receivables.find(r=>r.id===receivableId);
+  if(!r) return;
+  const remaining = (Number(r.amount)||0) - (Number(r.paidAmount)||0);
+  document.getElementById('rp-receivable-id').value = r.id;
+  document.getElementById('rp-customer-name').textContent = `${r.name || r.customerName} — ${r.customerPhone}`;
+  document.getElementById('rp-remaining').textContent = rupiah(remaining);
+  document.getElementById('rp-amount').value = remaining;
+  document.getElementById('rp-amount').max = remaining;
+  document.getElementById('rp-method').value = 'cash';
+  document.getElementById('rp-note').value = '';
+  openModal('modal-receivable-payment');
+}
+
+document.getElementById('btn-confirm-receivable-payment').addEventListener('click', async ()=>{
+  const receivableId = document.getElementById('rp-receivable-id').value;
+  const amount = Number(document.getElementById('rp-amount').value) || 0;
+  const method = document.getElementById('rp-method').value;
+  const note = document.getElementById('rp-note').value.trim();
+  const r = DB.receivables.find(r=>r.id===receivableId);
+  if(!r) return;
+  const remaining = (Number(r.amount)||0) - (Number(r.paidAmount)||0);
+  if(amount <= 0){ showToast('Jumlah pembayaran harus lebih dari 0'); return; }
+  if(amount > remaining + 0.01){ showToast('Jumlah pembayaran melebihi sisa piutang'); return; }
+
+  const btn = document.getElementById('btn-confirm-receivable-payment');
+  btn.disabled = true;
+  const { data: newData, error } = await sb.rpc('receive_receivable_payment_rpc', {
+    p_company_id: CURRENT_COMPANY.id, p_receivable_id: receivableId, p_amount: amount, p_note: note, p_method: method,
+  });
+  btn.disabled = false;
+  if(error){ showToast('Gagal menyimpan pembayaran: ' + error.message); return; }
+  CACHE.receivables = newData.receivables || [];
+  closeModal('modal-receivable-payment');
+  renderReceivables();
+  renderCustomers();
+  showToast('Pembayaran piutang tersimpan');
+});
 document.getElementById('pelanggan-search').addEventListener('input', ()=>{ paginationState['pelanggan']=1; renderCustomers(); });
 
 /* ---- Pemasok (otomatis terkumpul dari nama supplier yang diisi saat Pembelian) ---- */
@@ -3647,7 +4221,7 @@ function renderCart(){
 }
 
 let paymentMethod = 'cash';
-const PAY_METHOD_LABELS = {cash:'Tunai', transfer:'Transfer Bank', qris:'QRIS'};
+const PAY_METHOD_LABELS = {cash:'Tunai', transfer:'Transfer Bank', qris:'QRIS', tempo:'Bayar Nanti (Piutang)'};
 
 document.querySelectorAll('.pay-method-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -3658,8 +4232,8 @@ document.querySelectorAll('.pay-method-btn').forEach(btn=>{
   });
 });
 
-function calcTotals(subtotal, discount){
-  const preTax = Math.max(subtotal - discount, 0);
+function calcTotals(subtotal, discount, pointDiscount){
+  const preTax = Math.max(subtotal - discount - (pointDiscount||0), 0);
   const cfg = DB.ppnConfig;
   const ppnPercent = cfg.enabled ? cfg.percent : 0;
   const ppnAmount = Math.round(preTax * ppnPercent / 100);
@@ -3667,11 +4241,69 @@ function calcTotals(subtotal, discount){
   return { preTax, ppnPercent, ppnAmount, grandTotal };
 }
 
+// Poin pelanggan yang didapat (1 poin / Rp10.000 belanja, sama seperti di halaman Pelanggan)
+// dikurangi yang sudah pernah ditukar, dicocokkan lewat kombinasi nama+No.HP yang sama.
+function customerKey(name, phone){ return (name||'').trim().toLowerCase() + '|' + (phone||'').trim(); }
+function getCustomerAvailablePoints(name, phone){
+  if(!name || !name.trim()) return 0;
+  const key = customerKey(name, phone);
+  let total = 0;
+  DB.transactions.forEach(t=>{
+    if(!t.customerName) return;
+    if(customerKey(t.customerName, t.customerPhone) === key) total += t.total;
+  });
+  const earned = Math.floor(total / 10000);
+  let used = 0;
+  (DB.pointRedemptions||[]).forEach(r=>{
+    if(!r.customerName) return;
+    if(customerKey(r.customerName, r.customerPhone) === key) used += (Number(r.pointsUsed)||0);
+  });
+  return Math.max(earned - used, 0);
+}
+// Hitung berapa poin yang akan dipakai & nilainya, dibatasi supaya tidak melebihi poin
+// yang tersedia maupun sisa tagihan (poin tidak akan "terbuang" melebihi kebutuhan).
+function resolvePointRedemption(subtotal, discount, availablePoints){
+  const redeemValue = (DB.loyaltyConfig && DB.loyaltyConfig.redeemValue) || 100;
+  const pointInput = document.getElementById('point-redeem-input');
+  let pointsUsed = Math.max(0, Math.min(Number(pointInput.value) || 0, availablePoints));
+  const maxDiscountable = Math.max(subtotal - discount, 0);
+  let pointDiscount = pointsUsed * redeemValue;
+  if(pointDiscount > maxDiscountable){
+    pointsUsed = redeemValue > 0 ? Math.floor(maxDiscountable / redeemValue) : 0;
+    pointDiscount = pointsUsed * redeemValue;
+  }
+  return { pointsUsed, pointDiscount, redeemValue };
+}
+
 function renderReceipt(){
   const linesEl = document.getElementById('receipt-lines');
   const subtotal = cart.reduce((s,i)=>s+cartItemTotal(i),0);
   const discount = Math.min(Math.max(Number(document.getElementById('discount-input').value) || 0, 0), subtotal);
-  const { preTax, ppnPercent, ppnAmount, grandTotal } = calcTotals(subtotal, discount);
+
+  const custName = (document.getElementById('customer-name-input').value || '').trim();
+  const custPhone = (document.getElementById('customer-phone-input').value || '').trim();
+  const availablePoints = getCustomerAvailablePoints(custName, custPhone);
+  const pointField = document.getElementById('point-redeem-field');
+  const pointInput = document.getElementById('point-redeem-input');
+  if(custName && availablePoints > 0){
+    pointField.style.display = 'block';
+    document.getElementById('point-available').textContent = availablePoints;
+  } else {
+    pointField.style.display = 'none';
+    pointInput.value = 0;
+  }
+  const { pointsUsed, pointDiscount } = resolvePointRedemption(subtotal, discount, availablePoints);
+  if(Number(pointInput.value) !== pointsUsed) pointInput.value = pointsUsed;
+
+  const { preTax, ppnPercent, ppnAmount, grandTotal } = calcTotals(subtotal, discount, pointDiscount);
+
+  const pointDiscountLine = document.getElementById('point-discount-line');
+  if(pointDiscount > 0){
+    pointDiscountLine.style.display = 'flex';
+    document.getElementById('r-point-discount').textContent = '-' + rupiah(pointDiscount);
+  } else {
+    pointDiscountLine.style.display = 'none';
+  }
 
   const ppnLine = document.getElementById('ppn-line');
   if(ppnPercent > 0){
@@ -3685,18 +4317,29 @@ function renderReceipt(){
   const paidField = document.getElementById('paid-input-field');
   const changeLine = document.getElementById('change-line');
   const nonCashNote = document.getElementById('non-cash-note');
+  const tempoNote = document.getElementById('tempo-note');
   let paid, change;
   if(paymentMethod === 'cash'){
     paidField.style.display = 'block';
     changeLine.style.display = 'flex';
     nonCashNote.style.display = 'none';
+    tempoNote.style.display = 'none';
     paid = Number(document.getElementById('paid-input').value) || 0;
     change = paid - grandTotal;
+  } else if(paymentMethod === 'tempo'){
+    // Bayar Nanti: belum ada uang masuk sama sekali sekarang, dicatat sebagai piutang.
+    paidField.style.display = 'none';
+    changeLine.style.display = 'none';
+    nonCashNote.style.display = 'none';
+    tempoNote.style.display = 'block';
+    paid = 0;
+    change = 0;
   } else {
     // Transfer/QRIS dianggap dibayar pas sejumlah total, tidak ada kembalian
     paidField.style.display = 'none';
     changeLine.style.display = 'none';
     nonCashNote.style.display = 'block';
+    tempoNote.style.display = 'none';
     nonCashNote.textContent = `Pastikan sudah menerima ${rupiah(grandTotal)} via ${PAY_METHOD_LABELS[paymentMethod]} sebelum menekan "Bayar & Cetak Struk".`;
     paid = grandTotal;
     change = 0;
@@ -3716,8 +4359,12 @@ function renderReceipt(){
 }
 document.getElementById('discount-input').addEventListener('input', renderReceipt);
 document.getElementById('paid-input').addEventListener('input', renderReceipt);
+document.getElementById('customer-name-input').addEventListener('input', renderReceipt);
+document.getElementById('customer-phone-input').addEventListener('input', renderReceipt);
+document.getElementById('point-redeem-input').addEventListener('input', renderReceipt);
 document.getElementById('btn-clear-cart').addEventListener('click', ()=>{
   cart=[]; document.getElementById('discount-input').value=0; document.getElementById('paid-input').value='';
+  document.getElementById('point-redeem-input').value = 0;
   paymentMethod = 'cash';
   document.querySelectorAll('.pay-method-btn').forEach(b=>b.classList.toggle('active', b.dataset.method==='cash'));
   renderCart();
@@ -3725,13 +4372,26 @@ document.getElementById('btn-clear-cart').addEventListener('click', ()=>{
 
 document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   if(!cart.length) return;
+  if(!CURRENT_SHIFT){ showToast('Buka shift dulu sebelum mulai transaksi'); return; }
   const subtotal = cart.reduce((s,i)=>s+cartItemTotal(i),0);
   const discount = Math.min(Math.max(Number(document.getElementById('discount-input').value) || 0, 0), subtotal);
-  const { preTax, ppnPercent, ppnAmount, grandTotal } = calcTotals(subtotal, discount);
+  const custName = (document.getElementById('customer-name-input').value || '').trim();
+  const custPhone = (document.getElementById('customer-phone-input').value || '').trim();
+  const availablePoints = getCustomerAvailablePoints(custName, custPhone);
+  const { pointsUsed, pointDiscount } = resolvePointRedemption(subtotal, discount, availablePoints);
+  const { preTax, ppnPercent, ppnAmount, grandTotal } = calcTotals(subtotal, discount, pointDiscount);
+
+  if(paymentMethod === 'tempo' && (!custName || !custPhone)){
+    showToast('Nama & No. HP pelanggan wajib diisi untuk Bayar Nanti (piutang)');
+    return;
+  }
+
   let paid;
   if(paymentMethod === 'cash'){
     paid = Number(document.getElementById('paid-input').value) || 0;
     if(paid < grandTotal){ showToast('Uang dibayar kurang dari total'); return; }
+  } else if(paymentMethod === 'tempo'){
+    paid = 0; // belum ada uang masuk, dicatat sebagai piutang
   } else {
     paid = grandTotal; // transfer/QRIS dianggap pas sejumlah total
   }
@@ -3749,7 +4409,7 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
     byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-',
   }));
 
-  const checkoutSig = JSON.stringify({ cart, discount, paid, paymentMethod });
+  const checkoutSig = JSON.stringify({ cart, discount, paid, paymentMethod, pointsUsed });
   if(_pendingCheckoutId && _pendingCheckoutSig === checkoutSig){
     // Percobaan ulang dari submit sebelumnya yang gagal (keranjang & pembayaran persis sama) — pakai id yang sama
   } else {
@@ -3757,29 +4417,46 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
     _pendingCheckoutSig = checkoutSig;
   }
 
+  const who = { byName: (SESSION && SESSION.name) ? SESSION.name : '-', byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-' };
+  const nowIso = new Date().toISOString();
+
   const trx = {
     id: _pendingCheckoutId,
-    date: new Date().toISOString(),
+    date: nowIso,
+    shiftId: CURRENT_SHIFT.id,
     cashierName: (SESSION && SESSION.name) ? SESSION.name : '-',
-    customerName: (document.getElementById('customer-name-input').value || '').trim(),
-    customerPhone: (document.getElementById('customer-phone-input').value || '').trim(),
+    customerName: custName,
+    customerPhone: custPhone,
     items: cart.map(i=>({
       name:i.name, productId:i.id, unitType:i.unitType, unitLabel:i.unitLabel,
       displayName: i.name + (i.unitType!=='eceran' ? ' (' + i.unitLabel + ')' : ''),
       qty:i.qty, sellPrice:i.sellPrice, buyPrice:i.buyPrice, itemDiscount:Number(i.itemDiscount)||0
     })),
     subtotal, discount,
+    pointsRedeemed: pointsUsed, pointDiscount,
     ppnPercent, ppnAmount,
     total: grandTotal, totalModal, profit: preTax - totalModal,
-    paid, change: paid - grandTotal,
+    paid, change: paymentMethod === 'cash' ? (paid - grandTotal) : 0,
     paymentMethod
   };
+
+  const receivable = (paymentMethod === 'tempo') ? {
+    id: uid(), transactionId: trx.id, customerName: custName, customerPhone: custPhone,
+    date: nowIso, amount: grandTotal, paidAmount: 0, status: 'belum_lunas', payments: [],
+  } : null;
+
+  const pointRedemption = (pointsUsed > 0) ? {
+    id: uid(), transactionId: trx.id, customerName: custName, customerPhone: custPhone,
+    date: nowIso, pointsUsed, discountAmount: pointDiscount, ...who,
+  } : null;
 
   const { data: newData, error } = await sb.rpc('checkout_transaction', {
     p_company_id: CURRENT_COMPANY.id,
     p_transaction: trx,
     p_stock_deltas: stockDeltas,
     p_stock_logs: stockLogEntries,
+    p_receivable: receivable,
+    p_point_redemption: pointRedemption,
   });
 
   btn.disabled = false;
@@ -3794,6 +4471,8 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   CACHE.products = newData.products || [];
   CACHE.transactions = newData.transactions || [];
   CACHE.stockLogs = newData.stockLogs || [];
+  CACHE.receivables = newData.receivables || [];
+  CACHE.pointRedemptions = newData.pointRedemptions || [];
 
   _pendingCheckoutId = null;
   _pendingCheckoutSig = null;
@@ -3802,6 +4481,7 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   showToast('Transaksi berhasil disimpan');
   cart = []; document.getElementById('discount-input').value = 0; document.getElementById('paid-input').value = '';
   document.getElementById('customer-name-input').value = ''; document.getElementById('customer-phone-input').value = '';
+  document.getElementById('point-redeem-input').value = 0;
   paymentMethod = 'cash';
   document.querySelectorAll('.pay-method-btn').forEach(b=>b.classList.toggle('active', b.dataset.method==='cash'));
   renderCart(); renderProducts(); renderStockLog(); renderCustomers();
@@ -3869,6 +4549,8 @@ function voidTransaction(id){
       CACHE.transactions = newData.transactions || [];
       CACHE.stockLogs = newData.stockLogs || [];
       CACHE.voidLogs = newData.voidLogs || [];
+      CACHE.receivables = newData.receivables || [];
+      CACHE.pointRedemptions = newData.pointRedemptions || [];
 
       showToast('Transaksi dibatalkan, stok dikembalikan');
       renderReport();
@@ -3876,6 +4558,8 @@ function voidTransaction(id){
       renderProducts();
       renderStockLog();
       renderVoidLog();
+      renderReceivables();
+      renderCustomers();
     }
   );
 }
