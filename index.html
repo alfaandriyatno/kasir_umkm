@@ -1986,7 +1986,7 @@ function switchView(v){
   if(v==='dashboard'){ renderDashboard(); renderReport(); }
   if(v==='produk'){ renderProducts(); renderStockLog(); renderPriceLog(); }
   if(v==='pembelian'){ refreshPurchaseProductSelect(); renderPurchases(); refreshSupplierSuggestions(); }
-  if(v==='pelanggan') renderCustomers();
+  if(v==='pelanggan'){ renderCustomers(); renderReceivables(); }
   if(v==='pemasok') renderSuppliers();
   if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderShiftHistory(); }
   if(v==='penyesuaian') renderAdjustments();
