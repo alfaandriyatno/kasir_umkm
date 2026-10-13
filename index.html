@@ -526,6 +526,7 @@
         <div class="stat"><div class="label">Terjual Per Hari Ini</div><div class="value mono" id="d-qty-today">0 pcs</div></div>
         <div class="stat"><div class="label">Pendapatan Per Hari Ini</div><div class="value mono" id="d-revenue-today">Rp 0</div></div>
         <div class="stat"><div class="label">Transaksi Per Hari Ini</div><div class="value mono" id="d-trx-today">0</div></div>
+        <div class="stat" id="d-overdue-card"><div class="label">Piutang Jatuh Tempo</div><div class="value mono" id="d-overdue-receivables">Rp 0</div></div>
       </div>
 
       <div class="card" style="margin-bottom:20px;">
@@ -727,6 +728,10 @@
               </div>
             </div>
             <div id="tempo-note" style="display:none; font-size:12px; color:var(--ink-soft); background:var(--paper-alt); border-radius:8px; padding:8px 10px; margin:-6px 0 14px 0;">Nama &amp; No. HP pelanggan wajib diisi untuk mencatat piutang.</div>
+            <div class="field" id="tempo-duedate-field" style="display:none;">
+              <label>Jatuh Tempo (opsional)</label>
+              <input type="date" id="tempo-duedate-input">
+            </div>
             <div class="field" id="paid-input-field">
               <label>Uang Dibayar</label>
               <input type="number" id="paid-input" placeholder="0" min="0">
@@ -752,6 +757,10 @@
           <select id="produk-category-filter">
             <option value="">Semua Kategori</option>
           </select>
+        </div>
+        <div class="field" id="btn-stock-opname-field" style="display:none;">
+          <label>&nbsp;</label>
+          <button class="btn outline" id="btn-open-stock-opname" type="button">📋 Stok Opname</button>
         </div>
       </div>
       <div class="card" style="overflow-x:auto;">
@@ -931,7 +940,7 @@
         <h3 class="display" style="margin-top:0;">Piutang Belum Lunas</h3>
         <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Daftar transaksi "Bayar Nanti" yang belum lunas, diurutkan dari yang paling lama. Klik "Terima Pembayaran" saat pelanggan membayar/mencicil.</div>
         <table id="piutang-table">
-          <thead><tr><th>Tanggal</th><th>Pelanggan</th><th class="num">Total</th><th class="num">Sudah Dibayar</th><th class="num">Sisa</th><th></th></tr></thead>
+          <thead><tr><th>Tanggal</th><th>Pelanggan</th><th>Jatuh Tempo</th><th class="num">Total</th><th class="num">Sudah Dibayar</th><th class="num">Sisa</th><th></th></tr></thead>
           <tbody id="piutang-tbody"></tbody>
         </table>
         <div id="piutang-empty" class="empty-state" style="display:none;">Tidak ada piutang yang belum lunas.</div>
@@ -977,6 +986,16 @@
         </table>
         <div id="riwayat-empty" class="empty-state" style="display:none;">Belum ada transaksi pada rentang tanggal ini.</div>
         <div id="riwayat-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h3 class="display" style="margin-top:0;">Kinerja per Kasir</h3>
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Ringkasan penjualan tiap kasir pada rentang tanggal yang sama dengan filter Riwayat Transaksi di atas.</div>
+        <table id="kinerja-kasir-table">
+          <thead><tr><th>Kasir</th><th class="num">Jumlah Transaksi</th><th class="num">Total Penjualan</th><th class="num">Rata-rata / Transaksi</th><th class="num">Total Laba</th></tr></thead>
+          <tbody id="kinerja-kasir-tbody"></tbody>
+        </table>
+        <div id="kinerja-kasir-empty" class="empty-state" style="display:none;">Belum ada transaksi pada rentang tanggal ini.</div>
       </div>
 
       <div class="card" style="overflow-x:auto;">
@@ -1361,6 +1380,29 @@
   </div>
 </div>
 
+<!-- Modal: Stok Opname (hitung fisik vs sistem) -->
+<div class="modal-bg" id="modal-stock-opname">
+  <div class="modal" style="width:760px;">
+    <button class="modal-close" data-close="modal-stock-opname">×</button>
+    <h2>Stok Opname</h2>
+    <div style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px 0;">Hitung stok fisik di toko lalu isi kolom "Stok Fisik" untuk barang yang jumlahnya berbeda dari sistem. Baris yang tidak diisi/tidak diubah akan dilewati — tidak perlu isi semua baris.</div>
+    <div class="field">
+      <label>Cari produk</label>
+      <input type="text" id="opname-search" placeholder="Ketik nama atau barcode...">
+    </div>
+    <div style="max-height:46vh; overflow-y:auto; border:1px solid var(--line); border-radius:10px;">
+      <table id="opname-table" style="margin:0;">
+        <thead><tr><th>Produk</th><th>Satuan</th><th class="num">Stok Sistem</th><th class="num">Stok Fisik</th><th class="num">Selisih</th></tr></thead>
+        <tbody id="opname-tbody"></tbody>
+      </table>
+    </div>
+    <div id="opname-empty" class="empty-state" style="display:none;">Produk tidak ditemukan.</div>
+    <div style="font-size:12.5px; color:var(--ink-soft); margin:12px 0;">Catatan (opsional, berlaku untuk semua baris yang diubah)</div>
+    <input type="text" id="opname-note" placeholder="Contoh: Opname rutin akhir bulan" style="margin-bottom:14px;">
+    <button class="btn amber" style="width:100%;" id="btn-save-opname">Simpan Stok Opname</button>
+  </div>
+</div>
+
 <!-- Modal: Scanner kamera -->
 <div class="modal-bg" id="modal-scanner">
   <div class="modal">
@@ -1708,6 +1750,11 @@ function renderDashboard(){
   document.getElementById('d-revenue-today').textContent = rupiah(revenueToday);
   document.getElementById('d-trx-today').textContent = todayTrxs.length;
 
+  const overdue = getOverdueReceivablesSummary();
+  const overdueCard = document.getElementById('d-overdue-card');
+  document.getElementById('d-overdue-receivables').textContent = overdue.count > 0 ? `${rupiah(overdue.total)} (${overdue.count})` : 'Rp 0';
+  overdueCard.classList.toggle('neg', overdue.count > 0);
+
   renderTrendCharts(trxs);
   renderDashboardSoldTable();
   renderLowStock();
@@ -1974,6 +2021,8 @@ function applyRolePermissions(role){
   });
   const restoreSection = document.getElementById('restore-data-section');
   if(restoreSection) restoreSection.style.display = (role === 'owner') ? '' : 'none';
+  const opnameField = document.getElementById('btn-stock-opname-field');
+  if(opnameField) opnameField.style.display = ['owner','spv','gudang'].includes(role) ? '' : 'none';
 }
 
 function switchView(v){
@@ -3258,6 +3307,116 @@ document.getElementById('btn-save-product').addEventListener('click', async ()=>
 function canManageProducts(){
   return !!(SESSION && (SESSION.role === 'owner' || SESSION.role === 'spv'));
 }
+
+/* ---- Stok Opname: hitung stok fisik sekaligus untuk banyak produk, lalu bandingkan dengan sistem ---- */
+const KILO_FIELDS = ['kiloStock','halfKiloStock','quarterKiloStock'];
+// Nilai yang sudah diketik pengguna disimpan di sini (bukan hanya di DOM), supaya tidak hilang
+// ketika baris sempat tersembunyi akibat pencarian lalu dimunculkan lagi.
+let opnameValues = {};
+function buildOpnameRows(search){
+  const s = (search || '').toLowerCase();
+  const rows = [];
+  DB.products.forEach(p=>{
+    if(s && !p.name.toLowerCase().includes(s) && !(p.barcode||'').toLowerCase().includes(s)) return;
+    rows.push({ productId:p.id, productName:p.name, field:'stock', unitLabel:'Eceran', systemStock:Number(p.stock)||0 });
+    EXTRA_UNITS.forEach(u=>{
+      const dbKey = EXTRA_UNIT_DBKEY[u.key];
+      if(!p[dbKey+'Enabled']) return;
+      rows.push({ productId:p.id, productName:p.name, field:dbKey+'Stock', unitLabel:u.label, systemStock:Number(p[dbKey+'Stock'])||0 });
+    });
+  });
+  return rows;
+}
+function renderOpnameTable(){
+  const tbody = document.getElementById('opname-tbody');
+  const search = document.getElementById('opname-search').value || '';
+  const rows = buildOpnameRows(search);
+  document.getElementById('opname-empty').style.display = rows.length ? 'none' : 'block';
+  tbody.innerHTML = '';
+  rows.forEach(r=>{
+    const isKilo = KILO_FIELDS.includes(r.field);
+    const key = r.productId+'|'+r.field;
+    const prevVal = (key in opnameValues) ? opnameValues[key] : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(r.productName)}</td>
+      <td>${esc(r.unitLabel)}</td>
+      <td class="num mono">${isKilo ? r.systemStock.toFixed(2) : r.systemStock}</td>
+      <td class="num"><input type="number" class="opname-input" data-product-id="${r.productId}" data-field="${r.field}" data-system-stock="${r.systemStock}" min="0" ${isKilo ? 'step="0.01"' : ''} placeholder="${isKilo ? r.systemStock.toFixed(2) : r.systemStock}" value="${prevVal}" style="width:110px; text-align:right;"></td>
+      <td class="num mono opname-diff" style="font-weight:600;">—</td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.opname-input').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const key = inp.dataset.productId+'|'+inp.dataset.field;
+      if(inp.value === '') delete opnameValues[key];
+      else opnameValues[key] = inp.value;
+      updateOpnameDiffRow(inp);
+    });
+    if(inp.value !== '') updateOpnameDiffRow(inp);
+  });
+}
+function updateOpnameDiffRow(inp){
+  const tr = inp.closest('tr');
+  const diffCell = tr.querySelector('.opname-diff');
+  const systemStock = Number(inp.dataset.systemStock) || 0;
+  if(inp.value === ''){ diffCell.textContent = '—'; diffCell.style.color = ''; return; }
+  const physical = Number(inp.value) || 0;
+  const diff = physical - systemStock;
+  if(diff === 0){ diffCell.textContent = '0'; diffCell.style.color = ''; }
+  else{
+    diffCell.textContent = (diff > 0 ? '+' : '') + (KILO_FIELDS.includes(inp.dataset.field) ? diff.toFixed(2) : diff);
+    diffCell.style.color = diff > 0 ? 'var(--green)' : 'var(--rust)';
+  }
+}
+document.getElementById('btn-open-stock-opname').addEventListener('click', ()=>{
+  opnameValues = {};
+  document.getElementById('opname-search').value = '';
+  document.getElementById('opname-note').value = '';
+  renderOpnameTable();
+  openModal('modal-stock-opname');
+});
+document.getElementById('opname-search').addEventListener('input', renderOpnameTable);
+document.getElementById('btn-save-opname').addEventListener('click', async ()=>{
+  const rows = buildOpnameRows(''); // tanpa filter pencarian, supaya semua nilai yang pernah diisi ikut terbaca
+  const rowByKey = {};
+  rows.forEach(r=> rowByKey[r.productId+'|'+r.field] = r);
+  const note = document.getElementById('opname-note').value.trim();
+  const who = { byName: (SESSION && SESSION.name) ? SESSION.name : '-', byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-' };
+  const items = [];
+  const stockLogs = [];
+  Object.keys(opnameValues).forEach(key=>{
+    const val = opnameValues[key];
+    if(val === '' || val === undefined || val === null) return;
+    const r = rowByKey[key];
+    if(!r) return;
+    const physical = Math.max(0, Number(val) || 0);
+    const diff = physical - r.systemStock;
+    if(diff === 0) return;
+    items.push({ product_id: r.productId, field: r.field, new_qty: physical });
+    stockLogs.push({
+      id: uid(), date: new Date().toISOString(), productName: r.productName, unitLabel: r.unitLabel,
+      change: diff, reason: note ? `Stok Opname — ${note}` : 'Stok Opname',
+      byName: who.byName, byRole: who.byRole,
+    });
+  });
+  if(!items.length){ showToast('Tidak ada perubahan stok untuk disimpan'); return; }
+  const btn = document.getElementById('btn-save-opname');
+  btn.disabled = true;
+  const { data: newData, error } = await sb.rpc('stock_opname_rpc', {
+    p_company_id: CURRENT_COMPANY.id, p_items: items, p_stock_logs: stockLogs,
+  });
+  btn.disabled = false;
+  if(error){ showToast('Gagal menyimpan stok opname: ' + error.message); return; }
+  CACHE.products = newData.products || [];
+  CACHE.stockLogs = newData.stockLogs || [];
+  closeModal('modal-stock-opname');
+  renderProducts();
+  renderStockLog();
+  renderDashboard();
+  showToast(`Stok opname tersimpan (${items.length} baris diperbarui)`);
+});
+
 function editProduct(id){
   if(!canManageProducts()){ showToast('Hanya SPV/Owner yang bisa mengedit produk'); return; }
   const p = DB.products.find(p=>p.id===id);
@@ -3665,16 +3824,39 @@ function renderReceivables(){
   tbody.innerHTML = '';
   pageItems.forEach(r=>{
     const remaining = (Number(r.amount)||0) - (Number(r.paidAmount)||0);
+    const dueDateHtml = renderReceivableDueDateCell(r);
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${new Date(r.date).toLocaleDateString('id-ID')}</td>
       <td>${esc(r.customerName)}<div style="font-size:11px; color:var(--ink-soft);">${esc(r.customerPhone)}</div></td>
+      <td>${dueDateHtml}</td>
       <td class="num mono">${rupiah(r.amount)}</td>
       <td class="num mono">${rupiah(r.paidAmount||0)}</td>
       <td class="num mono" style="color:var(--rust); font-weight:600;">${rupiah(remaining)}</td>
       <td><button class="btn amber sm" onclick="openReceivablePaymentModal('${r.id}')">Terima Pembayaran</button></td>`;
     tbody.appendChild(tr);
   });
+}
+
+// Sel "Jatuh Tempo" untuk satu baris piutang: tanggal biasa kalau masih aman,
+// badge merah "Terlambat X hari" kalau sudah lewat jatuh tempo dan belum lunas.
+function renderReceivableDueDateCell(r){
+  if(!r.dueDate) return '<span style="color:var(--ink-soft);">—</span>';
+  const dueStr = new Date(r.dueDate + 'T00:00:00').toLocaleDateString('id-ID');
+  const today = todayStr();
+  if(r.status === 'belum_lunas' && r.dueDate < today){
+    const lateDays = Math.max(1, Math.round((new Date(today) - new Date(r.dueDate)) / 86400000));
+    return `<span style="color:var(--rust); font-weight:600;">${esc(dueStr)}</span><div style="font-size:11px; color:var(--rust); font-weight:600;">Terlambat ${lateDays} hari</div>`;
+  }
+  return esc(dueStr);
+}
+
+// Ringkasan piutang yang sudah lewat jatuh tempo, dipakai di kartu Dashboard.
+function getOverdueReceivablesSummary(){
+  const today = todayStr();
+  const overdue = DB.receivables.filter(r=> r.status === 'belum_lunas' && r.dueDate && r.dueDate < today);
+  const totalRemaining = overdue.reduce((s,r)=> s + ((Number(r.amount)||0) - (Number(r.paidAmount)||0)), 0);
+  return { count: overdue.length, total: totalRemaining };
 }
 
 function openReceivablePaymentModal(receivableId){
@@ -4243,6 +4425,16 @@ document.querySelectorAll('.pay-method-btn').forEach(btn=>{
     document.querySelectorAll('.pay-method-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     paymentMethod = btn.dataset.method;
+    // Saran default jatuh tempo 7 hari dari sekarang, biar kasir tidak perlu isi manual tiap kali
+    // (tetap bisa diubah/dikosongkan sebelum menekan Bayar).
+    if(paymentMethod === 'tempo'){
+      const dueInput = document.getElementById('tempo-duedate-input');
+      if(!dueInput.value){
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        dueInput.value = localDateStr(d);
+      }
+    }
     renderReceipt();
   });
 });
@@ -4333,12 +4525,14 @@ function renderReceipt(){
   const changeLine = document.getElementById('change-line');
   const nonCashNote = document.getElementById('non-cash-note');
   const tempoNote = document.getElementById('tempo-note');
+  const tempoDueField = document.getElementById('tempo-duedate-field');
   let paid, change;
   if(paymentMethod === 'cash'){
     paidField.style.display = 'block';
     changeLine.style.display = 'flex';
     nonCashNote.style.display = 'none';
     tempoNote.style.display = 'none';
+    tempoDueField.style.display = 'none';
     paid = Number(document.getElementById('paid-input').value) || 0;
     change = paid - grandTotal;
   } else if(paymentMethod === 'tempo'){
@@ -4347,6 +4541,7 @@ function renderReceipt(){
     changeLine.style.display = 'none';
     nonCashNote.style.display = 'none';
     tempoNote.style.display = 'block';
+    tempoDueField.style.display = 'block';
     paid = 0;
     change = 0;
   } else {
@@ -4355,6 +4550,7 @@ function renderReceipt(){
     changeLine.style.display = 'none';
     nonCashNote.style.display = 'block';
     tempoNote.style.display = 'none';
+    tempoDueField.style.display = 'none';
     nonCashNote.textContent = `Pastikan sudah menerima ${rupiah(grandTotal)} via ${PAY_METHOD_LABELS[paymentMethod]} sebelum menekan "Bayar & Cetak Struk".`;
     paid = grandTotal;
     change = 0;
@@ -4380,6 +4576,7 @@ document.getElementById('point-redeem-input').addEventListener('input', renderRe
 document.getElementById('btn-clear-cart').addEventListener('click', ()=>{
   cart=[]; document.getElementById('discount-input').value=0; document.getElementById('paid-input').value='';
   document.getElementById('point-redeem-input').value = 0;
+  document.getElementById('tempo-duedate-input').value = '';
   paymentMethod = 'cash';
   document.querySelectorAll('.pay-method-btn').forEach(b=>b.classList.toggle('active', b.dataset.method==='cash'));
   renderCart();
@@ -4455,9 +4652,10 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
     paymentMethod
   };
 
+  const dueDateVal = document.getElementById('tempo-duedate-input').value || '';
   const receivable = (paymentMethod === 'tempo') ? {
     id: uid(), transactionId: trx.id, customerName: custName, customerPhone: custPhone,
-    date: nowIso, amount: grandTotal, paidAmount: 0, status: 'belum_lunas', payments: [],
+    date: nowIso, amount: grandTotal, paidAmount: 0, status: 'belum_lunas', payments: [], dueDate: dueDateVal || null,
   } : null;
 
   const pointRedemption = (pointsUsed > 0) ? {
@@ -4497,9 +4695,10 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   cart = []; document.getElementById('discount-input').value = 0; document.getElementById('paid-input').value = '';
   document.getElementById('customer-name-input').value = ''; document.getElementById('customer-phone-input').value = '';
   document.getElementById('point-redeem-input').value = 0;
+  document.getElementById('tempo-duedate-input').value = '';
   paymentMethod = 'cash';
   document.querySelectorAll('.pay-method-btn').forEach(b=>b.classList.toggle('active', b.dataset.method==='cash'));
-  renderCart(); renderProducts(); renderStockLog(); renderCustomers();
+  renderCart(); renderProducts(); renderStockLog(); renderCustomers(); renderReceivables();
 });
 
 function printReceipt(trx){
@@ -5026,6 +5225,37 @@ function renderRiwayat(){
         ${canManageProducts() ? `<button class="btn danger sm" onclick="voidTransaction('${t.id}')" title="Menghapus transaksi & mengembalikan stok barang">Batalkan</button>` : '<span style="color:var(--ink-soft); font-size:12px;">—</span>'}
       </td>`;
     rtbody.appendChild(tr);
+  });
+
+  renderCashierPerformance(trxs);
+}
+
+// Ringkasan kinerja kasir: dihitung dari transaksi yang SUDAH difilter rentang tanggal
+// yang sama dengan Riwayat Transaksi (diteruskan dari renderRiwayat, bukan hitung ulang).
+function renderCashierPerformance(trxs){
+  const tbody = document.getElementById('kinerja-kasir-tbody');
+  if(!tbody) return;
+  const byCashier = {};
+  trxs.forEach(t=>{
+    const name = t.cashierName || '-';
+    if(!byCashier[name]) byCashier[name] = { name, trxCount:0, total:0, profit:0 };
+    byCashier[name].trxCount += 1;
+    byCashier[name].total += (t.total||0);
+    byCashier[name].profit += (t.profit||0);
+  });
+  const rows = Object.values(byCashier).sort((a,b)=> b.total - a.total);
+  document.getElementById('kinerja-kasir-empty').style.display = rows.length ? 'none' : 'block';
+  tbody.innerHTML = '';
+  rows.forEach(c=>{
+    const avg = c.trxCount > 0 ? c.total / c.trxCount : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(c.name)}</td>
+      <td class="num mono">${c.trxCount}</td>
+      <td class="num mono">${rupiah(c.total)}</td>
+      <td class="num mono">${rupiah(avg)}</td>
+      <td class="num mono" style="color:${c.profit>=0?'var(--green)':'var(--rust)'};">${rupiah(c.profit)}</td>`;
+    tbody.appendChild(tr);
   });
 }
 
