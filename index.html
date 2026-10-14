@@ -3361,7 +3361,10 @@ function updateOpnameDiffRow(inp){
   const diffCell = tr.querySelector('.opname-diff');
   const systemStock = Number(inp.dataset.systemStock) || 0;
   if(inp.value === ''){ diffCell.textContent = '—'; diffCell.style.color = ''; return; }
-  const physical = Number(inp.value) || 0;
+  // Dibatasi minimal 0, sama seperti nilai yang benar-benar dikirim saat Simpan,
+  // supaya selisih yang ditampilkan di sini tidak pernah meleset dari yang tersimpan
+  // (misalnya kalau tidak sengaja ketik tanda minus).
+  const physical = Math.max(0, Number(inp.value) || 0);
   const diff = physical - systemStock;
   if(diff === 0){ diffCell.textContent = '0'; diffCell.style.color = ''; }
   else{
