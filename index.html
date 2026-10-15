@@ -1019,6 +1019,47 @@
         <div id="shift-empty" class="empty-state" style="display:none;">Belum ada riwayat shift.</div>
         <div id="shift-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
       </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h3 class="display" style="margin-top:0;">Profil Karyawan</h3>
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Pilih satu karyawan untuk melihat rekap miliknya saja: seluruh shift yang pernah dia buka, dan ringkasan penjualannya. Kosongkan tanggal untuk melihat sepanjang waktu.</div>
+        <div class="filter-bar" style="margin-bottom:16px;">
+          <div class="field" style="flex:1; min-width:200px;">
+            <label>Karyawan</label>
+            <select id="profil-karyawan-select"><option value="">— Pilih karyawan —</option></select>
+          </div>
+          <div class="field">
+            <label>Dari Tanggal</label>
+            <input type="date" id="profil-karyawan-from">
+          </div>
+          <div class="field">
+            <label>Sampai Tanggal</label>
+            <input type="date" id="profil-karyawan-to">
+          </div>
+          <button class="btn outline" id="btn-profil-karyawan-filter">Terapkan</button>
+        </div>
+
+        <div id="profil-karyawan-empty-select" style="font-size:13px; color:var(--ink-soft); padding:6px 0 10px;">Pilih karyawan terlebih dahulu untuk melihat rekapnya.</div>
+
+        <div id="profil-karyawan-content" style="display:none;">
+          <div class="stat-row" style="margin-bottom:20px;">
+            <div class="stat"><div class="label">Jumlah Shift</div><div class="value mono" id="pk-stat-shiftcount">0</div></div>
+            <div class="stat"><div class="label">Jumlah Transaksi</div><div class="value mono" id="pk-stat-trxcount">0</div></div>
+            <div class="stat"><div class="label">Total Penjualan</div><div class="value mono" id="pk-stat-sales">Rp 0</div></div>
+            <div class="stat"><div class="label">Rata-rata / Transaksi</div><div class="value mono" id="pk-stat-avg">Rp 0</div></div>
+            <div class="stat"><div class="label">Total Laba</div><div class="value mono" id="pk-stat-profit">Rp 0</div></div>
+            <div class="stat"><div class="label">Total Selisih Kas Shift</div><div class="value mono" id="pk-stat-diff">—</div></div>
+          </div>
+
+          <h3 class="display" style="font-size:15px; margin:0 0 10px;">Riwayat Shift</h3>
+          <table id="profil-karyawan-shift-table">
+            <thead><tr><th>Dibuka</th><th>Ditutup</th><th class="num">Modal Awal</th><th class="num">Kas Sistem</th><th class="num">Kas Fisik</th><th class="num">Selisih</th></tr></thead>
+            <tbody id="profil-karyawan-shift-tbody"></tbody>
+          </table>
+          <div id="profil-karyawan-shift-empty" class="empty-state" style="display:none;">Belum ada shift pada rentang tanggal ini.</div>
+          <div id="profil-karyawan-shift-pagination" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px;"></div>
+        </div>
+      </div>
     </section>
 
     <!-- ============ PENYESUAIAN (khusus SPV) ============ -->
@@ -2037,7 +2078,7 @@ function switchView(v){
   if(v==='pembelian'){ refreshPurchaseProductSelect(); renderPurchases(); refreshSupplierSuggestions(); }
   if(v==='pelanggan'){ renderCustomers(); renderReceivables(); }
   if(v==='pemasok') renderSuppliers();
-  if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderShiftHistory(); }
+  if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderShiftHistory(); refreshProfilKaryawanSelect(); renderProfilKaryawan(); }
   if(v==='penyesuaian') renderAdjustments();
 }
 
@@ -3678,6 +3719,111 @@ function renderShiftHistory(){
     tbody.appendChild(tr);
   });
 }
+
+/* ================= PROFIL KARYAWAN (shift + penjualan milik satu karyawan) ================= */
+// Daftar nama karyawan diambil dari data yang sudah ada di memori (bukan query baru):
+// setiap orang yang pernah tercatat sebagai kasir transaksi ATAU pernah buka/tutup shift.
+// Dengan begitu karyawan yang sudah tidak aktif/dihapus dari Kelola Pengguna pun riwayatnya
+// masih bisa dilihat di sini (datanya tetap ada di transactions/shifts).
+function getEmployeeProfileNames(){
+  const names = new Set();
+  DB.transactions.forEach(t=>{ if(t.cashierName) names.add(t.cashierName); });
+  DB.shifts.forEach(s=>{
+    if(s.openedByName) names.add(s.openedByName);
+    if(s.closedByName) names.add(s.closedByName);
+  });
+  return [...names].sort((a,b)=> a.localeCompare(b, 'id'));
+}
+function refreshProfilKaryawanSelect(){
+  const sel = document.getElementById('profil-karyawan-select');
+  if(!sel) return;
+  const prev = sel.value;
+  const names = getEmployeeProfileNames();
+  sel.innerHTML = '<option value="">— Pilih karyawan —</option>' + names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(prev && names.includes(prev)) sel.value = prev;
+}
+function renderProfilKaryawan(){
+  const sel = document.getElementById('profil-karyawan-select');
+  const content = document.getElementById('profil-karyawan-content');
+  const emptySelect = document.getElementById('profil-karyawan-empty-select');
+  if(!sel || !content || !emptySelect) return;
+  const name = sel.value;
+  if(!name){
+    content.style.display = 'none';
+    emptySelect.style.display = 'block';
+    return;
+  }
+  emptySelect.style.display = 'none';
+  content.style.display = '';
+
+  const from = document.getElementById('profil-karyawan-from').value;
+  const to = document.getElementById('profil-karyawan-to').value;
+
+  // Penjualan: dihitung dari transaksi yang DIA layani sebagai kasir.
+  const trxs = DB.transactions.filter(t=>{
+    if(t.cashierName !== name) return false;
+    const d = localDateFromIso(t.date);
+    return (!from || d>=from) && (!to || d<=to);
+  });
+  // Shift: dihitung dari shift yang DIA buka (bukan yang menutupkan, karena shift "milik"
+  // kasir yang menjalankannya — SPV/owner yang menutupkan shift kasir lain hanya membantu).
+  const shifts = DB.shifts.filter(s=>{
+    if(s.openedByName !== name) return false;
+    const d = localDateFromIso(s.openedAt);
+    return (!from || d>=from) && (!to || d<=to);
+  }).sort((a,b)=> new Date(b.openedAt) - new Date(a.openedAt));
+
+  const trxCount = trxs.length;
+  const totalSales = trxs.reduce((s,t)=> s + (t.total||0), 0);
+  const totalProfit = trxs.reduce((s,t)=> s + (t.profit||0), 0);
+  const avg = trxCount > 0 ? totalSales / trxCount : 0;
+
+  let totalDiff = 0, closedShiftCount = 0;
+  shifts.forEach(s=>{ if(s.status !== 'open'){ totalDiff += (s.diff||0); closedShiftCount++; } });
+
+  document.getElementById('pk-stat-shiftcount').textContent = shifts.length;
+  document.getElementById('pk-stat-trxcount').textContent = trxCount;
+  document.getElementById('pk-stat-sales').textContent = rupiah(totalSales);
+  document.getElementById('pk-stat-avg').textContent = rupiah(avg);
+  const profitEl = document.getElementById('pk-stat-profit');
+  profitEl.textContent = rupiah(totalProfit);
+  profitEl.style.color = totalProfit >= 0 ? 'var(--green)' : 'var(--rust)';
+  const diffEl = document.getElementById('pk-stat-diff');
+  if(closedShiftCount === 0){
+    diffEl.textContent = '—';
+    diffEl.style.color = '';
+  } else if(totalDiff === 0){
+    diffEl.textContent = 'Pas';
+    diffEl.style.color = '';
+  } else {
+    diffEl.textContent = totalDiff > 0 ? `Lebih ${rupiah(totalDiff)}` : `Kurang ${rupiah(Math.abs(totalDiff))}`;
+    diffEl.style.color = totalDiff > 0 ? 'var(--green)' : 'var(--rust)';
+  }
+
+  const tbody = document.getElementById('profil-karyawan-shift-tbody');
+  document.getElementById('profil-karyawan-shift-empty').style.display = shifts.length ? 'none' : 'block';
+  paginationRerender['profilKaryawanShift'] = renderProfilKaryawan;
+  const { pageItems, page, totalPages, totalItems } = paginate('profilKaryawanShift', shifts);
+  renderPaginationControls('profil-karyawan-shift-pagination', 'profilKaryawanShift', page, totalPages, totalItems);
+  tbody.innerHTML = '';
+  pageItems.forEach(s=>{
+    const isOpen = s.status === 'open';
+    const diff = s.diff;
+    const diffText = isOpen ? '—' : (diff===0 ? 'Pas' : (diff>0 ? `Lebih ${rupiah(diff)}` : `Kurang ${rupiah(Math.abs(diff))}`));
+    const diffColor = isOpen ? 'var(--ink-soft)' : (diff===0 ? 'var(--ink-soft)' : (diff>0 ? 'var(--green)' : 'var(--rust)'));
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(s.openedAt).toLocaleString('id-ID')}</td>
+      <td>${s.closedAt ? new Date(s.closedAt).toLocaleString('id-ID') : '<span class="badge ok">Sedang Buka</span>'}</td>
+      <td class="num mono">${rupiah(s.startCash||0)}</td>
+      <td class="num mono">${isOpen ? '—' : rupiah(s.expectedCash||0)}</td>
+      <td class="num mono">${isOpen ? '—' : rupiah(s.actualCash||0)}</td>
+      <td class="num mono" style="color:${diffColor}; font-weight:600;">${diffText}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('profil-karyawan-select').addEventListener('change', ()=>{ paginationState['profilKaryawanShift']=1; renderProfilKaryawan(); });
+document.getElementById('btn-profil-karyawan-filter').addEventListener('click', ()=>{ paginationState['profilKaryawanShift']=1; renderProfilKaryawan(); });
 
 /* ================= KASIR / CART ================= */
 let cart = [];
