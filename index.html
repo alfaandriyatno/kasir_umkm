@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
@@ -368,6 +369,7 @@
     <div class="sub">Satu akun bisa mengakses beberapa perusahaan/toko</div>
     <div class="login-error" id="company-error"></div>
     <div id="company-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;"></div>
+    <button class="btn outline" id="btn-open-cross-store" type="button" style="display:none; width:100%; margin-bottom:18px;">📊 Ringkasan Semua Toko</button>
     <div id="create-company-section" style="border-top:1px solid var(--line); padding-top:16px;">
       <div class="field">
         <label>Buat Perusahaan Baru</label>
@@ -519,6 +521,7 @@
         </div>
         <button class="btn outline" id="btn-lap-filter">Terapkan</button>
         <button class="btn outline" id="btn-dash-export-csv">⬇ Export CSV</button>
+        <button class="btn outline" id="btn-dash-export-excel">⬇ Export Excel</button>
         <button class="btn amber" id="btn-dash-export-pdf">📄 Export PDF</button>
       </div>
 
@@ -527,6 +530,14 @@
         <div class="stat"><div class="label">Pendapatan Per Hari Ini</div><div class="value mono" id="d-revenue-today">Rp 0</div></div>
         <div class="stat"><div class="label">Transaksi Per Hari Ini</div><div class="value mono" id="d-trx-today">0</div></div>
         <div class="stat" id="d-overdue-card"><div class="label">Piutang Jatuh Tempo</div><div class="value mono" id="d-overdue-receivables">Rp 0</div></div>
+        <div class="stat" id="d-lowstock-card" style="cursor:pointer;" title="Lihat daftar produk stok menipis"><div class="label">Produk Stok Menipis</div><div class="value mono" id="d-lowstock-count">0</div></div>
+      </div>
+
+      <div class="card" id="backup-reminder-banner" style="display:none; margin-bottom:20px; border:1px solid var(--amber-dark, #b07a1f); background:var(--amber-bg, #fdf0d5);">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <div style="font-size:13px; color:var(--amber-dark, #8a5d14);" id="backup-reminder-text"></div>
+          <button class="btn amber sm" id="btn-backup-reminder-go" type="button">Backup Sekarang</button>
+        </div>
       </div>
 
       <div class="card" style="margin-bottom:20px;">
@@ -601,13 +612,13 @@
       </div>
 
       <div class="card" style="overflow-x:auto; margin-bottom:20px;">
-        <h3 class="display" style="margin-top:0; color:var(--rust);">⚠ Stok Menipis (kurang dari 10)</h3>
-        <div style="font-size:11.5px; color:var(--ink-soft); margin:-8px 0 12px 0;">Menampilkan stok saat ini secara langsung (tidak dipengaruhi oleh filter tanggal di atas).</div>
+        <h3 class="display" style="margin-top:0; color:var(--rust);">⚠ Stok Menipis</h3>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin:-8px 0 12px 0;">Produk yang sisa stoknya sudah di batas minimum atau di bawahnya (batas minimum diatur per produk di halaman Produk &amp; Stok). Menampilkan stok saat ini secara langsung (tidak dipengaruhi oleh filter tanggal di atas).</div>
         <table id="dash-lowstock-table">
           <thead><tr><th>Nama Produk</th><th>Kategori</th><th>Satuan</th><th class="num">Sisa Stok</th><th></th></tr></thead>
           <tbody id="dash-lowstock-tbody"></tbody>
         </table>
-        <div id="dash-lowstock-empty" class="empty-state" style="display:none;">Semua stok barang masih aman (10 atau lebih).</div>
+        <div id="dash-lowstock-empty" class="empty-state" style="display:none;">Semua stok barang masih aman (di atas batas minimum masing-masing).</div>
       </div>
 
       <div class="card" style="overflow-x:auto; margin-bottom:20px;">
@@ -975,6 +986,7 @@
         </div>
         <button class="btn outline" id="btn-riw-filter">Terapkan</button>
         <button class="btn outline" id="btn-export-csv">⬇ Export CSV</button>
+        <button class="btn outline" id="btn-export-excel">⬇ Export Excel</button>
         <button class="btn amber" id="btn-export-pdf">📄 Export PDF</button>
       </div>
 
@@ -996,6 +1008,22 @@
           <tbody id="kinerja-kasir-tbody"></tbody>
         </table>
         <div id="kinerja-kasir-empty" class="empty-state" style="display:none;">Belum ada transaksi pada rentang tanggal ini.</div>
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:4px;">
+          <h3 class="display" style="margin:0;">Produk Terlaris &amp; Paling Lambat Terjual</h3>
+          <div style="display:flex; gap:6px; background:var(--paper-alt); border-radius:999px; padding:3px;">
+            <button class="btn sm" id="btn-best-tab-terlaris" type="button" style="border-radius:999px;">Terlaris</button>
+            <button class="btn outline sm" id="btn-best-tab-lambat" type="button" style="border-radius:999px;">Paling Lambat</button>
+          </div>
+        </div>
+        <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Mengikuti rentang tanggal yang sama dengan filter Riwayat Transaksi di atas. "Paling Lambat" termasuk produk yang sama sekali belum terjual pada rentang ini.</div>
+        <table id="best-products-table">
+          <thead><tr><th>#</th><th>Produk</th><th>Kategori</th><th class="num">Qty Terjual</th><th class="num">Total Omzet</th><th class="num">Total Laba</th></tr></thead>
+          <tbody id="best-products-tbody"></tbody>
+        </table>
+        <div id="best-products-empty" class="empty-state" style="display:none;">Belum ada data produk untuk rentang tanggal ini.</div>
       </div>
 
       <div class="card" style="overflow-x:auto;">
@@ -1171,9 +1199,27 @@
         </div>
         <button class="btn amber" id="btn-save-loyalty">Simpan</button>
         <div class="divider" style="border-top:1px solid var(--line); margin:20px 0;"></div>
+        <h3 class="display">Batas Diskon Kasir</h3>
+        <p style="font-size:13px; color:var(--ink-soft);">Diskon maksimal (dari subtotal belanja, termasuk diskon per-item) yang boleh diberikan kasir biasa (peran Admin/Kasir) di halaman Kasir tanpa persetujuan. Diskon di atas batas ini akan meminta sandi Owner atau SPV sebelum transaksi bisa disimpan. Owner &amp; SPV sendiri tidak dibatasi. Isi 100 kalau tidak ingin membatasi sama sekali.</p>
+        <div class="field">
+          <label>Batas Diskon Maksimal (%)</label>
+          <input type="number" id="discount-limit-input" min="0" max="100" placeholder="Contoh: 20">
+        </div>
+        <button class="btn amber" id="btn-save-discount-limit">Simpan</button>
+        <div class="divider" style="border-top:1px solid var(--line); margin:20px 0;"></div>
         <h3 class="display">Backup Data</h3>
         <p style="font-size:13px; color:var(--ink-soft);">Unduh salinan lengkap semua data toko (produk, transaksi, pembelian, riwayat stok &amp; harga, dll) sebagai satu file. Simpan file ini di tempat aman — bisa jadi cadangan kalau sewaktu-waktu diperlukan.</p>
         <button class="btn outline" id="btn-backup-data">⬇ Unduh Backup Data (JSON)</button>
+        <div id="server-backups-section" style="display:none; margin-top:16px;">
+          <div class="divider" style="border-top:1px solid var(--line); margin-bottom:16px;"></div>
+          <h3 class="display">Riwayat Backup Server (Otomatis &amp; Manual)</h3>
+          <p style="font-size:13px; color:var(--ink-soft);">Selain file yang kamu unduh sendiri, sistem juga otomatis menyimpan cadangan data toko setiap hari jam 02:00 WIB (maksimal 7 cadangan terbaru disimpan di server). Cadangan ini bisa diunduh atau dipulihkan kapan saja tanpa perlu mencari file lama.</p>
+          <table id="server-backup-table">
+            <thead><tr><th>Waktu</th><th>Jenis</th><th></th></tr></thead>
+            <tbody id="server-backup-tbody"></tbody>
+          </table>
+          <div id="server-backup-empty" class="empty-state" style="display:none;">Belum ada backup tersimpan di server.</div>
+        </div>
         <div id="restore-data-section" style="display:none; margin-top:16px;">
           <div class="divider" style="border-top:1px solid var(--line); margin-bottom:16px;"></div>
           <h3 class="display">Pulihkan dari Backup</h3>
@@ -1444,6 +1490,35 @@
   </div>
 </div>
 
+<!-- Modal: Ringkasan Semua Toko (untuk Owner yang pegang lebih dari 1 toko) -->
+<div class="modal-bg" id="modal-cross-store">
+  <div class="modal" style="width:760px;">
+    <button class="modal-close" data-close="modal-cross-store">×</button>
+    <h2>Ringkasan Semua Toko</h2>
+    <div style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px 0;">Omzet &amp; laba semua toko yang kamu miliki sebagai Owner, dalam satu layar, tanpa harus masuk satu-satu.</div>
+    <div class="filter-bar" style="margin-bottom:14px;">
+      <div class="field">
+        <label>Dari Tanggal</label>
+        <input type="date" id="cross-store-from">
+      </div>
+      <div class="field">
+        <label>Sampai Tanggal</label>
+        <input type="date" id="cross-store-to">
+      </div>
+      <button class="btn outline" id="btn-cross-store-filter" type="button">Terapkan</button>
+    </div>
+    <div id="cross-store-loading" style="font-size:13px; color:var(--ink-soft); padding:10px 0;">Memuat data semua toko...</div>
+    <div id="cross-store-content" style="display:none;">
+      <table id="cross-store-table" style="margin:0;">
+        <thead><tr><th>Toko</th><th class="num">Transaksi</th><th class="num">Penjualan</th><th class="num">Modal</th><th class="num">Laba</th></tr></thead>
+        <tbody id="cross-store-tbody"></tbody>
+        <tfoot><tr style="font-weight:700;"><td>Total Semua Toko</td><td class="num mono" id="cross-store-total-trx"></td><td class="num mono" id="cross-store-total-sales"></td><td class="num mono" id="cross-store-total-modal"></td><td class="num mono" id="cross-store-total-profit"></td></tr></tfoot>
+      </table>
+      <div id="cross-store-empty" class="empty-state" style="display:none;">Belum ada toko dengan peran Owner selain yang sedang dilihat.</div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Scanner kamera -->
 <div class="modal-bg" id="modal-scanner">
   <div class="modal">
@@ -1576,6 +1651,7 @@ const CACHE = {
   receivables: [], pointRedemptions: [], shifts: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
   loyaltyConfig: {redeemValue:100}, monthlyTarget: {},
+  discountLimitPercent: 100, lastBackupAt: null,
 };
 // Catatan: saveCompanyData() HANYA dipakai sekali, untuk menulis data awal (seed)
 // saat sebuah perusahaan baru pertama kali dibuat (belum ada baris company_data
@@ -1593,6 +1669,7 @@ async function saveCompanyData(){
     receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
     storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
     loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
+    discountLimitPercent: CACHE.discountLimitPercent, lastBackupAt: CACHE.lastBackupAt,
   };
   const { error } = await sb.from('company_data').upsert({
     company_id: CURRENT_COMPANY.id, data: payload,
@@ -1622,6 +1699,8 @@ const DB = {
   get shifts(){ return CACHE.shifts; },
   get loyaltyConfig(){ return CACHE.loyaltyConfig; },
   get monthlyTarget(){ return CACHE.monthlyTarget; },
+  get discountLimitPercent(){ return (CACHE.discountLimitPercent === undefined || CACHE.discountLimitPercent === null) ? 100 : CACHE.discountLimitPercent; },
+  get lastBackupAt(){ return CACHE.lastBackupAt || null; },
 };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -1729,11 +1808,40 @@ document.getElementById('confirm-cancel').addEventListener('click', ()=>{
    langsung ke endpoint password-grant GoTrue supaya TIDAK mengganti sesi login yang
    sedang aktif di device ini (tidak memakai sb.auth.signInWithPassword). */
 let _ownerPwCallback = null;
+let _pwVerifyFn = null;
+let _pwErrorMsg = 'Sandi salah. Silakan coba lagi.';
+// Access token Owner/SPV yang baru saja terverifikasi lewat requestApproverPasswordConfirm,
+// dipakai SEKALI untuk memanggil checkout_transaction ATAS NAMA mereka (lihat sbAs() dan
+// submitCheckout()) supaya persetujuan diskon benar-benar diperiksa ulang di server, bukan
+// cuma gerbang di tampilan. Direset setelah dipakai atau saat modal persetujuan dibuka lagi.
+let _lastApproverToken = null;
+// Klien Supabase sementara yang memakai access token user LAIN (bukan sesi login yang sedang
+// aktif di device ini), untuk satu panggilan RPC saja. Tidak menggantikan/menimpa `sb`.
+function sbAs(token){
+  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: 'Bearer ' + token } },
+  });
+}
 function requestOwnerPasswordConfirm(messageHtml, onVerified){
   document.getElementById('owner-password-message').innerHTML = messageHtml;
   document.getElementById('owner-password-input').value = '';
   document.getElementById('owner-password-error').style.display = 'none';
   _ownerPwCallback = onVerified;
+  _pwVerifyFn = verifyOwnerPassword;
+  _pwErrorMsg = 'Sandi Owner salah. Silakan coba lagi.';
+  document.getElementById('modal-owner-password').classList.add('show');
+}
+// Varian konfirmasi sandi yang menerima sandi Owner ATAU SPV toko ini (bukan cuma Owner) —
+// dipakai untuk persetujuan diskon kasir yang melebihi batas, karena Owner belum tentu di
+// tempat saat kasir perlu persetujuan, sedangkan SPV biasanya ada di lokasi.
+function requestApproverPasswordConfirm(messageHtml, onVerified){
+  document.getElementById('owner-password-message').innerHTML = messageHtml;
+  document.getElementById('owner-password-input').value = '';
+  document.getElementById('owner-password-error').style.display = 'none';
+  _lastApproverToken = null;
+  _ownerPwCallback = onVerified;
+  _pwVerifyFn = verifyApproverPassword;
+  _pwErrorMsg = 'Sandi salah. Pastikan yang memasukkan adalah sandi akun Owner atau SPV toko ini.';
   document.getElementById('modal-owner-password').classList.add('show');
 }
 async function verifyOwnerPassword(password){
@@ -1751,6 +1859,28 @@ async function verifyOwnerPassword(password){
     return false;
   }
 }
+async function verifyApproverPassword(password){
+  if(!password) return false;
+  const { data: emails, error: rpcError } = await sb.rpc('get_company_approver_emails', { p_company_id: CURRENT_COMPANY.id });
+  if(rpcError || !emails || !emails.length) return false;
+  for(const email of emails){
+    try{
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ email, password }),
+      });
+      if(res.ok){
+        const json = await res.json();
+        _lastApproverToken = json.access_token || null;
+        return true;
+      }
+    }catch(e){
+      // coba email berikutnya
+    }
+  }
+  return false;
+}
 document.getElementById('owner-password-cancel').addEventListener('click', ()=>{
   document.getElementById('modal-owner-password').classList.remove('show');
   document.getElementById('owner-password-input').value = '';
@@ -1761,10 +1891,11 @@ document.getElementById('owner-password-ok').addEventListener('click', async ()=
   const password = document.getElementById('owner-password-input').value;
   const errEl = document.getElementById('owner-password-error');
   btn.disabled = true;
-  const ok = await verifyOwnerPassword(password);
+  const verifyFn = _pwVerifyFn || verifyOwnerPassword;
+  const ok = await verifyFn(password);
   btn.disabled = false;
   if(!ok){
-    errEl.textContent = 'Sandi Owner salah. Silakan coba lagi.';
+    errEl.textContent = _pwErrorMsg || 'Sandi salah. Silakan coba lagi.';
     errEl.style.display = 'block';
     document.getElementById('owner-password-input').value = '';
     return;
@@ -1988,14 +2119,19 @@ function renderDashboardSoldTable(){
   });
 }
 
+// Dibandingkan dengan batas minimum MASING-MASING produk (minStock, diatur per produk di
+// halaman Produk & Stok), bukan angka tetap — supaya produk yang memang biasa disimpan
+// sedikit (misal barang besar/mahal) tidak terus-menerus dianggap menipis, dan sebaliknya
+// produk yang perputarannya cepat bisa diberi batas lebih tinggi dari 10.
 function renderLowStock(){
   const rows = [];
   DB.products.forEach(p=>{
-    if(p.stock < 10) rows.push({name:p.name, category:p.category, unit:'Eceran', stock:p.stock});
+    const minStock = Number(p.minStock)||0;
+    if(p.stock <= minStock) rows.push({name:p.name, category:p.category, unit:'Eceran', stock:p.stock, minStock});
     EXTRA_UNITS.forEach(u=>{
       const dbKey = EXTRA_UNIT_DBKEY[u.key];
-      if(p[dbKey+'Enabled'] && (p[dbKey+'Stock']||0) < 10){
-        rows.push({name:p.name, category:p.category, unit:u.label, stock:p[dbKey+'Stock']||0});
+      if(p[dbKey+'Enabled'] && (p[dbKey+'Stock']||0) <= minStock){
+        rows.push({name:p.name, category:p.category, unit:u.label, stock:p[dbKey+'Stock']||0, minStock});
       }
     });
   });
@@ -2003,17 +2139,53 @@ function renderLowStock(){
   const tbody = document.getElementById('dash-lowstock-tbody');
   tbody.innerHTML = '';
   document.getElementById('dash-lowstock-empty').style.display = rows.length ? 'none' : 'block';
+  const countEl = document.getElementById('d-lowstock-count');
+  if(countEl) countEl.textContent = rows.length;
   rows.forEach(r=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${esc(r.name)}</td>
       <td>${esc(r.category)}</td>
       <td>${esc(r.unit)}</td>
-      <td class="num mono lowstock">${r.stock}</td>
+      <td class="num mono lowstock">${r.stock} <span style="color:var(--ink-soft); font-weight:400;">/ batas ${r.minStock}</span></td>
       <td><span class="badge low">Stok Menipis</span></td>`;
     tbody.appendChild(tr);
   });
 }
+document.getElementById('d-lowstock-card').addEventListener('click', ()=>{
+  document.getElementById('dash-lowstock-table').scrollIntoView({ behavior:'smooth', block:'center' });
+});
+
+// Pengingat backup berkala: kalau sudah lama (>= 14 hari) sejak backup data terakhir
+// diunduh, atau belum pernah sama sekali, tampilkan banner di Dashboard. Waktu backup
+// terakhir tersimpan di server (lastBackupAt) supaya pengingatnya konsisten di semua
+// device/kasir, bukan cuma di satu perangkat.
+const BACKUP_REMINDER_THRESHOLD_DAYS = 14;
+function refreshBackupReminder(){
+  const banner = document.getElementById('backup-reminder-banner');
+  if(!banner) return;
+  const last = DB.lastBackupAt;
+  let show = false, text = '';
+  if(!last){
+    show = true;
+    text = '⚠ Toko ini belum pernah mengunduh backup data sama sekali. Sebaiknya backup sekarang untuk jaga-jaga kalau sewaktu-waktu ada masalah pada sistem.';
+  } else {
+    const days = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+    if(days >= BACKUP_REMINDER_THRESHOLD_DAYS){
+      show = true;
+      text = `⚠ Sudah ${days} hari sejak backup data terakhir (${new Date(last).toLocaleDateString('id-ID')}). Sebaiknya backup data terbaru sekarang.`;
+    }
+  }
+  banner.style.display = show ? 'block' : 'none';
+  if(show) document.getElementById('backup-reminder-text').textContent = text;
+}
+document.getElementById('btn-backup-reminder-go').addEventListener('click', ()=>{
+  switchView('pengaturan');
+  setTimeout(()=>{
+    const btn = document.getElementById('btn-backup-data');
+    if(btn) btn.scrollIntoView({ behavior:'smooth', block:'center' });
+  }, 60);
+});
 
 // Produk mendekati/lewat kadaluarsa: dicek dari field expiryDate yang diisi manual per produk
 // (bukan per-batch pembelian — aplikasi ini belum melacak stok per batch, jadi tanggal ini mewakili
@@ -2073,13 +2245,14 @@ function switchView(v){
   document.querySelectorAll('.view-section').forEach(s=>s.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   document.getElementById('view-title').textContent = titles[v];
-  if(v==='dashboard'){ renderDashboard(); renderReport(); }
+  if(v==='dashboard'){ renderDashboard(); renderReport(); refreshBackupReminder(); }
   if(v==='produk'){ renderProducts(); renderStockLog(); renderPriceLog(); }
   if(v==='pembelian'){ refreshPurchaseProductSelect(); renderPurchases(); refreshSupplierSuggestions(); }
   if(v==='pelanggan'){ renderCustomers(); renderReceivables(); }
   if(v==='pemasok') renderSuppliers();
   if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderShiftHistory(); refreshProfilKaryawanSelect(); renderProfilKaryawan(); }
   if(v==='penyesuaian') renderAdjustments();
+  if(v==='pengaturan') renderServerBackups();
 }
 
 /* ---- Login / Daftar (Supabase Auth - 1 akun bisa dipakai di banyak device) ---- */
@@ -2557,7 +2730,79 @@ async function loadCompanyList(){
     }).join('');
   }
 
+  // Tombol "Ringkasan Semua Toko" hanya muncul kalau user Owner di 2 toko aktif atau lebih —
+  // kalau cuma 1 toko (atau bukan Owner di toko manapun), tidak ada gunanya dibandingkan.
+  const ownerCompanyCount = Object.values(window._companyChoices || {})
+    .filter(c => c.role === 'owner').length;
+  const crossStoreBtn = document.getElementById('btn-open-cross-store');
+  if(crossStoreBtn) crossStoreBtn.style.display = ownerCompanyCount >= 2 ? '' : 'none';
+
   await refreshCompanyCreationUI();
+}
+
+/* ---- Ringkasan Semua Toko (lintas toko, khusus Owner) ---- */
+// Data tiap toko diambil langsung lewat RLS yang sudah ada (member boleh SELECT company_data
+// miliknya sendiri — persis logika yang dipakai enterCompany() untuk toko yang sedang dibuka),
+// jadi tidak perlu RPC baru. Hanya toko yang peran user-nya Owner yang diikutsertakan.
+document.getElementById('btn-open-cross-store').addEventListener('click', ()=>{
+  document.getElementById('cross-store-from').value = '';
+  document.getElementById('cross-store-to').value = '';
+  openModal('modal-cross-store');
+  loadCrossStoreSummary();
+});
+document.getElementById('btn-cross-store-filter').addEventListener('click', ()=> loadCrossStoreSummary());
+
+async function loadCrossStoreSummary(){
+  const loadingEl = document.getElementById('cross-store-loading');
+  const contentEl = document.getElementById('cross-store-content');
+  loadingEl.style.display = 'block';
+  contentEl.style.display = 'none';
+
+  const from = document.getElementById('cross-store-from').value;
+  const to = document.getElementById('cross-store-to').value;
+  const ownerCompanies = Object.values(window._companyChoices || {})
+    .filter(c => c.role === 'owner');
+
+  const results = await Promise.all(ownerCompanies.map(async c=>{
+    const { data, error } = await sb.from('company_data').select('data').eq('company_id', c.id).maybeSingle();
+    if(error || !data || !data.data){
+      return { name: c.name, trxCount:0, total:0, totalModal:0, profit:0, failed:true };
+    }
+    const trxs = (data.data.transactions || []).filter(t=>{
+      const d = localDateFromIso(t.date);
+      return (!from || d>=from) && (!to || d<=to);
+    });
+    return {
+      name: c.name,
+      trxCount: trxs.length,
+      total: trxs.reduce((s,t)=>s+(t.total||0),0),
+      totalModal: trxs.reduce((s,t)=>s+(t.totalModal||0),0),
+      profit: trxs.reduce((s,t)=>s+(t.profit||0),0),
+      failed: false,
+    };
+  }));
+
+  loadingEl.style.display = 'none';
+  contentEl.style.display = '';
+  const tbody = document.getElementById('cross-store-tbody');
+  tbody.innerHTML = '';
+  document.getElementById('cross-store-empty').style.display = results.length ? 'none' : 'block';
+  let grandTrx=0, grandSales=0, grandModal=0, grandProfit=0;
+  results.sort((a,b)=> b.total - a.total).forEach(r=>{
+    grandTrx += r.trxCount; grandSales += r.total; grandModal += r.totalModal; grandProfit += r.profit;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(r.name)}${r.failed ? ' <span style="color:var(--rust); font-size:11px;">(gagal dimuat)</span>' : ''}</td>
+      <td class="num mono">${r.trxCount}</td>
+      <td class="num mono">${rupiah(r.total)}</td>
+      <td class="num mono">${rupiah(r.totalModal)}</td>
+      <td class="num mono" style="color:${r.profit>=0?'var(--green)':'var(--rust)'};">${rupiah(r.profit)}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('cross-store-total-trx').textContent = grandTrx;
+  document.getElementById('cross-store-total-sales').textContent = rupiah(grandSales);
+  document.getElementById('cross-store-total-modal').textContent = rupiah(grandModal);
+  document.getElementById('cross-store-total-profit').textContent = rupiah(grandProfit);
 }
 
 async function refreshCompanyCreationUI(){
@@ -2687,6 +2932,8 @@ async function enterCompany(id, name, role, memberName){
     CACHE.receiptPaperSize = d.receiptPaperSize || '80mm';
     CACHE.loyaltyConfig = d.loyaltyConfig || {redeemValue:100};
     CACHE.monthlyTarget = d.monthlyTarget || {};
+    CACHE.discountLimitPercent = (d.discountLimitPercent === undefined || d.discountLimitPercent === null) ? 100 : d.discountLimitPercent;
+    CACHE.lastBackupAt = d.lastBackupAt || null;
   } else {
     CACHE.products = [
       {id:uid(), barcode:'8991234567890', name:'Indomie Goreng', category:'Sembako', unit:'pcs', buyPrice:2800, sellPrice:3500, stock:80, minStock:10,
@@ -2716,6 +2963,8 @@ async function enterCompany(id, name, role, memberName){
     CACHE.receiptPaperSize = '80mm';
     CACHE.loyaltyConfig = {redeemValue:100};
     CACHE.monthlyTarget = {};
+    CACHE.discountLimitPercent = 100;
+    CACHE.lastBackupAt = null;
     await saveCompanyData();
   }
 
@@ -2742,6 +2991,8 @@ async function enterCompany(id, name, role, memberName){
   renderDashboard();
   renderUsers();
   refreshShiftState();
+  refreshDiscountLimitUI();
+  refreshBackupReminder();
   switchView(allowedViews[0]);
 }
 
@@ -2888,6 +3139,16 @@ document.getElementById('btn-save-loyalty').addEventListener('click', async ()=>
 });
 refreshLoyaltySettingsUI();
 
+function refreshDiscountLimitUI(){
+  document.getElementById('discount-limit-input').value = DB.discountLimitPercent;
+}
+document.getElementById('btn-save-discount-limit').addEventListener('click', async ()=>{
+  const v = Math.min(Math.max(Number(document.getElementById('discount-limit-input').value) || 0, 0), 100);
+  const ok = await saveSettingsPatch({ discountLimitPercent: v });
+  if(ok){ refreshDiscountLimitUI(); showToast('Batas diskon kasir disimpan'); }
+});
+refreshDiscountLimitUI();
+
 function refreshPpnSettingsUI(){
   const cfg = DB.ppnConfig;
   document.getElementById('ppn-enabled').checked = !!cfg.enabled;
@@ -2934,7 +3195,7 @@ document.getElementById('btn-save-paper-size').addEventListener('click', async (
 });
 refreshPaperSizeUI();
 
-document.getElementById('btn-backup-data').addEventListener('click', ()=>{
+document.getElementById('btn-backup-data').addEventListener('click', async ()=>{
   const backup = {
     exportedAt: new Date().toISOString(),
     companyId: CURRENT_COMPANY.id,
@@ -2942,10 +3203,11 @@ document.getElementById('btn-backup-data').addEventListener('click', ()=>{
     data: {
       products: CACHE.products, transactions: CACHE.transactions, adjustments: CACHE.adjustments,
       customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
-      purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
+      customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
       receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
       storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
       loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
+      discountLimitPercent: CACHE.discountLimitPercent, lastBackupAt: CACHE.lastBackupAt,
     },
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -2959,7 +3221,58 @@ document.getElementById('btn-backup-data').addEventListener('click', ()=>{
   a.remove();
   URL.revokeObjectURL(url);
   showToast('Backup data berhasil diunduh');
+  // Catat kapan backup terakhir diunduh (tersimpan di server, bukan localStorage, supaya
+  // pengingat "sudah lama tidak backup" di Dashboard akurat di perangkat/kasir manapun).
+  const nowIso = new Date().toISOString();
+  const ok = await saveSettingsPatch({ lastBackupAt: nowIso });
+  if(ok) refreshBackupReminder();
+  // Simpan juga salinannya di server (riwayat backup), supaya tidak hanya ada di file lokal
+  // yang baru saja diunduh -- kalau role tidak berwenang (bukan owner/spv), RPC akan menolak
+  // secara diam-diam di sisi server; itu tidak masalah karena tombol ini memang hanya tampil
+  // untuk owner/spv.
+  await sb.rpc('trigger_manual_backup_rpc', { p_company_id: CURRENT_COMPANY.id });
+  renderServerBackups();
 });
+
+// Logika pulihkan data dari sebuah payload (isi backup) yang SUDAH divalidasi bentuknya --
+// dipakai bersama oleh restore dari file upload DAN restore dari backup server (otomatis/manual),
+// supaya tidak ada 2 salinan logika yang bisa berbeda perilakunya.
+async function restoreFromPayload(payload){
+  const { data: newData, error } = await sb.rpc('restore_company_data_rpc', {
+    p_company_id: CURRENT_COMPANY.id,
+    p_data: payload,
+  });
+  if(error){ showToast('Gagal memulihkan data: ' + error.message); return false; }
+
+  CACHE.products = newData.products || [];
+  CACHE.transactions = newData.transactions || [];
+  CACHE.adjustments = newData.adjustments || [];
+  CACHE.customAccounts = newData.customAccounts || [];
+  CACHE.stockLogs = newData.stockLogs || [];
+  CACHE.priceLogs = newData.priceLogs || [];
+  CACHE.customers = newData.customers || [];
+  CACHE.purchases = newData.purchases || [];
+  CACHE.voidLogs = newData.voidLogs || [];
+  CACHE.receivables = newData.receivables || [];
+  CACHE.pointRedemptions = newData.pointRedemptions || [];
+  CACHE.shifts = newData.shifts || [];
+  CACHE.storeName = newData.storeName || CACHE.storeName;
+  CACHE.storeAddress = newData.storeAddress || '';
+  CACHE.ppnConfig = newData.ppnConfig || {enabled:false, percent:11};
+  CACHE.receiptPaperSize = newData.receiptPaperSize || '80mm';
+  CACHE.loyaltyConfig = newData.loyaltyConfig || {redeemValue:100};
+  CACHE.monthlyTarget = newData.monthlyTarget || {};
+  CACHE.discountLimitPercent = (newData.discountLimitPercent === undefined || newData.discountLimitPercent === null) ? 100 : newData.discountLimitPercent;
+  CACHE.lastBackupAt = newData.lastBackupAt || null;
+
+  showToast('Data berhasil dipulihkan dari backup');
+  refreshStoreName(); refreshPaperSizeUI(); refreshAccountUI(); refreshLoyaltySettingsUI(); refreshDiscountLimitUI(); refreshBackupReminder();
+  renderProducts(); renderStockLog(); renderPriceLog(); renderReport(); renderRiwayat();
+  renderVoidLog(); renderPurchases(); renderCustomers(); renderSuppliers(); renderDashboard();
+  renderReceivables(); refreshShiftState(); renderServerBackups();
+  cart = []; renderCart();
+  return true;
+}
 
 document.getElementById('btn-restore-data').addEventListener('click', ()=>{
   if(!SESSION || SESSION.role !== 'owner'){ showToast('Hanya Owner yang bisa memulihkan data dari backup'); return; }
@@ -2989,45 +3302,76 @@ document.getElementById('btn-restore-data').addEventListener('click', ()=>{
         requestOwnerPasswordConfirm('Demi keamanan, masukkan <strong>sandi akun Owner</strong> untuk melanjutkan memulihkan data dari backup.', async ()=>{
           const btn = document.getElementById('btn-restore-data');
           btn.disabled = true;
-          const { data: newData, error } = await sb.rpc('restore_company_data_rpc', {
-            p_company_id: CURRENT_COMPANY.id,
-            p_data: payload,
-          });
+          const ok = await restoreFromPayload(payload);
           btn.disabled = false;
-          if(error){ showToast('Gagal memulihkan data: ' + error.message); return; }
-
-          CACHE.products = newData.products || [];
-          CACHE.transactions = newData.transactions || [];
-          CACHE.adjustments = newData.adjustments || [];
-          CACHE.customAccounts = newData.customAccounts || [];
-          CACHE.stockLogs = newData.stockLogs || [];
-          CACHE.priceLogs = newData.priceLogs || [];
-          CACHE.customers = newData.customers || [];
-          CACHE.purchases = newData.purchases || [];
-          CACHE.voidLogs = newData.voidLogs || [];
-          CACHE.receivables = newData.receivables || [];
-          CACHE.pointRedemptions = newData.pointRedemptions || [];
-          CACHE.shifts = newData.shifts || [];
-          CACHE.storeName = newData.storeName || CACHE.storeName;
-          CACHE.storeAddress = newData.storeAddress || '';
-          CACHE.ppnConfig = newData.ppnConfig || {enabled:false, percent:11};
-          CACHE.receiptPaperSize = newData.receiptPaperSize || '80mm';
-          CACHE.loyaltyConfig = newData.loyaltyConfig || {redeemValue:100};
-          CACHE.monthlyTarget = newData.monthlyTarget || {};
-
-          fileInput.value = '';
-          showToast('Data berhasil dipulihkan dari backup');
-          refreshStoreName(); refreshPaperSizeUI(); refreshAccountUI(); refreshLoyaltySettingsUI();
-          renderProducts(); renderStockLog(); renderPriceLog(); renderReport(); renderRiwayat();
-          renderVoidLog(); renderPurchases(); renderCustomers(); renderSuppliers(); renderDashboard();
-          renderReceivables(); refreshShiftState();
-          cart = []; renderCart();
+          if(ok) fileInput.value = '';
         });
       }
     );
   };
   reader.readAsText(file);
 });
+
+/* ================= BACKUP SERVER (OTOMATIS & MANUAL) ================= */
+let _serverBackupsCache = [];
+async function renderServerBackups(){
+  const section = document.getElementById('server-backups-section');
+  if(!section || !CURRENT_COMPANY) return;
+  if(!SESSION || !['owner','spv'].includes(SESSION.role)){
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  const { data, error } = await sb.rpc('list_company_backups_rpc', { p_company_id: CURRENT_COMPANY.id });
+  if(error) return;
+  _serverBackupsCache = data || [];
+  const tbody = document.getElementById('server-backup-tbody');
+  document.getElementById('server-backup-empty').style.display = _serverBackupsCache.length ? 'none' : 'block';
+  tbody.innerHTML = '';
+  const isOwner = SESSION.role === 'owner';
+  _serverBackupsCache.forEach(b=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(b.created_at).toLocaleString('id-ID')}</td>
+      <td>${b.source === 'manual' ? 'Manual' : 'Otomatis'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn outline sm" onclick="downloadServerBackup('${b.id}')">Unduh</button>
+        ${isOwner ? `<button class="btn danger sm" onclick="restoreServerBackup('${b.id}')">Pulihkan</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+async function downloadServerBackup(id){
+  const { data, error } = await sb.rpc('get_company_backup_data_rpc', { p_company_id: CURRENT_COMPANY.id, p_backup_id: id });
+  if(error){ showToast('Gagal mengambil backup: ' + error.message); return; }
+  const meta = _serverBackupsCache.find(b=>b.id===id);
+  const backup = { exportedAt: meta ? meta.created_at : new Date().toISOString(), companyId: CURRENT_COMPANY.id, companyName: CURRENT_COMPANY.name, data };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = meta ? localDateFromIso(meta.created_at) : todayStr();
+  a.href = url;
+  a.download = `backup-server-${(CURRENT_COMPANY.name||'toko').replace(/[^a-z0-9]+/gi,'-')}-${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function restoreServerBackup(id){
+  if(!SESSION || SESSION.role !== 'owner'){ showToast('Hanya Owner yang bisa memulihkan data dari backup'); return; }
+  const meta = _serverBackupsCache.find(b=>b.id===id);
+  const whenStr = meta ? new Date(meta.created_at).toLocaleString('id-ID') : '';
+  showConfirm(
+    `Yakin ingin memulihkan data dari backup server <strong>${esc(whenStr)}</strong>? Seluruh data toko saat ini akan <strong>DITIMPA</strong> dan tidak bisa dikembalikan lagi kecuali kamu punya backup lain.`,
+    ()=>{
+      requestOwnerPasswordConfirm('Demi keamanan, masukkan <strong>sandi akun Owner</strong> untuk melanjutkan memulihkan data dari backup server.', async ()=>{
+        const { data, error } = await sb.rpc('get_company_backup_data_rpc', { p_company_id: CURRENT_COMPANY.id, p_backup_id: id });
+        if(error){ showToast('Gagal mengambil backup: ' + error.message); return; }
+        await restoreFromPayload(data);
+      });
+    }
+  );
+}
 
 document.getElementById('btn-logout-all').addEventListener('click', ()=>{
   showConfirm('Yakin ingin keluar dari akun kamu di <strong>semua device</strong>? Kamu (dan siapa pun yang login pakai akun ini di device lain) perlu login ulang setelah ini.', ()=>{
@@ -4731,9 +5075,39 @@ document.getElementById('btn-clear-cart').addEventListener('click', ()=>{
   renderCart();
 });
 
+// Cek batas diskon kasir SEBELUM transaksi diproses. Dihitung dari total diskon (diskon
+// keseluruhan + jumlah diskon per-item) dibagi subtotal KOTOR (sebelum diskon apa pun),
+// supaya tidak bisa diakali dengan memecah diskon jadi diskon per-item satu-satu.
+// Owner/SPV sendiri tidak dibatasi karena mereka yang berwenang menyetujui.
+function checkDiscountApproval(){
+  const subtotal = cart.reduce((s,i)=>s+cartItemTotal(i),0);
+  const discount = Math.min(Math.max(Number(document.getElementById('discount-input').value) || 0, 0), subtotal);
+  const grossSubtotal = cart.reduce((s,i)=> s + (i.sellPrice*i.qty), 0);
+  const itemDiscountsTotal = cart.reduce((s,i)=> s + (Number(i.itemDiscount)||0), 0);
+  const totalDiscountAmount = discount + itemDiscountsTotal;
+  const discountPercent = grossSubtotal > 0 ? (totalDiscountAmount / grossSubtotal * 100) : 0;
+  const limit = DB.discountLimitPercent;
+  const isApprover = !!(SESSION && ['owner','spv'].includes(SESSION.role));
+  return { needsApproval: !isApprover && discountPercent > limit + 1e-9, discountPercent, limit };
+}
 document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   if(!cart.length) return;
   if(!CURRENT_SHIFT){ showToast('Buka shift dulu sebelum mulai transaksi'); return; }
+  const { needsApproval, discountPercent, limit } = checkDiscountApproval();
+  if(needsApproval){
+    requestApproverPasswordConfirm(
+      `Diskon pada transaksi ini <strong>${discountPercent.toFixed(1)}%</strong> dari subtotal, melebihi batas <strong>${limit}%</strong> untuk kasir. Minta Owner atau SPV memasukkan sandinya untuk menyetujui transaksi ini.`,
+      ()=> submitCheckout(_lastApproverToken)
+    );
+    return;
+  }
+  await submitCheckout();
+});
+
+// approverToken: kalau diisi, transaksi dikirim atas nama Owner/SPV yang baru saja
+// memasukkan sandinya (lihat sbAs()) supaya server benar-benar memvalidasi ulang persetujuan
+// diskon, bukan cuma gerbang di tampilan. Dikosongkan untuk transaksi normal.
+async function submitCheckout(approverToken){
   const subtotal = cart.reduce((s,i)=>s+cartItemTotal(i),0);
   const discount = Math.min(Math.max(Number(document.getElementById('discount-input').value) || 0, 0), subtotal);
   const custName = (document.getElementById('customer-name-input').value || '').trim();
@@ -4812,7 +5186,12 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
     date: nowIso, pointsUsed, discountAmount: pointDiscount, ...who,
   } : null;
 
-  const { data: newData, error } = await sb.rpc('checkout_transaction', {
+  // Kalau approverToken diisi (Owner/SPV baru saja menyetujui lewat sandi), kirim transaksi
+  // ini SEBAGAI mereka (bukan sesi kasir yang sedang login) supaya is_company_role di server
+  // benar-benar melihat pemanggilnya Owner/SPV. Token hanya dipakai sekali lalu dibuang.
+  const checkoutClient = approverToken ? sbAs(approverToken) : sb;
+  _lastApproverToken = null;
+  const { data: newData, error } = await checkoutClient.rpc('checkout_transaction', {
     p_company_id: CURRENT_COMPANY.id,
     p_transaction: trx,
     p_stock_deltas: stockDeltas,
@@ -4825,6 +5204,17 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   btn.textContent = 'Bayar & Cetak Struk';
 
   if(error){
+    // Jejak keamanan: server menolak karena diskonnya ternyata melebihi batas (mis. batasnya
+    // baru saja diturunkan Owner di device lain, atau percobaan memanggil RPC langsung tanpa
+    // lewat tombol Bayar). Kalau belum pakai approverToken, minta persetujuan lalu coba lagi
+    // SEKALI — bukan loop tanpa akhir kalau ternyata gagal lagi.
+    if(!approverToken && /perlu persetujuan/i.test(error.message || '')){
+      requestApproverPasswordConfirm(
+        'Diskon pada transaksi ini melebihi batas untuk kasir. Minta Owner atau SPV memasukkan sandinya untuk menyetujui transaksi ini.',
+        ()=> submitCheckout(_lastApproverToken)
+      );
+      return;
+    }
     showToast('Gagal menyimpan transaksi: ' + error.message);
     return;
   }
@@ -4848,7 +5238,7 @@ document.getElementById('btn-checkout').addEventListener('click', async ()=>{
   paymentMethod = 'cash';
   document.querySelectorAll('.pay-method-btn').forEach(b=>b.classList.toggle('active', b.dataset.method==='cash'));
   renderCart(); renderProducts(); renderStockLog(); renderCustomers(); renderReceivables();
-});
+}
 
 function printReceipt(trx){
   const area = document.getElementById('print-area');
@@ -5037,14 +5427,18 @@ function renderReport(){
   }
 }
 
+// Dipakai oleh export CSV/PDF -- dibandingkan dengan batas minimum MASING-MASING produk
+// (minStock), SAMA PERSIS dengan logika renderLowStock() di kartu Dashboard, supaya daftar
+// "stok menipis" yang diunduh selalu konsisten dengan yang ditampilkan di layar.
 function getLowStockRows(){
   const rows = [];
   DB.products.forEach(p=>{
-    if(p.stock < 10) rows.push({name:p.name, category:p.category, unit:'Eceran', stock:p.stock});
+    const minStock = Number(p.minStock)||0;
+    if(p.stock <= minStock) rows.push({name:p.name, category:p.category, unit:'Eceran', stock:p.stock, minStock});
     EXTRA_UNITS.forEach(u=>{
       const dbKey = EXTRA_UNIT_DBKEY[u.key];
-      if(p[dbKey+'Enabled'] && (p[dbKey+'Stock']||0) < 10){
-        rows.push({name:p.name, category:p.category, unit:u.label, stock:p[dbKey+'Stock']||0});
+      if(p[dbKey+'Enabled'] && (p[dbKey+'Stock']||0) <= minStock){
+        rows.push({name:p.name, category:p.category, unit:u.label, stock:p[dbKey+'Stock']||0, minStock});
       }
     });
   });
@@ -5157,6 +5551,126 @@ document.getElementById('btn-dash-export-csv').addEventListener('click', ()=>{
   const a = document.createElement('a');
   a.href = url; a.download = `dashboard-${from}_${to}.csv`; a.click();
   URL.revokeObjectURL(url);
+});
+
+/* ================= EXPORT EXCEL (.xlsx) ================= */
+// Satu sheet per bagian laporan (bukan ditumpuk jadi satu sheet seperti CSV) supaya lebih
+// enak dibuka & diolah lanjut di Excel — tiap bagian bisa langsung di-filter/sort/pivot
+// sendiri-sendiri tanpa harus memisahkan baris "judul bagian" dulu.
+function excelSheetName(name){
+  // Nama sheet Excel maksimal 31 karakter dan tidak boleh mengandung : \ / ? * [ ]
+  return name.replace(/[:\\\/\?\*\[\]]/g, '-').slice(0, 31);
+}
+function addAoaSheet(wb, name, aoa){
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  XLSX.utils.book_append_sheet(wb, ws, excelSheetName(name));
+}
+function downloadWorkbook(wb, filename){
+  XLSX.writeFile(wb, filename);
+}
+function ensureXlsxReady(){
+  if(typeof XLSX === 'undefined'){
+    showToast('Fitur Export Excel belum siap. Cek koneksi internet lalu coba lagi.');
+    return false;
+  }
+  return true;
+}
+
+document.getElementById('btn-dash-export-excel').addEventListener('click', ()=>{
+  if(!ensureXlsxReady()) return;
+  const from = document.getElementById('lap-from').value;
+  const to = document.getElementById('lap-to').value;
+  const trxs = DB.transactions.filter(t=>{
+    const d = localDateFromIso(t.date);
+    return (!from || d>=from) && (!to || d<=to);
+  });
+  const totalPenjualan = trxs.reduce((s,t)=>s + (t.total - (t.ppnAmount||0)), 0);
+  const totalModal = trxs.reduce((s,t)=>s+t.totalModal,0);
+  const totalLaba = trxs.reduce((s,t)=>s+t.profit,0);
+  const totalPpn = trxs.reduce((s,t)=>s+(t.ppnAmount||0),0);
+
+  const today = todayStr();
+  const todayTrxs = DB.transactions.filter(t=>localDateFromIso(t.date) === today);
+  const qtyToday = todayTrxs.reduce((s,t)=> s + t.items.reduce((a,i)=>a+i.qty,0), 0);
+  const revenueToday = todayTrxs.reduce((s,t)=>s+t.total,0);
+
+  const wb = XLSX.utils.book_new();
+
+  addAoaSheet(wb, 'Ringkasan', [
+    ['RINGKASAN DASHBOARD'],
+    ['Periode', `${from || '-'} s/d ${to || '-'}`],
+    ['Total Penjualan', totalPenjualan],
+    ['Total Modal (HPP)', totalModal],
+    ['Laba / Rugi', totalLaba],
+    ['Total PPN Terkumpul', totalPpn],
+    [],
+    ['STATISTIK PER HARI INI', today],
+    ['Terjual (pcs)', qtyToday],
+    ['Pendapatan', revenueToday],
+    ['Transaksi', todayTrxs.length],
+  ]);
+
+  const days7 = lastNDays(7);
+  const qtyByDay7 = {}, revByDay7 = {};
+  days7.forEach(d=>{ qtyByDay7[d]=0; revByDay7[d]=0; });
+  DB.transactions.forEach(t=>{
+    const d = localDateFromIso(t.date);
+    if(d in qtyByDay7){
+      qtyByDay7[d] += t.items.reduce((a,i)=>a+i.qty,0);
+      revByDay7[d] += t.total;
+    }
+  });
+  addAoaSheet(wb, 'Grafik 7 Hari', [
+    ['Tanggal', 'Qty Terjual', 'Pendapatan'],
+    ...days7.map(d=>[d, qtyByDay7[d], revByDay7[d]]),
+  ]);
+
+  const byDay = {};
+  trxs.forEach(t=>{ const d = localDateFromIso(t.date); byDay[d] = (byDay[d]||0) + t.profit; });
+  addAoaSheet(wb, 'Laba per Hari', [
+    ['Tanggal', 'Laba/Rugi'],
+    ...Object.keys(byDay).sort().map(d=>[d, byDay[d]]),
+  ]);
+
+  const dashDate = document.getElementById('dash-date').value || todayStr();
+  const dashDateTrxs = DB.transactions.filter(t=>localDateFromIso(t.date) === dashDate);
+  const byProductDay = {};
+  dashDateTrxs.forEach(t=>{
+    t.items.forEach(item=>{
+      if(!byProductDay[item.name]) byProductDay[item.name] = {qty:0, revenue:0, modal:0};
+      byProductDay[item.name].qty += item.qty;
+      byProductDay[item.name].revenue += item.sellPrice * item.qty;
+      byProductDay[item.name].modal += item.buyPrice * item.qty;
+    });
+  });
+  addAoaSheet(wb, `Produk Terjual ${dashDate}`, [
+    ['Nama Produk', 'Qty Terjual', 'Pendapatan', 'Laba'],
+    ...Object.entries(byProductDay).sort((a,b)=>b[1].qty-a[1].qty).map(([pname,d])=>[pname, d.qty, d.revenue, d.revenue-d.modal]),
+  ]);
+
+  addAoaSheet(wb, 'Stok Menipis', [
+    ['Nama Produk', 'Kategori', 'Satuan', 'Sisa Stok'],
+    ...getLowStockRows().map(r=>[r.name, r.category, r.unit, r.stock]),
+  ]);
+
+  const hHeader = ['Nama Produk', 'Beli Eceran', 'Jual Eceran', 'Margin Eceran'];
+  EXTRA_UNITS.forEach(u=>{
+    if(u.hasIsi) hHeader.push(`Isi ${u.label}`);
+    hHeader.push(`Beli ${u.label}`, `Jual ${u.label}`, `Margin ${u.label}`);
+  });
+  const hBody = DB.products.map(p=>{
+    const row = [p.name, p.buyPrice, p.sellPrice, p.sellPrice-p.buyPrice];
+    EXTRA_UNITS.forEach(u=>{
+      const dbKey = EXTRA_UNIT_DBKEY[u.key];
+      const en = p[dbKey+'Enabled'];
+      if(u.hasIsi) row.push(en ? p[dbKey+'Isi'] : '');
+      row.push(en ? p[dbKey+'BuyPrice'] : '', en ? p[dbKey+'SellPrice'] : '', en ? (p[dbKey+'SellPrice']-p[dbKey+'BuyPrice']) : '');
+    });
+    return row;
+  });
+  addAoaSheet(wb, 'Harga Barang', [hHeader, ...hBody]);
+
+  downloadWorkbook(wb, `dashboard-${from}_${to}.xlsx`);
 });
 
 function buildHargaTableHeadBody(){
@@ -5377,7 +5891,85 @@ function renderRiwayat(){
   });
 
   renderCashierPerformance(trxs);
+  renderBestProducts(trxs);
 }
+
+// Produk terlaris / paling lambat terjual: dihitung dari transaksi yang SUDAH difilter
+// rentang tanggal yang sama dengan Riwayat Transaksi (diteruskan dari renderRiwayat).
+// Dikelompokkan berdasarkan NAMA produk (bukan per-satuan/varian), supaya konsisten dengan
+// kartu "Produk Terjual per Hari" di Dashboard yang juga mengelompokkan dengan cara yang sama.
+let _bestProductsMode = 'terlaris';
+function findProductCategory(name, productId){
+  const p = (productId && DB.products.find(x=>x.id===productId)) || DB.products.find(x=>x.name===name);
+  return p ? p.category : '-';
+}
+// Hitung dua daftar LENGKAP (tidak dipotong) sekaligus: terlaris (qty desc, hanya yang
+// pernah terjual) dan paling lambat (qty asc, termasuk produk yang belum terjual sama
+// sekali pada rentang ini). Dipakai bersama oleh tampilan tabel (dipotong 15 teratas) dan
+// export Excel (daftar lengkap), supaya tidak ada 2 salinan logika yang bisa beda hasilnya.
+function computeBestProductsFull(trxs){
+  const sold = {};
+  trxs.forEach(t=>{
+    (t.items||[]).forEach(item=>{
+      if(!sold[item.name]) sold[item.name] = { name:item.name, productId:item.productId, qty:0, revenue:0, profit:0 };
+      sold[item.name].qty += (item.qty||0);
+      sold[item.name].revenue += (item.sellPrice||0) * (item.qty||0);
+      sold[item.name].profit += ((item.sellPrice||0) - (item.buyPrice||0)) * (item.qty||0) - (Number(item.itemDiscount)||0);
+    });
+  });
+
+  const terlaris = Object.values(sold)
+    .filter(r=>r.qty > 0)
+    .map(r=>({ ...r, category: findProductCategory(r.name, r.productId) }))
+    .sort((a,b)=> b.qty - a.qty);
+
+  // Paling lambat: semua produk yang ada SAAT INI, termasuk yang sama sekali belum
+  // terjual pada rentang ini (qty 0) — supaya produk yang perlu promosi/di-cek juga kelihatan,
+  // bukan cuma yang sudah pernah terjual tapi sedikit.
+  const byName = {};
+  DB.products.forEach(p=>{ byName[p.name] = { name:p.name, category:p.category, qty:0, revenue:0, profit:0 }; });
+  Object.values(sold).forEach(s=>{
+    if(!byName[s.name]) byName[s.name] = { name:s.name, category: findProductCategory(s.name, s.productId), qty:0, revenue:0, profit:0 };
+    byName[s.name].qty += s.qty; byName[s.name].revenue += s.revenue; byName[s.name].profit += s.profit;
+  });
+  const lambat = Object.values(byName).sort((a,b)=> a.qty - b.qty);
+
+  return { terlaris, lambat };
+}
+function renderBestProducts(trxs){
+  const tbody = document.getElementById('best-products-tbody');
+  if(!tbody) return;
+  const { terlaris, lambat } = computeBestProductsFull(trxs);
+  const rows = (_bestProductsMode === 'terlaris' ? terlaris : lambat).slice(0, 15);
+
+  document.getElementById('best-products-empty').style.display = rows.length ? 'none' : 'block';
+  tbody.innerHTML = '';
+  rows.forEach((r, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${idx+1}</td>
+      <td>${esc(r.name)}</td>
+      <td>${esc(r.category || '-')}</td>
+      <td class="num mono">${r.qty}</td>
+      <td class="num mono">${rupiah(r.revenue)}</td>
+      <td class="num mono" style="color:${r.profit>=0?'var(--green)':'var(--rust)'};">${rupiah(r.profit)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('btn-best-tab-terlaris').addEventListener('click', ()=>{
+  if(_bestProductsMode === 'terlaris') return;
+  _bestProductsMode = 'terlaris';
+  document.getElementById('btn-best-tab-terlaris').className = 'btn sm';
+  document.getElementById('btn-best-tab-lambat').className = 'btn outline sm';
+  renderRiwayat();
+});
+document.getElementById('btn-best-tab-lambat').addEventListener('click', ()=>{
+  if(_bestProductsMode === 'lambat') return;
+  _bestProductsMode = 'lambat';
+  document.getElementById('btn-best-tab-lambat').className = 'btn sm';
+  document.getElementById('btn-best-tab-terlaris').className = 'btn outline sm';
+  renderRiwayat();
+});
 
 // Ringkasan kinerja kasir: dihitung dari transaksi yang SUDAH difilter rentang tanggal
 // yang sama dengan Riwayat Transaksi (diteruskan dari renderRiwayat, bukan hitung ulang).
@@ -5426,6 +6018,56 @@ document.getElementById('btn-export-csv').addEventListener('click', ()=>{
   const a = document.createElement('a');
   a.href = url; a.download = `laporan-${from}_${to}.csv`; a.click();
   URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-export-excel').addEventListener('click', ()=>{
+  if(!ensureXlsxReady()) return;
+  const from = document.getElementById('riw-from').value;
+  const to = document.getElementById('riw-to').value;
+  const trxs = DB.transactions.filter(t=>{
+    const d = localDateFromIso(t.date);
+    return (!from || d>=from) && (!to || d<=to);
+  }).sort((a,b)=> new Date(a.date) - new Date(b.date));
+
+  const wb = XLSX.utils.book_new();
+
+  addAoaSheet(wb, 'Riwayat Transaksi', [
+    ['Tanggal', 'Kasir', 'Item', 'Metode', 'Subtotal', 'Diskon', 'PPN (%)', 'PPN (Rp)', 'Total', 'Modal', 'Laba'],
+    ...trxs.map(t=>[
+      new Date(t.date).toLocaleString('id-ID'),
+      t.cashierName || '-',
+      t.items.map(i=>`${i.displayName || i.name} x${i.qty}`).join(' | '),
+      PAY_METHOD_LABELS[t.paymentMethod] || 'Tunai',
+      t.subtotal, t.discount, t.ppnPercent||0, t.ppnAmount||0, t.total, t.totalModal, t.profit,
+    ]),
+  ]);
+
+  const byCashier = {};
+  trxs.forEach(t=>{
+    const name = t.cashierName || '-';
+    if(!byCashier[name]) byCashier[name] = { name, trxCount:0, total:0, profit:0 };
+    byCashier[name].trxCount += 1;
+    byCashier[name].total += (t.total||0);
+    byCashier[name].profit += (t.profit||0);
+  });
+  addAoaSheet(wb, 'Kinerja per Kasir', [
+    ['Kasir', 'Jumlah Transaksi', 'Total Penjualan', 'Rata-rata / Transaksi', 'Total Laba'],
+    ...Object.values(byCashier).sort((a,b)=>b.total-a.total).map(c=>[
+      c.name, c.trxCount, c.total, c.trxCount>0 ? c.total/c.trxCount : 0, c.profit,
+    ]),
+  ]);
+
+  const { terlaris, lambat } = computeBestProductsFull(trxs);
+  addAoaSheet(wb, 'Produk Terlaris', [
+    ['#', 'Produk', 'Kategori', 'Qty Terjual', 'Total Omzet', 'Total Laba'],
+    ...terlaris.map((r,idx)=>[idx+1, r.name, r.category||'-', r.qty, r.revenue, r.profit]),
+  ]);
+  addAoaSheet(wb, 'Produk Paling Lambat', [
+    ['#', 'Produk', 'Kategori', 'Qty Terjual', 'Total Omzet', 'Total Laba'],
+    ...lambat.map((r,idx)=>[idx+1, r.name, r.category||'-', r.qty, r.revenue, r.profit]),
+  ]);
+
+  downloadWorkbook(wb, `laporan-${from}_${to}.xlsx`);
 });
 
 document.getElementById('btn-export-pdf').addEventListener('click', ()=>{
