@@ -906,7 +906,7 @@
           Harga Beli & Harga Jual produk otomatis dihitung ulang sebagai rata-rata dari riwayat pembelian sebelumnya + pembelian ini.
         </div>
         <div class="field">
-          <label>Nama Supplier / Pemasok</label>
+          <label>Nama Supplier / Pemasok (opsional)</label>
           <input type="text" id="pb-supplier" placeholder="Contoh: CV Sumber Rejeki" list="pemasok-suggestions">
           <datalist id="pemasok-suggestions"></datalist>
         </div>
@@ -3513,7 +3513,7 @@ refreshStoreName();
 function openModal(id){ document.getElementById(id).classList.add('show'); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal(b.dataset.close)));
-document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click', e=>{ if(e.target===bg) bg.classList.remove('show'); }));
+document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click', e=>{ if(e.target===bg){ if(bg.id==='modal-scanner' && typeof stopScanner==='function') stopScanner(); else bg.classList.remove('show'); } }));
 
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
 
@@ -3537,62 +3537,88 @@ function scannerBoxSize(viewfinderWidth, viewfinderHeight){
   return { width: w, height: h };
 }
 
-function startScannerWithCamera(cameraIdOrConfig){
-  html5QrCode.start(
-    cameraIdOrConfig,
-    {
-      fps: 15,
-      qrbox: scannerBoxSize,
-      aspectRatio: 1.5,
-      formatsToSupport: SCANNER_FORMATS,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-    },
-    (decodedText)=>{
-      document.getElementById(scanTargetInputId).value = decodedText;
-      stopScanner();
-      if(scanTargetInputId === 'barcode-input'){ handleBarcodeSubmit(decodedText); }
-      else { showToast('Barcode terbaca: ' + decodedText); }
-    },
-    ()=>{} // dipanggil terus tiap frame yang belum berhasil dibaca, aman diabaikan
-  ).catch(()=>{
-    showToast('Gagal mengakses kamera tersebut, mencoba kamera lain...');
-    closeModal('modal-scanner');
+// Scanner kamera. Perbaikan responsivitas:
+// - satu hasil scan hanya diproses SEKALI (sebelumnya kamera masih mengirim frame saat proses berhenti,
+//   sehingga barang bisa tertambah ganda atau kamera "macet");
+// - kamera pasti dimatikan dengan benar (juga saat jendela ditutup dengan klik di luar kotak);
+// - resolusi kamera diminta lebih tinggi supaya barcode kecil/jauh lebih mudah terbaca.
+let scannerRunning = false;
+let scanHandled = false;
+let scannerStarting = false;
+
+function onScanSuccess(decodedText){
+  if(scanHandled) return;
+  scanHandled = true;
+  const targetId = scanTargetInputId;
+  const el = document.getElementById(targetId);
+  if(el) el.value = decodedText;
+  if(navigator.vibrate){ try{ navigator.vibrate(80); }catch(e){} }
+  stopScanner().then(()=>{
+    if(targetId === 'barcode-input'){ handleBarcodeSubmit(decodedText); }
+    else { showToast('Barcode terbaca: ' + decodedText); }
   });
 }
-
-function startScanner(){
+function scannerConfig(){
+  return {
+    fps: 12,
+    qrbox: scannerBoxSize,
+    aspectRatio: 1.5,
+    formatsToSupport: SCANNER_FORMATS,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    videoConstraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+  };
+}
+async function startScanner(){
   if(typeof Html5Qrcode === 'undefined'){
     showToast('Fitur scan kamera belum siap. Cek koneksi internet, atau masukkan barcode manual.');
     return;
   }
-  openModal('modal-scanner');
-  html5QrCode = new Html5Qrcode("scanner-view", { formatsToSupport: SCANNER_FORMATS, verbose:false });
-
-  // Coba langsung minta kamera belakang (lebih akurat & konsisten daripada menebak dari daftar kamera)
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 15, qrbox: scannerBoxSize, aspectRatio: 1.5, formatsToSupport: SCANNER_FORMATS, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
-    (decodedText)=>{
-      document.getElementById(scanTargetInputId).value = decodedText;
-      stopScanner();
-      if(scanTargetInputId === 'barcode-input'){ handleBarcodeSubmit(decodedText); }
-      else { showToast('Barcode terbaca: ' + decodedText); }
-    },
-    ()=>{}
-  ).catch(()=>{
-    // Sebagian device (laptop/webcam) tidak punya kamera "environment" -> cari kamera dari daftar sebagai cadangan
-    Html5Qrcode.getCameras().then(cams=>{
-      if(!cams || !cams.length){ showToast('Kamera tidak ditemukan'); closeModal('modal-scanner'); return; }
-      const back = cams.find(c => /back|belakang|rear/i.test(c.label));
-      const camId = (back || cams[cams.length-1]).id;
-      startScannerWithCamera(camId);
-    }).catch(()=>{ showToast('Izin kamera ditolak / tidak tersedia'); closeModal('modal-scanner'); });
-  });
-}
-function stopScanner(){
-  if(html5QrCode){
-    html5QrCode.stop().then(()=>html5QrCode.clear()).catch(()=>{});
+  if(scannerStarting) return;
+  scannerStarting = true;
+  try{
+    await stopScanner(); // pastikan sisa sesi sebelumnya benar-benar mati
+    scanHandled = false;
+    openModal('modal-scanner');
+    html5QrCode = new Html5Qrcode("scanner-view", { formatsToSupport: SCANNER_FORMATS, verbose:false });
+    try{
+      await html5QrCode.start({ facingMode: "environment" }, scannerConfig(), onScanSuccess, ()=>{});
+      scannerRunning = true;
+    } catch(e1){
+      // Cadangan 1: tanpa permintaan resolusi khusus. Cadangan 2: pilih kamera dari daftar (laptop/webcam).
+      try{
+        try{ await html5QrCode.clear(); }catch(_){}
+        html5QrCode = new Html5Qrcode("scanner-view", { formatsToSupport: SCANNER_FORMATS, verbose:false });
+        const cfg = scannerConfig(); delete cfg.videoConstraints;
+        await html5QrCode.start({ facingMode: "environment" }, cfg, onScanSuccess, ()=>{});
+        scannerRunning = true;
+      } catch(e2){
+        try{
+          const cams = await Html5Qrcode.getCameras();
+          if(!cams || !cams.length){ showToast('Kamera tidak ditemukan'); await stopScanner(); return; }
+          const back = cams.find(c => /back|belakang|rear/i.test(c.label));
+          const cfg = scannerConfig(); delete cfg.videoConstraints;
+          try{ await html5QrCode.clear(); }catch(_){}
+          html5QrCode = new Html5Qrcode("scanner-view", { formatsToSupport: SCANNER_FORMATS, verbose:false });
+          await html5QrCode.start((back || cams[cams.length-1]).id, cfg, onScanSuccess, ()=>{});
+          scannerRunning = true;
+        } catch(e3){
+          showToast('Izin kamera ditolak / kamera tidak tersedia');
+          await stopScanner();
+        }
+      }
+    }
+  } finally {
+    scannerStarting = false;
   }
+}
+async function stopScanner(){
+  const inst = html5QrCode;
+  html5QrCode = null;
+  if(inst){
+    try{ if(scannerRunning || (inst.isScanning)) await inst.stop(); }catch(e){}
+    try{ inst.clear(); }catch(e){}
+  }
+  scannerRunning = false;
   closeModal('modal-scanner');
 }
 document.getElementById('btn-camera-scan').addEventListener('click', ()=>{ scanTargetInputId='barcode-input'; startScanner(); });
@@ -3603,7 +3629,20 @@ document.getElementById('btn-scan-kilo-modal').addEventListener('click', ()=>{ s
 document.getElementById('btn-scan-halfkilo-modal').addEventListener('click', ()=>{ scanTargetInputId='p-halfkilo-barcode'; startScanner(); });
 document.getElementById('btn-scan-quarterkilo-modal').addEventListener('click', ()=>{ scanTargetInputId='p-quarterkilo-barcode'; startScanner(); });
 document.getElementById('btn-scan-pb-new-barcode').addEventListener('click', ()=>{ scanTargetInputId='pb-new-barcode'; startScanner(); });
-document.querySelector('[data-close="modal-scanner"]').addEventListener('click', stopScanner);
+document.querySelector('[data-close="modal-scanner"]').addEventListener('click', ()=>{ stopScanner(); });
+
+// Scanner barcode fisik (USB/Bluetooth) bekerja seperti keyboard: kalau halaman Kasir sedang terbuka dan
+// fokus tidak sedang di kolom isian lain, hasil scan otomatis diarahkan ke kolom barcode supaya tidak "diam".
+document.addEventListener('keydown', (e)=>{
+  if(e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+  const kasir = document.getElementById('view-kasir');
+  if(!kasir || !kasir.classList.contains('active')) return;
+  if(document.querySelector('.modal-bg.show')) return;
+  const t = e.target;
+  if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  const inp = document.getElementById('barcode-input');
+  if(inp){ inp.focus(); }
+});
 
 /* ================= PRODUK CRUD ================= */
 const EXTRA_UNITS = [
@@ -4557,7 +4596,6 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
   const note = document.getElementById('pb-note').value.trim();
 
   if(qty <= 0){ showToast('Jumlah masuk harus lebih dari 0'); return; }
-  if(!supplier){ showToast('Nama supplier wajib diisi'); return; }
 
   const btn = document.getElementById('btn-save-purchase');
   const nowIso = new Date().toISOString();
@@ -4647,7 +4685,7 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
 
   const stockLogs = [{
     id: uid(), date: nowIso, productName, unitLabel: unitLabelText,
-    change: qty, reason: (isNewProduct ? 'Produk Baru dari Pembelian: ' : 'Pembelian dari Supplier: ') + supplier,
+    change: qty, reason: isNewProduct ? ('Produk Baru dari Pembelian' + (supplier ? ': ' + supplier : '')) : (supplier ? 'Pembelian dari Supplier: ' + supplier : 'Pembelian'),
     ...who,
   }];
   const priceLogs = [];
@@ -4729,7 +4767,7 @@ function renderPurchases(){
       <td class="num mono">${r.qty}</td>
       <td class="num mono">${rupiah(r.price)}</td>
       <td class="num mono">${rupiah(r.total)}</td>
-      <td>${esc(r.supplier)}</td>
+      <td>${esc(r.supplier) || '-'}</td>
       <td>${esc(r.byName)}<div style="font-size:11px; color:var(--ink-soft);">${esc(r.byRole)}</div></td>`;
     tbody.appendChild(tr);
   });
