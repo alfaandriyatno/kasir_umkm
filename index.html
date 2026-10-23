@@ -843,6 +843,13 @@
 
         <div id="pb-existing-product-fields">
           <div class="field">
+            <label>Cari lewat Barcode (opsional)</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="pb-find-barcode" placeholder="Scan / ketik barcode lalu Enter" autocomplete="off">
+              <button class="btn outline sm" id="btn-scan-pb-find" type="button">📷</button>
+            </div>
+          </div>
+          <div class="field">
             <label>Produk</label>
             <select id="pb-product"></select>
           </div>
@@ -1531,7 +1538,18 @@
   <div class="modal">
     <button class="modal-close" data-close="modal-scanner">×</button>
     <h2>Scan Barcode</h2>
-    <p style="font-size:12.5px; color:var(--ink-soft);">Isi barcode dengan pencahayaan cukup, jaga jarak ±10-15cm, dan pastikan seluruh garis barcode masuk dalam kotak sampai berhasil terbaca.</p>
+    <p style="font-size:12.5px; color:var(--ink-soft);">Arahkan barcode ke tengah kotak dengan pencahayaan cukup (jarak ±10–20 cm). Di halaman Kasir kamera tetap menyala supaya bisa scan barang berikutnya; tekan Selesai kalau sudah.</p>
+    <div id="native-scan" style="display:none; position:relative; margin-top:10px;">
+      <video id="scan-video" playsinline muted autoplay style="width:100%; max-height:52vh; object-fit:cover; border-radius:10px; background:#000; display:block;"></video>
+      <div style="position:absolute; left:8%; right:8%; top:30%; bottom:30%; border:2px solid rgba(255,255,255,0.85); border-radius:10px; box-shadow:0 0 0 9999px rgba(0,0,0,0.28); pointer-events:none;"></div>
+      <div style="position:absolute; left:8%; right:8%; top:50%; height:2px; background:rgba(230,60,60,0.85); pointer-events:none;"></div>
+    </div>
+    <div id="scan-controls" style="display:none; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">
+      <button class="btn outline sm" type="button" id="btn-scan-torch" style="display:none;">🔦 Senter</button>
+      <label id="scan-zoom-wrap" style="display:none; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); text-transform:none;">Zoom <input type="range" id="scan-zoom" style="width:120px;"></label>
+      <button class="btn amber sm" type="button" id="btn-scan-done" style="margin-left:auto;">Selesai</button>
+    </div>
+    <div id="scan-status" style="font-size:13px; font-weight:600; margin-top:10px; min-height:20px;"></div>
     <div id="scanner-view"></div>
   </div>
 </div>
@@ -3537,90 +3555,254 @@ function scannerBoxSize(viewfinderWidth, viewfinderHeight){
   return { width: w, height: h };
 }
 
-// Scanner kamera. Perbaikan responsivitas:
-// - satu hasil scan hanya diproses SEKALI (sebelumnya kamera masih mengirim frame saat proses berhenti,
-//   sehingga barang bisa tertambah ganda atau kamera "macet");
-// - kamera pasti dimatikan dengan benar (juga saat jendela ditutup dengan klik di luar kotak);
-// - resolusi kamera diminta lebih tinggi supaya barcode kecil/jauh lebih mudah terbaca.
+// ===== Scanner kamera =====
+// Utama: BarcodeDetector bawaan browser (Chrome/Edge Android & desktop) — membaca seluruh frame kamera, jauh lebih cepat
+// dan akurat dibanding pustaka JS. Cadangan: html5-qrcode untuk browser yang belum mendukung (mis. iPhone/Safari, Firefox).
+// Di halaman Kasir kamera TETAP menyala setelah tiap barang terbaca (scan berturut-turut), tekan Selesai untuk menutup.
 let scannerRunning = false;
 let scanHandled = false;
 let scannerStarting = false;
+let nativeStream = null, nativeLoopOn = false, nativeDetector = null;
+let nativeLast = { code:'', count:0, t:0 };
+let lastAccepted = { code:'', t:0 };
+let scanTorchOn = false;
 
-function onScanSuccess(decodedText){
+function scanSetStatus(html, color){
+  const el = document.getElementById('scan-status');
+  if(!el) return;
+  el.innerHTML = html || '';
+  el.style.color = color || '';
+}
+function scanBeep(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    window._scanAudio = window._scanAudio || new AC();
+    const ctx = window._scanAudio;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square'; o.frequency.value = 1100;
+    g.gain.value = 0.06;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.09);
+  }catch(e){}
+}
+// Pilih produk + satuan di form Pembelian berdasarkan barcode
+function pbSelectByBarcode(code){
+  const found = findProductByBarcode((code||'').trim());
+  if(!found){ showToast('Barcode "'+code+'" belum terdaftar. Centang "produk baru" kalau ini barang baru.'); return false; }
+  document.getElementById('pb-is-new-product').checked = false;
+  document.getElementById('pb-existing-product-fields').style.display = '';
+  document.getElementById('pb-new-product-fields').style.display = 'none';
+  document.getElementById('pb-product').value = found.product.id;
+  refreshPurchaseUnitSelect();
+  const uiKey = found.unitType === 'eceran' ? 'eceran' : (EXTRA_UNITS.find(u=>EXTRA_UNIT_DBKEY[u.key]===found.unitType)||{}).key;
+  if(uiKey) document.getElementById('pb-unit').value = uiKey;
+  document.getElementById('pb-find-barcode').value = '';
+  showToast(found.product.name + ' dipilih');
+  const q = document.getElementById('pb-qty'); if(q){ q.focus(); q.select(); }
+  return true;
+}
+// Meneruskan hasil scan ke kolom tujuan. Mengembalikan true kalau kamera boleh tetap menyala (mode berturut-turut).
+function deliverScan(targetId, code){
+  const el = document.getElementById(targetId);
+  if(el) el.value = code;
+  if(targetId === 'barcode-input'){
+    const found = findProductByBarcode(code);
+    handleBarcodeSubmit(code);
+    scanSetStatus(found ? `✓ ${esc(found.product.name)} ditambahkan` : `✕ Barcode ${esc(code)} tidak terdaftar`, found ? 'var(--green)' : 'var(--rust)');
+    return true;
+  }
+  if(targetId === 'pb-find-barcode'){ pbSelectByBarcode(code); return false; }
+  showToast('Barcode terbaca: ' + code);
+  return false;
+}
+function acceptScan(code){
+  const now = Date.now();
+  if(code === lastAccepted.code && now - lastAccepted.t < 1800) { lastAccepted.t = now; return; } // barcode yang sama masih di depan kamera
+  lastAccepted = { code, t: now };
+  scanBeep();
+  if(navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
+  const keepOpen = deliverScan(scanTargetInputId, code);
+  if(!keepOpen){ scanHandled = true; stopScanner(); }
+}
+
+/* --- jalur utama: BarcodeDetector --- */
+function nativeScanSupported(){
+  return ('BarcodeDetector' in window) && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+}
+async function startNativeScanner(){
+  const wanted = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','codabar','itf','qr_code'];
+  let formats = wanted;
+  try{ const sup = await BarcodeDetector.getSupportedFormats(); formats = wanted.filter(f=>sup.includes(f)); }catch(e){}
+  if(!formats.length) throw new Error('format tidak didukung');
+  nativeDetector = new BarcodeDetector({ formats });
+  nativeStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+  });
+  const video = document.getElementById('scan-video');
+  video.srcObject = nativeStream;
+  await video.play();
+  document.getElementById('native-scan').style.display = 'block';
+  document.getElementById('scan-controls').style.display = 'flex';
+
+  const track = nativeStream.getVideoTracks()[0];
+  let caps = {};
+  try{ caps = track.getCapabilities ? track.getCapabilities() : {}; }catch(e){}
+  try{ if(caps.focusMode && caps.focusMode.includes('continuous')) await track.applyConstraints({ advanced:[{ focusMode:'continuous' }] }); }catch(e){}
+  const torchBtn = document.getElementById('btn-scan-torch');
+  torchBtn.style.display = caps.torch ? '' : 'none';
+  scanTorchOn = false;
+  torchBtn.onclick = async ()=>{
+    scanTorchOn = !scanTorchOn;
+    try{ await track.applyConstraints({ advanced:[{ torch: scanTorchOn }] }); }catch(e){ scanTorchOn = false; }
+  };
+  const zoomWrap = document.getElementById('scan-zoom-wrap'), zoomEl = document.getElementById('scan-zoom');
+  if(caps.zoom && caps.zoom.max > caps.zoom.min){
+    zoomWrap.style.display = 'flex';
+    zoomEl.min = caps.zoom.min; zoomEl.max = caps.zoom.max; zoomEl.step = caps.zoom.step || 0.1;
+    zoomEl.value = Math.min(caps.zoom.max, Math.max(caps.zoom.min, 1.5));
+    try{ await track.applyConstraints({ advanced:[{ zoom: Number(zoomEl.value) }] }); }catch(e){}
+    zoomEl.oninput = ()=>{ track.applyConstraints({ advanced:[{ zoom: Number(zoomEl.value) }] }).catch(()=>{}); };
+  } else { zoomWrap.style.display = 'none'; }
+
+  scannerRunning = true;
+  nativeLoopOn = true;
+  nativeLast = { code:'', count:0, t:0 };
+  const loop = async ()=>{
+    if(!nativeLoopOn) return;
+    try{
+      if(video.readyState >= 2){
+        const found = await nativeDetector.detect(video);
+        if(found && found.length && nativeLoopOn){
+          const b = found[0], code = (b.rawValue || '').trim();
+          if(code){
+            const strong = ['ean_13','ean_8','upc_a','upc_e'].includes(b.format); // punya checksum, aman langsung diterima
+            if(strong){ acceptScan(code); }
+            else{
+              const now = Date.now();
+              if(nativeLast.code === code && now - nativeLast.t < 900) nativeLast.count++; else nativeLast.count = 1;
+              nativeLast.code = code; nativeLast.t = now;
+              if(nativeLast.count >= 2) acceptScan(code);
+            }
+          }
+        }
+      }
+    }catch(e){}
+    if(nativeLoopOn) setTimeout(loop, 70);
+  };
+  loop();
+}
+
+/* --- cadangan: html5-qrcode --- */
+function onFallbackScan(decodedText){
   if(scanHandled) return;
   scanHandled = true;
   const targetId = scanTargetInputId;
-  const el = document.getElementById(targetId);
-  if(el) el.value = decodedText;
-  if(navigator.vibrate){ try{ navigator.vibrate(80); }catch(e){} }
-  stopScanner().then(()=>{
-    if(targetId === 'barcode-input'){ handleBarcodeSubmit(decodedText); }
-    else { showToast('Barcode terbaca: ' + decodedText); }
-  });
+  scanBeep();
+  if(navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
+  stopScanner().then(()=>{ deliverScan(targetId, decodedText); });
 }
-function scannerConfig(){
-  return {
-    fps: 12,
-    qrbox: scannerBoxSize,
-    aspectRatio: 1.5,
+function fallbackConfig(withConstraints){
+  const cfg = {
+    fps: 12, qrbox: scannerBoxSize, aspectRatio: 1.5,
     formatsToSupport: SCANNER_FORMATS,
     experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-    videoConstraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
   };
+  if(withConstraints) cfg.videoConstraints = { facingMode:'environment', width:{ ideal:1280 }, height:{ ideal:720 } };
+  return cfg;
 }
-async function startScanner(){
-  if(typeof Html5Qrcode === 'undefined'){
-    showToast('Fitur scan kamera belum siap. Cek koneksi internet, atau masukkan barcode manual.');
-    return;
+async function startFallbackScanner(){
+  document.getElementById('scanner-view').style.display = '';
+  const attempts = [
+    ()=> html5QrCode.start({ facingMode:'environment' }, fallbackConfig(true), onFallbackScan, ()=>{}),
+    ()=> html5QrCode.start({ facingMode:'environment' }, fallbackConfig(false), onFallbackScan, ()=>{}),
+    async ()=>{
+      const cams = await Html5Qrcode.getCameras();
+      if(!cams || !cams.length) throw new Error('Kamera tidak ditemukan');
+      const back = cams.find(c => /back|belakang|rear/i.test(c.label));
+      return html5QrCode.start((back || cams[cams.length-1]).id, fallbackConfig(false), onFallbackScan, ()=>{});
+    },
+  ];
+  let lastErr = null;
+  for(const attempt of attempts){
+    try{
+      html5QrCode = new Html5Qrcode("scanner-view", { formatsToSupport: SCANNER_FORMATS, verbose:false });
+      await attempt();
+      scannerRunning = true;
+      return;
+    }catch(e){
+      lastErr = e;
+      try{ if(html5QrCode) html5QrCode.clear(); }catch(_){}
+      html5QrCode = null;
+    }
   }
+  throw lastErr || new Error('gagal');
+}
+
+async function startScanner(){
   if(scannerStarting) return;
   scannerStarting = true;
   try{
     await stopScanner(); // pastikan sisa sesi sebelumnya benar-benar mati
     scanHandled = false;
+    lastAccepted = { code:'', t:0 };
+    scanSetStatus('');
     openModal('modal-scanner');
-    html5QrCode = new Html5Qrcode("scanner-view", { formatsToSupport: SCANNER_FORMATS, verbose:false });
-    try{
-      await html5QrCode.start({ facingMode: "environment" }, scannerConfig(), onScanSuccess, ()=>{});
-      scannerRunning = true;
-    } catch(e1){
-      // Cadangan 1: tanpa permintaan resolusi khusus. Cadangan 2: pilih kamera dari daftar (laptop/webcam).
+    if(nativeScanSupported()){
       try{
-        try{ await html5QrCode.clear(); }catch(_){}
-        html5QrCode = new Html5Qrcode("scanner-view", { formatsToSupport: SCANNER_FORMATS, verbose:false });
-        const cfg = scannerConfig(); delete cfg.videoConstraints;
-        await html5QrCode.start({ facingMode: "environment" }, cfg, onScanSuccess, ()=>{});
-        scannerRunning = true;
-      } catch(e2){
-        try{
-          const cams = await Html5Qrcode.getCameras();
-          if(!cams || !cams.length){ showToast('Kamera tidak ditemukan'); await stopScanner(); return; }
-          const back = cams.find(c => /back|belakang|rear/i.test(c.label));
-          const cfg = scannerConfig(); delete cfg.videoConstraints;
-          try{ await html5QrCode.clear(); }catch(_){}
-          html5QrCode = new Html5Qrcode("scanner-view", { formatsToSupport: SCANNER_FORMATS, verbose:false });
-          await html5QrCode.start((back || cams[cams.length-1]).id, cfg, onScanSuccess, ()=>{});
-          scannerRunning = true;
-        } catch(e3){
-          showToast('Izin kamera ditolak / kamera tidak tersedia');
-          await stopScanner();
+        scanSetStatus('Membuka kamera…');
+        await startNativeScanner();
+        scanSetStatus(scanTargetInputId === 'barcode-input' ? 'Arahkan ke barcode barang…' : 'Arahkan ke barcode…');
+        return;
+      }catch(e){
+        await stopScanner(true);
+        openModal('modal-scanner');
+        if(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')){
+          showToast('Izin kamera ditolak. Izinkan akses kamera di pengaturan browser lalu coba lagi.');
+          await stopScanner(); return;
         }
+        if(e && e.name === 'NotFoundError'){ showToast('Kamera tidak ditemukan'); await stopScanner(); return; }
+        // kesalahan lain -> coba jalur cadangan
       }
+    }
+    if(typeof Html5Qrcode === 'undefined'){
+      showToast('Fitur scan kamera belum siap. Cek koneksi internet, atau ketik barcode manual.');
+      await stopScanner(); return;
+    }
+    try{
+      scanSetStatus('Membuka kamera…');
+      await startFallbackScanner();
+      scanSetStatus('Arahkan ke barcode…');
+    }catch(e){
+      showToast('Kamera tidak bisa dibuka (izin ditolak / sedang dipakai aplikasi lain).');
+      await stopScanner();
     }
   } finally {
     scannerStarting = false;
   }
 }
-async function stopScanner(){
+async function stopScanner(keepModal){
+  nativeLoopOn = false;
+  if(nativeStream){
+    try{ nativeStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+    nativeStream = null;
+  }
+  const video = document.getElementById('scan-video');
+  if(video){ try{ video.pause(); video.srcObject = null; }catch(e){} }
+  const nat = document.getElementById('native-scan'); if(nat) nat.style.display = 'none';
+  const ctl = document.getElementById('scan-controls'); if(ctl) ctl.style.display = 'none';
   const inst = html5QrCode;
   html5QrCode = null;
   if(inst){
-    try{ if(scannerRunning || (inst.isScanning)) await inst.stop(); }catch(e){}
+    try{ if(scannerRunning || inst.isScanning) await inst.stop(); }catch(e){}
     try{ inst.clear(); }catch(e){}
   }
   scannerRunning = false;
-  closeModal('modal-scanner');
+  if(!keepModal) closeModal('modal-scanner');
 }
+document.getElementById('btn-scan-done').addEventListener('click', ()=>{ stopScanner(); });
+document.getElementById('btn-scan-pb-find').addEventListener('click', ()=>{ scanTargetInputId='pb-find-barcode'; startScanner(); });
+document.getElementById('pb-find-barcode').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); pbSelectByBarcode(e.target.value); } });
 document.getElementById('btn-camera-scan').addEventListener('click', ()=>{ scanTargetInputId='barcode-input'; startScanner(); });
 document.getElementById('btn-scan-in-modal').addEventListener('click', ()=>{ scanTargetInputId='p-barcode'; startScanner(); });
 document.getElementById('btn-scan-karton-modal').addEventListener('click', ()=>{ scanTargetInputId='p-karton-barcode'; startScanner(); });
@@ -4587,7 +4769,12 @@ function refreshPurchaseNewUnitFields(){
 }
 document.getElementById('pb-new-unit').addEventListener('change', refreshPurchaseNewUnitFields);
 
+// ID pembelian dipertahankan selama isian tidak berubah: kalau simpan gagal di tengah jalan (koneksi putus)
+// lalu diulang, server mengenali ID yang sama dan TIDAK menambah stok dua kali.
+let _pendingPurchaseId = null, _pendingPurchaseSig = null;
+let _purchaseSaving = false;
 document.getElementById('btn-save-purchase').addEventListener('click', async ()=>{
+  if(_purchaseSaving) return;
   const isNewProduct = document.getElementById('pb-is-new-product').checked;
   const qty = Number(document.getElementById('pb-qty').value) || 0;
   const price = Number(document.getElementById('pb-price').value) || 0;
@@ -4596,20 +4783,17 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
   const note = document.getElementById('pb-note').value.trim();
 
   if(qty <= 0){ showToast('Jumlah masuk harus lebih dari 0'); return; }
+  if(price < 0 || sellPrice < 0){ showToast('Harga tidak boleh negatif'); return; }
 
-  const btn = document.getElementById('btn-save-purchase');
-  const nowIso = new Date().toISOString();
-  const who = { byName: (SESSION && SESSION.name) ? SESSION.name : '-', byRole: (SESSION && SESSION.role) ? (ROLE_LABELS[SESSION.role] || SESSION.role) : '-' };
-
-  let productToSave, unitLabelText, stockField, buyPriceField, sellPriceField, productName, oldStock, oldBuy, oldSell;
+  let unitKey, unitLabelText, productId = null, newProduct = null;
 
   if(isNewProduct){
     const name = document.getElementById('pb-new-name').value.trim();
     const category = document.getElementById('pb-new-category').value.trim();
     const enteredBarcode = document.getElementById('pb-new-barcode').value.trim();
-    const newUnitKey = document.getElementById('pb-new-unit').value;
-    const isNewUnitEceran = newUnitKey === 'eceran';
-    const newUnitDef = isNewUnitEceran ? null : EXTRA_UNITS.find(u=>u.key===newUnitKey);
+    unitKey = document.getElementById('pb-new-unit').value;
+    const isNewUnitEceran = unitKey === 'eceran';
+    const newUnitDef = isNewUnitEceran ? null : EXTRA_UNITS.find(u=>u.key===unitKey);
     const newUnitIsi = (newUnitDef && newUnitDef.hasIsi) ? (Number(document.getElementById('pb-new-isi').value) || 0) : 0;
 
     if(!name){ showToast('Nama produk baru wajib diisi'); return; }
@@ -4619,9 +4803,7 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
 
     // Barcode eceran (dasar produk) selalu ada & unik, meski pembelian pertama ini bukan satuan eceran.
     const eceranBarcode = isNewUnitEceran ? (enteredBarcode || uid()) : uid();
-    // Barcode satuan yang dipilih (kalau bukan eceran): pakai yang diketik user, atau buat otomatis.
     const selectedUnitBarcode = (!isNewUnitEceran) ? (enteredBarcode || uid()) : '';
-
     const existingBarcodes = DB.products.flatMap(p=>{
       const list = [p.barcode];
       EXTRA_UNITS.forEach(u=>{ const bc = p[EXTRA_UNIT_DBKEY[u.key]+'Barcode']; if(bc) list.push(bc); });
@@ -4631,98 +4813,68 @@ document.getElementById('btn-save-purchase').addEventListener('click', async ()=
       showToast('Barcode tersebut sudah dipakai produk lain'); return;
     }
 
-    productToSave = {
+    // Kerangka produk dengan stok & harga 0: stok dan harga sebenarnya diisi oleh server dari pembelian ini.
+    newProduct = {
       id: uid(), barcode: eceranBarcode, name, category, unit:'pcs',
-      buyPrice: isNewUnitEceran ? price : 0, sellPrice: isNewUnitEceran ? sellPrice : 0, stock: isNewUnitEceran ? qty : 0, minStock: 10,
+      buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10,
       kartonEnabled:false, kartonBarcode:'', kartonIsi:0, kartonBuyPrice:0, kartonSellPrice:0, kartonStock:0,
       rencengEnabled:false, rencengBarcode:'', rencengIsi:0, rencengBuyPrice:0, rencengSellPrice:0, rencengStock:0,
       kiloEnabled:false, kiloBarcode:'', kiloBuyPrice:0, kiloSellPrice:0, kiloStock:0,
       halfKiloEnabled:false, halfKiloBarcode:'', halfKiloBuyPrice:0, halfKiloSellPrice:0, halfKiloStock:0,
       quarterKiloEnabled:false, quarterKiloBarcode:'', quarterKiloBuyPrice:0, quarterKiloSellPrice:0, quarterKiloStock:0,
     };
-
     if(!isNewUnitEceran){
-      const dbKey = EXTRA_UNIT_DBKEY[newUnitKey];
-      productToSave[dbKey+'Enabled'] = true;
-      productToSave[dbKey+'Barcode'] = selectedUnitBarcode;
-      if(newUnitDef.hasIsi) productToSave[dbKey+'Isi'] = newUnitIsi;
-      productToSave[dbKey+'BuyPrice'] = price;
-      productToSave[dbKey+'SellPrice'] = sellPrice;
-      productToSave[dbKey+'Stock'] = qty;
+      const dbKey = EXTRA_UNIT_DBKEY[unitKey];
+      newProduct[dbKey+'Enabled'] = true;
+      newProduct[dbKey+'Barcode'] = selectedUnitBarcode;
+      if(newUnitDef.hasIsi) newProduct[dbKey+'Isi'] = newUnitIsi;
     }
-
     unitLabelText = isNewUnitEceran ? 'Eceran' : newUnitDef.label;
-    stockField = isNewUnitEceran ? 'stock' : EXTRA_UNIT_DBKEY[newUnitKey]+'Stock';
-    buyPriceField = isNewUnitEceran ? 'buyPrice' : EXTRA_UNIT_DBKEY[newUnitKey]+'BuyPrice';
-    sellPriceField = isNewUnitEceran ? 'sellPrice' : EXTRA_UNIT_DBKEY[newUnitKey]+'SellPrice';
-    productName = name; oldStock = 0; oldBuy = 0; oldSell = 0;
+    productId = newProduct.id;
   } else {
-    const productId = document.getElementById('pb-product').value;
-    const unitKey = document.getElementById('pb-unit').value;
+    productId = document.getElementById('pb-product').value;
+    unitKey = document.getElementById('pb-unit').value;
     if(!productId){ showToast('Pilih produk dulu'); return; }
     const p = DB.products.find(p=>p.id===productId);
     if(!p){ showToast('Produk tidak ditemukan'); return; }
-
-    const isEceran = unitKey === 'eceran';
-    unitLabelText = isEceran ? 'Eceran' : (EXTRA_UNITS.find(u=>u.key===unitKey)||{}).label;
-    stockField = isEceran ? 'stock' : EXTRA_UNIT_DBKEY[unitKey]+'Stock';
-    buyPriceField = isEceran ? 'buyPrice' : EXTRA_UNIT_DBKEY[unitKey]+'BuyPrice';
-    sellPriceField = isEceran ? 'sellPrice' : EXTRA_UNIT_DBKEY[unitKey]+'SellPrice';
-    productName = p.name;
-    oldStock = Number(p[stockField])||0;
-    oldBuy = Number(p[buyPriceField])||0;
-    oldSell = Number(p[sellPriceField])||0;
-
-    productToSave = { ...p, [stockField]: oldStock + qty };
-    // Harga otomatis jadi rata-rata tertimbang (bukan cuma diganti) dari stok lama + pembelian ini
-    if(price > 0){
-      productToSave[buyPriceField] = oldStock > 0 ? Math.round(((oldBuy*oldStock)+(price*qty)) / (oldStock+qty)) : price;
-    }
-    if(sellPrice > 0){
-      productToSave[sellPriceField] = oldStock > 0 ? Math.round(((oldSell*oldStock)+(sellPrice*qty)) / (oldStock+qty)) : sellPrice;
-    }
+    unitLabelText = unitKey === 'eceran' ? 'Eceran' : ((EXTRA_UNITS.find(u=>u.key===unitKey)||{}).label || unitKey);
   }
+  const dbUnit = unitKey === 'eceran' ? 'eceran' : EXTRA_UNIT_DBKEY[unitKey];
 
-  const stockLogs = [{
-    id: uid(), date: nowIso, productName, unitLabel: unitLabelText,
-    change: qty, reason: isNewProduct ? ('Produk Baru dari Pembelian' + (supplier ? ': ' + supplier : '')) : (supplier ? 'Pembelian dari Supplier: ' + supplier : 'Pembelian'),
-    ...who,
-  }];
-  const priceLogs = [];
-  const newBuy = productToSave[buyPriceField];
-  const newSell = productToSave[sellPriceField];
-  if(price > 0 && newBuy !== oldBuy){
-    priceLogs.push({ id: uid(), date: nowIso, productName, unitLabel: unitLabelText, field: 'Harga Beli (rata-rata)', oldValue: oldBuy, newValue: newBuy, ...who });
-  }
-  if(sellPrice > 0 && newSell !== oldSell){
-    priceLogs.push({ id: uid(), date: nowIso, productName, unitLabel: unitLabelText, field: 'Harga Jual (rata-rata)', oldValue: oldSell, newValue: newSell, ...who });
-  }
+  const sig = JSON.stringify([isNewProduct, productId, newProduct && newProduct.name, dbUnit, qty, price, sellPrice, supplier, note]);
+  if(!_pendingPurchaseId || _pendingPurchaseSig !== sig){ _pendingPurchaseId = uid(); _pendingPurchaseSig = sig; }
 
+  const btn = document.getElementById('btn-save-purchase');
+  _purchaseSaving = true;
   btn.disabled = true;
-  const { data: newData, error } = await sb.rpc('save_product_rpc', {
-    p_company_id: CURRENT_COMPANY.id,
-    p_product: productToSave,
-    p_stock_logs: stockLogs,
-    p_price_logs: priceLogs,
-  });
-  btn.disabled = false;
-  if(error){ showToast('Gagal menyimpan: ' + error.message); return; }
-
-  CACHE.products = newData.products || [];
-  CACHE.stockLogs = newData.stockLogs || [];
-  CACHE.priceLogs = newData.priceLogs || [];
-
-  const { data: purchaseData, error: purchaseError } = await sb.rpc('append_to_company_array_rpc', {
-    p_company_id: CURRENT_COMPANY.id,
-    p_field: 'purchases',
-    p_item: {
-      id: uid(), date: nowIso, productName, unitLabel: unitLabelText,
-      qty, price: price || oldBuy, total: qty * (price || oldBuy),
-      supplier, note, ...who,
-    },
-  });
-  if(purchaseError){ showToast('Gagal menyimpan riwayat pembelian: ' + purchaseError.message); return; }
-  CACHE.purchases = purchaseData.purchases || [];
+  try{
+    const { data: newData, error } = await sb.rpc('receive_purchase_rpc', {
+      p_company_id: CURRENT_COMPANY.id,
+      p_purchase_id: _pendingPurchaseId,
+      p_product_id: productId,
+      p_unit: dbUnit,
+      p_unit_label: unitLabelText,
+      p_qty: qty,
+      p_buy_price: price,
+      p_sell_price: sellPrice,
+      p_supplier: supplier,
+      p_note: note,
+      p_new_product: newProduct,
+    });
+    if(error){
+      showToast('Gagal menyimpan pembelian: ' + error.message);
+      if(/Muat ulang|tidak ditemukan/i.test(error.message || '')) refreshCompanyData(true);
+      return;
+    }
+    applyCompanyDataToCache(newData, CACHE.storeName);
+    _pendingPurchaseId = null; _pendingPurchaseSig = null;
+  } catch(e){
+    showToast('Gagal menyimpan pembelian (koneksi bermasalah?). Aman untuk menekan Simpan lagi, stok tidak akan tercatat ganda.');
+    return;
+  } finally {
+    _purchaseSaving = false;
+    btn.disabled = false;
+  }
 
   document.getElementById('pb-is-new-product').checked = false;
   document.getElementById('pb-existing-product-fields').style.display = '';
