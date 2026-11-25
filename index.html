@@ -502,6 +502,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.4a2 2 0 0 0 2-1.6L22 6H6"/><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg>
       <span>Pembelian</span>
     </button>
+    <button data-view="produksi">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V10l5 3V10l5 3V6h4v15"/></svg>
+      <span>Produksi &amp; HPP</span>
+    </button>
     <button data-view="pelanggan">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/><circle cx="18" cy="8" r="3"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
       <span>Pelanggan</span>
@@ -513,10 +517,6 @@
     <button data-view="laporan">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9M12 19V5M20 19v-7"/></svg>
       <span>Laporan</span>
-    </button>
-    <button data-view="penyesuaian">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      <span>Penyesuaian</span>
     </button>
     <button data-view="keuangan">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
@@ -1179,90 +1179,30 @@
     </section>
 
     <!-- ============ PENYESUAIAN (khusus SPV) ============ -->
-    <section class="view-section" id="view-penyesuaian">
 
-      <div class="card" style="margin-bottom:20px;">
-        <div class="filter-bar" style="margin-bottom:12px;">
-          <h3 class="display" style="margin:0;">Kelola Akun</h3>
+    <!-- ============ PRODUKSI & HPP ============ -->
+    <section class="view-section" id="view-produksi">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="filter-bar" style="margin-bottom:6px;">
+          <h3 class="display" style="margin:0; flex:1;">Produksi &amp; HPP</h3>
+          <button class="btn amber" id="btn-bt-new">+ Batch Produksi Baru</button>
         </div>
-        <p style="font-size:12.5px; color:var(--ink-soft); margin-top:-6px;">Tambahkan akun/kategori baru selain yang sudah tersedia (misal: "Beban Sewa Toko", "Pendapatan Jasa Antar"). Akun baru otomatis muncul di pilihan Jenis dan di Laporan Laba Rugi/Arus Kas.</p>
-        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
-          <div class="field" style="flex:2; min-width:200px; margin-bottom:0;">
-            <label>Nama Akun Baru</label>
-            <input type="text" id="new-account-name" placeholder="Contoh: Beban Sewa Toko">
-          </div>
-          <div class="field" style="flex:1; min-width:160px; margin-bottom:0;">
-            <label>Kategori</label>
-            <select id="new-account-category">
-              <option value="pendapatan">Pendapatan (+)</option>
-              <option value="beban">Beban (−)</option>
-            </select>
-          </div>
-          <button class="btn amber" id="btn-add-account" style="margin-bottom:14px;">+ Tambah Akun</button>
-        </div>
-        <div id="account-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;"></div>
+        <p class="fin-hint" style="margin:0;">Alur: <strong>1)</strong> catat bahan baku &amp; harga belinya → <strong>2)</strong> setelah selesai diproduksi, isi hasil jadi dan sistem menghitung <strong>HPP per satuan</strong> + menambah stok → <strong>3)</strong> baru tentukan <strong>harga jual</strong>. Produk yang belum diberi harga jual tidak bisa dijual di Kasir.</p>
+        <div id="bt-summary" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
       </div>
-
-      <div class="card" style="margin-bottom:20px;">
-        <h3 class="display" style="margin-top:0;">Tambah Penyesuaian / Beban</h3>
-        <p style="font-size:12.5px; color:var(--ink-soft); margin-top:-6px;">Catat penyesuaian pendapatan/penjualan di luar transaksi kasir (misal koreksi, pendapatan lain), serta beban operasional seperti gaji karyawan dan beban lain-lain. Semua ini akan dipakai untuk menghitung laba bersih dan arus kas.</p>
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <div class="field" style="flex:1; min-width:150px;">
-            <label>Tanggal</label>
-            <input type="date" id="adj-date">
-          </div>
-          <div class="field" style="flex:1; min-width:180px;">
-            <label>Jenis</label>
-            <select id="adj-type"></select>
-          </div>
-        </div>
-        <div class="field">
-          <label>Keterangan</label>
-          <input type="text" id="adj-desc" placeholder="Contoh: Gaji karyawan bulan Agustus, koreksi pendapatan sewa, dsb.">
-        </div>
-        <div class="field">
-          <label>Nominal (Rp)</label>
-          <input type="number" id="adj-amount" min="0" placeholder="0">
-        </div>
-        <button class="btn amber" id="btn-add-adjustment">Simpan Penyesuaian</button>
-      </div>
-
       <div class="filter-bar">
-        <div class="field">
-          <label>Dari Tanggal</label>
-          <input type="date" id="adj-from">
+        <div class="field"><label>Tampilkan</label>
+          <select id="bt-filter"><option value="semua">Semua batch</option><option value="draft">Draft (belum diproduksi)</option><option value="menunggu">Selesai — menunggu harga jual</option><option value="berharga">Selesai — sudah ada harga jual</option></select>
         </div>
-        <div class="field">
-          <label>Sampai Tanggal</label>
-          <input type="date" id="adj-to">
-        </div>
-        <button class="btn outline" id="btn-adj-filter">Terapkan</button>
-        <button class="btn amber" id="btn-export-labarugi-pdf">📄 Export Laba Rugi & Arus Kas (PDF)</button>
+        <div class="field" style="flex:1; min-width:180px;"><label>Cari</label><input type="text" id="bt-search" placeholder="Nama produk..."></div>
       </div>
-
-      <div class="card" style="margin-bottom:20px; overflow-x:auto;">
-        <h3 class="display" style="margin-top:0;">Daftar Penyesuaian &amp; Beban</h3>
-        <table id="adj-table">
-          <thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th class="num">Nominal</th><th></th></tr></thead>
-          <tbody id="adj-tbody"></tbody>
+      <div class="card" style="overflow-x:auto;">
+        <table class="fin-table">
+          <thead><tr><th>Tanggal</th><th>Produk</th><th class="num">Total Biaya</th><th class="num">Hasil</th><th class="num">HPP / satuan</th><th class="num">Harga Jual</th><th>Status</th><th style="min-width:210px;"></th></tr></thead>
+          <tbody id="bt-tbody"></tbody>
         </table>
-        <div id="adj-empty" class="empty-state" style="display:none;">Belum ada penyesuaian/beban pada rentang tanggal ini.</div>
+        <div id="bt-empty" class="empty-state" style="display:none;">Belum ada batch produksi. Klik "+ Batch Produksi Baru".</div>
       </div>
-
-      <div class="card" style="margin-bottom:20px; max-width:520px;">
-        <h3 class="display" style="margin-top:0;">Laporan Laba Rugi</h3>
-        <table id="labarugi-table" style="font-size:13.5px;">
-          <tbody id="labarugi-tbody"></tbody>
-        </table>
-      </div>
-
-      <div class="card" style="max-width:520px;">
-        <h3 class="display" style="margin-top:0;">Laporan Arus Kas</h3>
-        <table id="aruskas-table" style="font-size:13.5px;">
-          <tbody id="aruskas-tbody"></tbody>
-        </table>
-      </div>
-
     </section>
 
     <!-- ============ LAPORAN KEUANGAN ============ -->
@@ -1447,6 +1387,17 @@
           <table class="fin-table" style="margin-top:8px;"><thead><tr><th>Tanggal Tutup</th><th class="num">Laba/(Rugi) Periode</th><th>Dibuat</th><th></th></tr></thead>
           <tbody id="close-tbody"></tbody></table>
           <div id="close-empty" class="empty-state" style="display:none;">Belum pernah tutup buku.</div>
+        </div>
+        <div class="card" style="max-width:760px; margin-top:16px;">
+          <h3 class="display" style="margin-top:0;">Kelola Akun</h3>
+          <p class="fin-hint" style="margin-top:-6px;">Tambah akun pendapatan atau beban sendiri (misal "Beban Sewa Toko", "Pendapatan Jasa Antar"). Akun baru muncul di pilihan akun jurnal manual dan otomatis masuk ke Laba Rugi.</p>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+            <div class="field" style="flex:2; min-width:200px; margin-bottom:0;"><label>Nama Akun Baru</label><input type="text" id="new-account-name" maxlength="80" placeholder="Contoh: Beban Sewa Toko"></div>
+            <div class="field" style="flex:1; min-width:160px; margin-bottom:0;"><label>Kategori</label>
+              <select id="new-account-category"><option value="beban">Beban (−)</option><option value="pendapatan">Pendapatan (+)</option></select></div>
+            <button class="btn amber" id="btn-add-account" style="margin-bottom:0;">+ Tambah Akun</button>
+          </div>
+          <div id="account-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;"></div>
         </div>
       </div>
 
@@ -1850,6 +1801,70 @@
   </div>
 </div>
 
+<div class="modal-bg" id="modal-batch">
+  <div class="modal" style="width:700px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-batch">×</button>
+    <h2 style="font-size:18px;" id="bt-title">Batch Produksi Baru</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:2; min-width:200px;"><label>Nama Produk yang Diproduksi</label><input type="text" id="bt-name" maxlength="120" placeholder="Contoh: Brownies Kukus"></div>
+      <div class="field" style="flex:1; min-width:110px;"><label>Satuan Hasil</label><input type="text" id="bt-unit" maxlength="20" list="hpp-unit-list" placeholder="pcs" value="pcs"></div>
+      <div class="field" style="flex:1; min-width:140px;"><label>Perkiraan Hasil (opsional)</label><input type="number" id="bt-exp" min="0" step="any" placeholder="0"></div>
+    </div>
+    <label style="font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft);">Bahan Baku &amp; Harga Beli</label>
+    <div style="display:grid; grid-template-columns:2fr 0.8fr 0.8fr 1.1fr 1fr 28px; gap:6px; font-size:11px; color:var(--ink-soft); margin:6px 0 4px 0;">
+      <span>Nama bahan</span><span>Jumlah</span><span>Satuan</span><span>Harga beli / satuan</span><span style="text-align:right;">Subtotal</span><span></span>
+    </div>
+    <div id="bt-ing-list"></div>
+    <datalist id="bt-ing-names"></datalist>
+    <button class="btn outline sm" type="button" id="btn-bt-addrow" style="margin:4px 0 12px 0;">+ Tambah Bahan</button>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:170px;"><label>Biaya Tenaga Kerja (Rp, total batch)</label><input type="number" id="bt-labor" min="0" step="any" placeholder="0"></div>
+      <div class="field" style="flex:1; min-width:170px;"><label>Biaya Overhead (gas, listrik, kemasan; Rp)</label><input type="number" id="bt-over" min="0" step="any" placeholder="0"></div>
+    </div>
+    <div class="field"><label>Catatan (opsional)</label><input type="text" id="bt-note" maxlength="500"></div>
+    <div id="bt-calc" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:14px;"></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn amber" id="btn-bt-save">Simpan Draft</button>
+      <button class="btn outline" data-close="modal-batch">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-batch-finish">
+  <div class="modal" style="width:520px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-batch-finish">×</button>
+    <h2 style="font-size:18px;" id="btf-title">Selesaikan Produksi</h2>
+    <input type="hidden" id="btf-id">
+    <div id="btf-info" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:12px;"></div>
+    <div class="field"><label>Hasil Jadi Sebenarnya</label><input type="number" id="btf-qty" min="0.01" step="any"></div>
+    <div class="field"><label>Masukkan hasil ke</label><select id="btf-target"></select></div>
+    <div class="field" id="btf-unit-box"><label>Satuan produk baru</label><input type="text" id="btf-unit" maxlength="20" list="hpp-unit-list"></div>
+    <div id="btf-preview" style="font-size:13px; margin-bottom:14px;"></div>
+    <p class="fin-hint" style="margin-top:0;">Setelah diselesaikan, batch tidak bisa diubah. Stok bertambah sebesar hasil jadi dan <strong>harga jual belum ditetapkan</strong> — atur setelah ini lewat tombol "Tetapkan Harga Jual".</p>
+    <div style="display:flex; gap:8px;">
+      <button class="btn amber" id="btn-btf-save">Selesaikan Produksi</button>
+      <button class="btn outline" data-close="modal-batch-finish">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-batch-price">
+  <div class="modal" style="width:480px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-batch-price">×</button>
+    <h2 style="font-size:18px;" id="btp-title">Tetapkan Harga Jual</h2>
+    <input type="hidden" id="btp-id">
+    <div id="btp-info" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:12px;"></div>
+    <label style="font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft);">Saran harga dari target margin</label>
+    <div id="btp-suggest" style="display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 12px 0;"></div>
+    <div class="field"><label>Harga Jual per Satuan (Rp)</label><input type="number" id="btp-price" min="0" step="any"></div>
+    <div id="btp-calc" style="font-size:13px; margin-bottom:14px;"></div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn amber" id="btn-btp-save">Simpan Harga Jual</button>
+      <button class="btn outline" data-close="modal-batch-price">Batal</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-hpp">
   <div class="modal" style="width:640px; max-width:96vw;">
     <button class="modal-close" data-close="modal-hpp">×</button>
@@ -2044,7 +2059,7 @@ let SESSION = null;         // { role, name, email } peran user di perusahaan ak
 /* ================= STORAGE (tersinkron ke Supabase per perusahaan) ================= */
 const CACHE = {
   products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [], customers: [], purchases: [], voidLogs: [],
-  receivables: [], pointRedemptions: [], shifts: [], returnLogs: [], settingsLogs: [], productionLogs: [], finEntries: [], payables: [], periodCloses: [],
+  receivables: [], pointRedemptions: [], shifts: [], returnLogs: [], settingsLogs: [], productionLogs: [], finEntries: [], payables: [], periodCloses: [], hppBatches: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
   loyaltyConfig: {redeemValue:100}, monthlyTarget: {},
   discountLimitPercent: 100, marginTargetPercent: 20, lastBackupAt: null,
@@ -2063,7 +2078,7 @@ async function saveCompanyData(){
     adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
     customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
     receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
-    returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses,
+    returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches,
     storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
     loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
     discountLimitPercent: CACHE.discountLimitPercent, marginTargetPercent: CACHE.marginTargetPercent, lastBackupAt: CACHE.lastBackupAt,
@@ -2098,6 +2113,7 @@ function applyCompanyDataToCache(d, fallbackName){
   CACHE.finEntries = d.finEntries || [];
   CACHE.payables = d.payables || [];
   CACHE.periodCloses = d.periodCloses || [];
+  CACHE.hppBatches = d.hppBatches || [];
   CACHE.marginTargetPercent = (d.marginTargetPercent === undefined || d.marginTargetPercent === null) ? 20 : d.marginTargetPercent;
   CACHE.storeName = d.storeName || fallbackName || CACHE.storeName;
   CACHE.storeAddress = d.storeAddress || '';
@@ -2134,6 +2150,7 @@ const DB = {
   get finEntries(){ return CACHE.finEntries; },
   get payables(){ return CACHE.payables; },
   get periodCloses(){ return CACHE.periodCloses; },
+  get hppBatches(){ return CACHE.hppBatches; },
   get marginTargetPercent(){ return (CACHE.marginTargetPercent === undefined || CACHE.marginTargetPercent === null) ? 20 : CACHE.marginTargetPercent; },
   get loyaltyConfig(){ return CACHE.loyaltyConfig; },
   get monthlyTarget(){ return CACHE.monthlyTarget; },
@@ -2656,14 +2673,14 @@ function renderExpiryWarnings(){
 }
 
 /* ================= ROLE & LOGIN ================= */
-const titles = {dashboard:'Dashboard', kasir:'Kasir', produk:'Produk & Stok', pembelian:'Pembelian', pelanggan:'Pelanggan', pemasok:'Pemasok', laporan:'Laporan', penyesuaian:'Penyesuaian', keuangan:'Laporan Keuangan', pengaturan:'Pengaturan'};
+const titles = {dashboard:'Dashboard', kasir:'Kasir', produk:'Produk & Stok', pembelian:'Pembelian', produksi:'Produksi & HPP', pelanggan:'Pelanggan', pemasok:'Pemasok', laporan:'Laporan', keuangan:'Laporan Keuangan', pengaturan:'Pengaturan'};
 const ROLE_LABELS = {owner:'Owner', admin:'Admin', user:'User', gudang:'Gudang', spv:'SPV'};
 const ROLE_PERMISSIONS = {
-  owner:  ['dashboard','kasir','produk','pembelian','pelanggan','pemasok','laporan','penyesuaian','keuangan','pengaturan'],
+  owner:  ['dashboard','kasir','produk','pembelian','produksi','pelanggan','pemasok','laporan','keuangan','pengaturan'],
   admin:  ['kasir'],
   user:   ['kasir','laporan','pelanggan'],
-  gudang: ['produk','pembelian','pemasok'],
-  spv:    ['dashboard','kasir','produk','pembelian','pelanggan','pemasok','laporan','penyesuaian','keuangan','pengaturan'],
+  gudang: ['produk','pembelian','produksi','pemasok'],
+  spv:    ['dashboard','kasir','produk','pembelian','produksi','pelanggan','pemasok','laporan','keuangan','pengaturan'],
 };
 
 function applyRolePermissions(role){
@@ -2692,8 +2709,8 @@ function switchView(v){
   if(v==='pelanggan'){ renderCustomers(); renderReceivables(); }
   if(v==='pemasok') renderSuppliers();
   if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderReturnLog(); renderProfitReport(); refreshProfilKaryawanSelect(); renderProfilKaryawan(); }
-  if(v==='penyesuaian') renderAdjustments();
   if(v==='keuangan') renderKeuangan();
+  if(v==='produksi') renderProduksi();
   if(v==='pengaturan'){ renderServerBackups(); renderSettingsLog(); }
 }
 
@@ -3386,6 +3403,7 @@ async function enterCompany(id, name, role, memberName){
     CACHE.finEntries = [];
     CACHE.payables = [];
     CACHE.periodCloses = [];
+    CACHE.hppBatches = [];
     CACHE.storeName = name;
     CACHE.storeAddress = '';
     CACHE.ppnConfig = {enabled:false, percent:11};
@@ -3410,7 +3428,7 @@ async function enterCompany(id, name, role, memberName){
   const allowedViews = ROLE_PERMISSIONS[SESSION.role] || ['dashboard'];
   refreshStoreName();
   refreshPaperSizeUI();
-  refreshAccountUI();
+ 
   renderCart();
   renderProducts();
   renderStockLog();
@@ -3666,7 +3684,7 @@ document.getElementById('btn-backup-data').addEventListener('click', async ()=>{
       customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
       customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
       receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
-      returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses,
+      returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches,
       storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
       loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
       discountLimitPercent: CACHE.discountLimitPercent, marginTargetPercent: CACHE.marginTargetPercent, lastBackupAt: CACHE.lastBackupAt,
@@ -3715,8 +3733,8 @@ function rerenderActiveView(){
   else if(v==='pelanggan'){ renderCustomers(); renderReceivables(); }
   else if(v==='pemasok'){ renderSuppliers(); }
   else if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderReturnLog(); renderProfitReport(); renderProfilKaryawan(); }
-  else if(v==='penyesuaian'){ renderAdjustments(); }
   else if(v==='keuangan'){ renderKeuangan(); }
+  else if(v==='produksi'){ renderProduksi(); }
   else if(v==='pengaturan'){ renderServerBackups(); renderSettingsLog(); }
 }
 async function refreshCompanyData(force){
@@ -3732,7 +3750,7 @@ async function refreshCompanyData(force){
     const before = settingsSnapshot();
     applyCompanyDataToCache(data.data, CACHE.storeName);
     if(settingsSnapshot() !== before){
-      refreshStoreName(); refreshPaperSizeUI(); refreshAccountUI(); refreshLoyaltySettingsUI(); refreshDiscountLimitUI();
+      refreshStoreName(); refreshPaperSizeUI(); refreshLoyaltySettingsUI(); refreshDiscountLimitUI();
     }
       // sesuaikan keranjang yang sedang dibuka dengan stok terbaru
     cart = cart.filter(it=>{
@@ -3771,7 +3789,7 @@ async function restoreFromPayload(payload){
   applyCompanyDataToCache(newData, CACHE.storeName);
 
   showToast('Data berhasil dipulihkan dari backup');
-  refreshStoreName(); refreshPaperSizeUI(); refreshAccountUI(); refreshLoyaltySettingsUI(); refreshDiscountLimitUI(); refreshBackupReminder();
+  refreshStoreName(); refreshPaperSizeUI(); refreshLoyaltySettingsUI(); refreshDiscountLimitUI(); refreshBackupReminder();
   renderProducts(); renderStockLog(); renderPriceLog(); renderReport(); renderRiwayat();
   renderVoidLog(); renderPurchases(); renderCustomers(); renderSuppliers(); renderDashboard();
   renderReceivables(); renderServerBackups();
@@ -4728,7 +4746,7 @@ function renderProducts(){
         const photoImg = p.photo
           ? `<img src="${p.photo}" alt="" style="width:34px; height:34px; object-fit:cover; border-radius:6px; margin-right:8px; vertical-align:middle;">`
           : `<span style="display:inline-flex; width:34px; height:34px; border-radius:6px; background:var(--paper-alt); align-items:center; justify-content:center; margin-right:8px; vertical-align:middle; font-size:15px;">🖼️</span>`;
-        cells += `<td rowspan="${rows.length}">${photoImg}${esc(p.name)}${p.productType === 'produksi' ? ' <span class="badge ok">Produksi</span>' : ''}</td>`;
+        cells += `<td rowspan="${rows.length}">${photoImg}${esc(p.name)}${p.productType === 'produksi' ? ' <span class="badge ok">Produksi</span>' : ''}${p.productType === 'produksi' && !(Number(p.sellPrice) > 0) ? ' <span class="badge low">Belum ada harga jual</span>' : ''}</td>`;
         cells += `<td rowspan="${rows.length}">${esc(p.category)}</td>`;
       }
       cells += `<td>${r.label}</td>`;
@@ -5880,6 +5898,7 @@ function handleBarcodeSubmit(code){
   const found = findProductByBarcode(code);
   if(!found){ showToast('Barang dengan barcode "'+code+'" tidak ditemukan'); document.getElementById('barcode-input').value=''; updateBarcodePreview(); return; }
   const {product, unitType} = found;
+  if(product.productType === 'produksi' && !(Number(unitPrice(product,unitType,'sellPrice')) > 0)){ showToast('"'+product.name+'" belum diberi harga jual (atur di menu Produksi & HPP)'); document.getElementById('barcode-input').value=''; updateBarcodePreview(); return; }
   const cartKey = product.id + '-' + unitType;
   const avail = availableUnits(product, unitType);
   if(avail <= 0){ showToast('Stok "'+product.name+'" ('+unitLabel(product,unitType)+') habis'); document.getElementById('barcode-input').value=''; updateBarcodePreview(); return; }
@@ -7354,50 +7373,9 @@ document.getElementById('btn-export-pdf').addEventListener('click', ()=>{
   showToast('PDF berhasil dibuat');
 });
 
-/* ================= PENYESUAIAN, LABA RUGI & ARUS KAS ================= */
-// Akun bawaan (tidak bisa dihapus) + akun custom yang ditambahkan pengguna
-const BUILTIN_ACCOUNTS = [
-  { key:'pendapatan', name:'Pendapatan Lain-lain', category:'pendapatan', builtin:true },
-  { key:'penjualan',  name:'Penyesuaian Penjualan', category:'pendapatan', builtin:true },
-  { key:'gaji',       name:'Beban Gaji',            category:'beban',     builtin:true },
-  { key:'lain',       name:'Beban Lain-lain',       category:'beban',     builtin:true },
-];
-function getAllAccounts(){
-  return [...BUILTIN_ACCOUNTS, ...DB.customAccounts];
-}
-function getAccount(key){
-  return getAllAccounts().find(a=>a.key===key);
-}
-function isAccountExpense(key){
-  const acc = getAccount(key);
-  return acc ? acc.category === 'beban' : false;
-}
-function accountLabel(key){
-  const acc = getAccount(key);
-  return acc ? acc.name : key;
-}
-
-function refreshAccountUI(){
-  // isi ulang dropdown Jenis di form penyesuaian
-  const select = document.getElementById('adj-type');
-  const prevValue = select.value;
-  select.innerHTML = getAllAccounts().map(a=>
-    `<option value="${a.key}">${esc(a.name)} (${a.category==='beban' ? '−' : '+'})</option>`
-  ).join('');
-  if(getAllAccounts().some(a=>a.key===prevValue)) select.value = prevValue;
-
-  // tampilkan daftar akun sebagai chip, custom bisa dihapus
-  const listEl = document.getElementById('account-list');
-  listEl.innerHTML = getAllAccounts().map(a=>{
-    const color = a.category==='beban' ? 'var(--rust)' : 'var(--green)';
-    const bg = a.category==='beban' ? 'var(--rust-bg)' : 'var(--green-bg)';
-    const removeBtn = a.builtin ? '' : `<button onclick="deleteCustomAccount('${a.key}')" style="background:none; border:none; cursor:pointer; color:${color}; font-weight:700; margin-left:6px; line-height:1;">×</button>`;
-    return `<span style="display:inline-flex; align-items:center; background:${bg}; color:${color}; font-size:12px; font-weight:600; padding:5px 10px; border-radius:20px;">${esc(a.name)}${a.builtin ? ' <span style="opacity:0.6; font-weight:400;">(bawaan)</span>' : ''}${removeBtn}</span>`;
-  }).join('');
-}
-
-// Simpan array penuh (customAccounts/adjustments) lewat RPC terkunci (row-lock),
-// supaya tidak saling timpa kalau ada device lain menyimpan pada saat bersamaan.
+/* ================= UTIL SIMPAN ARRAY (akun custom, jurnal, utang, penutupan) ================= */
+// Simpan array penuh lewat RPC terkunci (row-lock), supaya tidak saling timpa kalau ada device
+// lain menyimpan pada saat bersamaan.
 async function saveCompanyArrayField(field, value){
   const { data, error } = await sb.rpc('replace_company_array_rpc', {
     p_company_id: CURRENT_COMPANY.id,
@@ -7408,267 +7386,6 @@ async function saveCompanyArrayField(field, value){
   CACHE[field] = data[field] || [];
   return true;
 }
-
-document.getElementById('btn-add-account').addEventListener('click', async ()=>{
-  const name = document.getElementById('new-account-name').value.trim();
-  const category = document.getElementById('new-account-category').value;
-  if(!name){ showToast('Nama akun wajib diisi'); return; }
-  const key = 'custom-' + uid();
-  const exists = getAllAccounts().some(a=>a.name.toLowerCase() === name.toLowerCase());
-  if(exists){ showToast('Akun dengan nama itu sudah ada'); return; }
-
-  const list = [...DB.customAccounts, { key, name, category, builtin:false }];
-  const ok = await saveCompanyArrayField('customAccounts', list);
-  if(!ok) return;
-
-  document.getElementById('new-account-name').value = '';
-  refreshAccountUI();
-  renderAdjustments();
-  showToast('Akun baru ditambahkan');
-});
-
-function deleteCustomAccount(key){
-  const usedCount = DB.adjustments.filter(a=>a.type===key).length;
-  const msg = usedCount > 0
-    ? `Akun ini sudah dipakai di ${usedCount} catatan penyesuaian. Menghapus akun TIDAK menghapus catatannya, tapi labelnya akan hilang dari laporan. Lanjutkan?`
-    : `Hapus akun <strong>${esc(accountLabel(key))}</strong>?`;
-  showConfirm(msg, async ()=>{
-    const ok = await saveCompanyArrayField('customAccounts', DB.customAccounts.filter(a=>a.key!==key));
-    if(!ok) return;
-    refreshAccountUI();
-    renderAdjustments();
-    showToast('Akun dihapus');
-  });
-}
-
-document.getElementById('adj-date').value = todayStr();
-document.getElementById('adj-from').value = todayStr();
-document.getElementById('adj-to').value = todayStr();
-refreshAccountUI();
-
-document.getElementById('btn-add-adjustment').addEventListener('click', async ()=>{
-  const date = document.getElementById('adj-date').value;
-  const type = document.getElementById('adj-type').value;
-  const desc = document.getElementById('adj-desc').value.trim();
-  const amount = Number(document.getElementById('adj-amount').value) || 0;
-  if(!date){ showToast('Tanggal wajib diisi'); return; }
-  if(!desc){ showToast('Keterangan wajib diisi'); return; }
-  if(amount <= 0){ showToast('Nominal harus lebih dari 0'); return; }
-  if(date <= finLockedDate()){ showToast('Tanggal sudah masuk periode yang ditutup (' + finLockedDate() + ')'); return; }
-
-  const list = [...DB.adjustments, { id: uid(), date, type, desc, amount }];
-  const ok = await saveCompanyArrayField('adjustments', list);
-  if(!ok) return;
-
-  document.getElementById('adj-desc').value = '';
-  document.getElementById('adj-amount').value = '';
-  showToast('Penyesuaian disimpan');
-  renderAdjustments();
-});
-
-function deleteAdjustment(id){
-  const item = DB.adjustments.find(a=>a.id===id);
-  if(!item) return;
-  if(item.date <= finLockedDate()){ showToast('Periode sudah ditutup — batalkan tutup buku dulu'); return; }
-  showConfirm(`Hapus catatan <strong>${esc(accountLabel(item.type))}</strong>: "${esc(item.desc)}" (${rupiah(item.amount)})?`, async ()=>{
-    const ok = await saveCompanyArrayField('adjustments', DB.adjustments.filter(a=>a.id!==id));
-    if(!ok) return;
-    showToast('Penyesuaian dihapus');
-    renderAdjustments();
-  });
-}
-
-document.getElementById('btn-adj-filter').addEventListener('click', renderAdjustments);
-
-function getFilteredAdjustments(){
-  const from = document.getElementById('adj-from').value;
-  const to = document.getElementById('adj-to').value;
-  return DB.adjustments.filter(a=> (!from || a.date>=from) && (!to || a.date<=to) );
-}
-function getFilteredTrxForAdjustment(){
-  const from = document.getElementById('adj-from').value;
-  const to = document.getElementById('adj-to').value;
-  return DB.transactions.filter(t=>{
-    const d = localDateFromIso(t.date);
-    return (!from || d>=from) && (!to || d<=to);
-  });
-}
-
-function renderAdjustments(){
-  const list = getFilteredAdjustments().sort((a,b)=> b.date.localeCompare(a.date));
-  const tbody = document.getElementById('adj-tbody');
-  tbody.innerHTML = '';
-  document.getElementById('adj-empty').style.display = list.length ? 'none' : 'block';
-  list.forEach(a=>{
-    const isExpense = isAccountExpense(a.type);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${new Date(a.date).toLocaleDateString('id-ID')}</td>
-      <td>${esc(accountLabel(a.type))}</td>
-      <td>${esc(a.desc)}</td>
-      <td class="num mono" style="color:${isExpense?'var(--rust)':'var(--green)'};">${isExpense?'−':'+'}${rupiah(a.amount)}</td>
-      <td><button class="btn danger sm" onclick="deleteAdjustment('${a.id}')">Hapus</button></td>`;
-    tbody.appendChild(tr);
-  });
-
-  renderLabaRugi();
-  renderArusKas();
-}
-
-// Hitung total per-akun (bawaan + custom) dari data penyesuaian yang sudah difilter tanggal
-function sumPerAccount(adjs){
-  const perAccount = {}; // key -> total
-  getAllAccounts().forEach(a=>{ perAccount[a.key] = 0; }); // pastikan semua akun tampil walau nilainya 0
-  adjs.forEach(a=>{ perAccount[a.type] = (perAccount[a.type]||0) + a.amount; });
-  return perAccount;
-}
-
-function calcLabaRugi(){
-  const trxs = getFilteredTrxForAdjustment();
-  const adjs = getFilteredAdjustments();
-  const perAccount = sumPerAccount(adjs);
-
-  const penjualanBersih = trxs.reduce((s,t)=> s + (t.total - (t.ppnAmount||0)), 0);
-  const hpp = trxs.reduce((s,t)=>s+t.totalModal,0);
-  const labaKotor = penjualanBersih - hpp;
-
-  const pendapatanRows = getAllAccounts().filter(a=>a.category==='pendapatan').map(a=>({ key:a.key, name:a.name, amount: perAccount[a.key]||0 }));
-  const bebanRows = getAllAccounts().filter(a=>a.category==='beban').map(a=>({ key:a.key, name:a.name, amount: perAccount[a.key]||0 }));
-
-  const totalPendapatanLain = pendapatanRows.reduce((s,r)=>s+r.amount,0);
-  const totalBeban = bebanRows.reduce((s,r)=>s+r.amount,0);
-  const labaBersih = labaKotor + totalPendapatanLain - totalBeban;
-
-  return { penjualanBersih, hpp, labaKotor, pendapatanRows, bebanRows, totalPendapatanLain, totalBeban, labaBersih };
-}
-
-function renderLabaRugi(){
-  const r = calcLabaRugi();
-  const tbody = document.getElementById('labarugi-tbody');
-  const row = (label, value, opts={}) => `
-    <tr>
-      <td style="padding:6px 4px; ${opts.bold?'font-weight:700;':''} ${opts.indent?'padding-left:18px; color:var(--ink-soft);':''}">${label}</td>
-      <td class="num mono" style="padding:6px 4px; ${opts.bold?'font-weight:700;':''}${opts.color?`color:${opts.color};`:''}">${opts.noSign ? rupiah(value) : (value<0?'−':'') + rupiah(Math.abs(value))}</td>
-    </tr>`;
-  const pendapatanRowsHtml = r.pendapatanRows.map(x=> row(x.name, x.amount, {indent:true})).join('');
-  const bebanRowsHtml = r.bebanRows.map(x=> row(x.name, -x.amount, {indent:true})).join('');
-  tbody.innerHTML = `
-    ${row('Penjualan Bersih (di luar PPN)', r.penjualanBersih)}
-    ${row('Harga Pokok Penjualan (HPP)', -r.hpp)}
-    ${row('Laba Kotor', r.labaKotor, {bold:true})}
-    <tr><td colspan="2" style="padding:4px;"></td></tr>
-    ${pendapatanRowsHtml}
-    ${bebanRowsHtml}
-    <tr><td colspan="2" style="padding:4px;"></td></tr>
-    ${row('Laba Bersih', r.labaBersih, {bold:true, color: r.labaBersih>=0 ? 'var(--green)' : 'var(--rust)'})}
-  `;
-}
-
-function calcArusKas(){
-  const trxs = getFilteredTrxForAdjustment();
-  const adjs = getFilteredAdjustments();
-  const perAccount = sumPerAccount(adjs);
-
-  const kasDariPenjualan = trxs.reduce((s,t)=>s+t.total,0); // termasuk PPN karena itu uang yg benar2 diterima kasir
-  const masukRows = getAllAccounts().filter(a=>a.category==='pendapatan').map(a=>({ key:a.key, name:a.name, amount: perAccount[a.key]||0 }));
-  const keluarRows = getAllAccounts().filter(a=>a.category==='beban').map(a=>({ key:a.key, name:a.name, amount: perAccount[a.key]||0 }));
-
-  const totalMasukLain = masukRows.reduce((s,r)=>s+r.amount,0);
-  const kasMasuk = kasDariPenjualan + totalMasukLain;
-  const kasKeluar = keluarRows.reduce((s,r)=>s+r.amount,0);
-  const kasBersih = kasMasuk - kasKeluar;
-
-  return { kasDariPenjualan, masukRows, totalMasukLain, kasMasuk, keluarRows, kasKeluar, kasBersih };
-}
-
-function renderArusKas(){
-  const r = calcArusKas();
-  const tbody = document.getElementById('aruskas-tbody');
-  const row = (label, value, opts={}) => `
-    <tr>
-      <td style="padding:6px 4px; ${opts.bold?'font-weight:700;':''} ${opts.indent?'padding-left:18px; color:var(--ink-soft);':''}">${label}</td>
-      <td class="num mono" style="padding:6px 4px; ${opts.bold?'font-weight:700;':''}${opts.color?`color:${opts.color};`:''}">${opts.noSign ? rupiah(value) : (value<0?'−':'') + rupiah(Math.abs(value))}</td>
-    </tr>`;
-  const masukRowsHtml = r.masukRows.map(x=> row(x.name, x.amount, {indent:true, noSign:true})).join('');
-  const keluarRowsHtml = r.keluarRows.map(x=> row(x.name, x.amount, {indent:true, noSign:true})).join('');
-  tbody.innerHTML = `
-    <tr><td colspan="2" style="padding:4px 4px; font-weight:700; color:var(--ink-soft); font-size:11px; text-transform:uppercase;">Kas Masuk</td></tr>
-    ${row('Penjualan Kasir (termasuk PPN diterima)', r.kasDariPenjualan, {indent:true, noSign:true})}
-    ${masukRowsHtml}
-    ${row('Total Kas Masuk', r.kasMasuk, {bold:true, noSign:true})}
-    <tr><td colspan="2" style="padding:8px 4px 4px 4px; font-weight:700; color:var(--ink-soft); font-size:11px; text-transform:uppercase;">Kas Keluar</td></tr>
-    ${keluarRowsHtml}
-    ${row('Total Kas Keluar', -r.kasKeluar, {bold:true})}
-    <tr><td colspan="2" style="padding:4px;"></td></tr>
-    ${row('Arus Kas Bersih', r.kasBersih, {bold:true, color: r.kasBersih>=0 ? 'var(--green)' : 'var(--rust)'})}
-  `;
-}
-
-document.getElementById('btn-export-labarugi-pdf').addEventListener('click', ()=>{
-  if(typeof window.jspdf === 'undefined'){
-    showToast('Fitur PDF belum siap. Cek koneksi internet lalu coba lagi.');
-    return;
-  }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const from = document.getElementById('adj-from').value;
-  const to = document.getElementById('adj-to').value;
-  const lr = calcLabaRugi();
-  const ak = calcArusKas();
-
-  doc.setFont('helvetica','bold'); doc.setFontSize(16);
-  doc.text(DB.storeName, 14, 18);
-  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(100);
-  doc.text('Laporan Laba Rugi & Arus Kas', 14, 24);
-  doc.text(`Periode: ${from || '-'} s/d ${to || '-'}`, 14, 29);
-  doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 34);
-
-  const lrBody = [
-    ['Penjualan Bersih (di luar PPN)', rupiah(lr.penjualanBersih)],
-    ['Harga Pokok Penjualan (HPP)', '-' + rupiah(lr.hpp)],
-    ['Laba Kotor', rupiah(lr.labaKotor)],
-    ...lr.pendapatanRows.map(x=>[x.name, '+' + rupiah(x.amount)]),
-    ...lr.bebanRows.map(x=>[x.name, '-' + rupiah(x.amount)]),
-    ['Laba Bersih', rupiah(lr.labaBersih)],
-  ];
-  const boldRowIdx = [2, lrBody.length-1];
-
-  doc.setTextColor(0); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text('Laporan Laba Rugi', 14, 44);
-  doc.autoTable({
-    startY: 47, theme:'grid', styles:{fontSize:9},
-    head: [['Komponen','Nominal']],
-    body: lrBody,
-    headStyles:{fillColor:[20,33,61]},
-    didParseCell: (data)=>{ if(boldRowIdx.includes(data.row.index)){ data.cell.styles.fontStyle='bold'; } }
-  });
-
-  let nextY = doc.lastAutoTable.finalY + 10;
-  const akBody = [
-    ['Kas Masuk - Penjualan Kasir', rupiah(ak.kasDariPenjualan)],
-    ...ak.masukRows.map(x=>[`Kas Masuk - ${x.name}`, rupiah(x.amount)]),
-    ['Total Kas Masuk', rupiah(ak.kasMasuk)],
-    ...ak.keluarRows.map(x=>[`Kas Keluar - ${x.name}`, '-' + rupiah(x.amount)]),
-    ['Total Kas Keluar', '-' + rupiah(ak.kasKeluar)],
-    ['Arus Kas Bersih', rupiah(ak.kasBersih)],
-  ];
-  const totalMasukIdx = 1 + ak.masukRows.length;
-  const akBoldIdx = [totalMasukIdx, akBody.length-2, akBody.length-1];
-
-  doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text('Laporan Arus Kas', 14, nextY);
-  doc.autoTable({
-    startY: nextY + 3, theme:'grid', styles:{fontSize:9},
-    head: [['Komponen','Nominal']],
-    body: akBody,
-    headStyles:{fillColor:[20,33,61]},
-    didParseCell: (data)=>{ if(akBoldIdx.includes(data.row.index)){ data.cell.styles.fontStyle='bold'; } }
-  });
-
-  doc.save(`laba-rugi-arus-kas-${from}_${to}.pdf`);
-  showToast('PDF berhasil dibuat');
-});
-
 
 /* ================= LAPORAN KEUANGAN (pembukuan double-entry) =================
    Jurnal kas/piutang/utang dihasilkan OTOMATIS dari data kasir, pelunasan piutang, retur,
@@ -7823,14 +7540,14 @@ function finBuildBase(){
     });
   });
 
-  // 6) Catatan Penyesuaian / Beban (halaman Penyesuaian) -> jurnal kas
+  // 6) Catatan Penyesuaian/Beban LAMA (menu Penyesuaian sudah dihapus; data lama tetap dibukukan sebagai jurnal kas)
   (DB.adjustments||[]).forEach(a=>{
     const acc = finAdjAcc(a.type);
     const amt = Number(a.amount)||0;
     const isExp = finAcc(acc).type === 'beban';
     E.push(finMk('adj-'+a.id, a.date, finNoonTs(a.date), 'kas',
       (a.desc || 'Penyesuaian'),
-      isExp ? [ {a:acc, d:amt}, {a:'1-1100', c:amt} ] : [ {a:'1-1100', d:amt}, {a:acc, c:amt} ]));
+      isExp ? [ {a:acc, d:amt}, {a:'1-1100', c:amt} ] : [ {a:'1-1100', d:amt}, {a:acc, c:amt} ], { adjId:a.id }));
   });
 
   // 7) Jurnal manual (penyesuaian, kas umum, saldo awal)
@@ -8177,10 +7894,10 @@ function renderKeuangan(){
     document.getElementById('fin-cf-period').textContent = DB.storeName + ' — ' + per + ' (metode langsung)';
     document.getElementById('fin-cf-tbody').innerHTML = finStmtRows(finRowsCF(finCalcArusKas(entries, from, to)));
   } else if(tab === 'utang') finRenderPayables();
-  else if(tab === 'tutup') finRenderTutup(entries);
+  else if(tab === 'tutup'){ finRenderTutup(entries); finRenderAccounts(); }
 }
 
-const FIN_TYPE_LABEL = { penjualan:'Penjualan', retur:'Retur', piutang:'Piutang', pembelian:'Pembelian', utang:'Utang', kas:'Kas', penyesuaian:'Penyesuaian', penutup:'Penutup', saldo_awal:'Saldo Awal' };
+const FIN_TYPE_LABEL = { penjualan:'Penjualan', retur:'Retur', piutang:'Piutang', pembelian:'Pembelian', utang:'Utang', kas:'Kas', penutup:'Penutup', saldo_awal:'Saldo Awal' };
 function finEntryMatches(e, f){
   if(f === 'semua') return true;
   if(f === 'kas') return e.lines.some(l=> FIN_CASH.includes(l.a));
@@ -8206,7 +7923,7 @@ function finRenderJurnal(entries, from, to){
         <td style="${l.c>0?'padding-left:28px;':''}">${first ? `<div class="fin-desc"><span class="fin-type t-${e.type}">${esc(FIN_TYPE_LABEL[e.type]||e.type)}</span> ${esc(e.desc)}</div>` : ''}${esc(finAccLabel(l.a))}</td>
         <td class="num mono">${l.d>0 ? finMoney(l.d) : ''}</td>
         <td class="num mono">${l.c>0 ? finMoney(l.c) : ''}</td>
-        <td>${first && e.manual && e.type !== 'saldo_awal' && e.date > locked ? `<button class="btn danger sm" onclick="finDeleteManual('${esc(e.mid)}')">Hapus</button>` : ''}</td></tr>`;
+        <td>${first && e.manual && e.type !== 'saldo_awal' && e.date > locked ? `<button class="btn danger sm" onclick="finDeleteManual('${esc(e.mid)}')">Hapus</button>` : ''}${first && e.adjId && e.date > locked ? `<button class="btn danger sm" onclick="finDeleteLegacyAdj('${esc(e.adjId)}')">Hapus</button>` : ''}</td></tr>`;
     });
   });
   document.getElementById('fin-jurnal-tbody').innerHTML = tbl;
@@ -8565,6 +8282,49 @@ function finUndoClose(id){
   });
 }
 
+/* ---------- Kelola akun custom & hapus catatan penyesuaian lama ---------- */
+function finRenderAccounts(){
+  const el = document.getElementById('account-list'); if(!el) return;
+  el.innerHTML = FIN_LIST.map(a=>{
+    const exp = a.type === 'beban', rev = a.type === 'pendapatan';
+    if(!exp && !rev) return '';
+    const custom = !!(DB.customAccounts||[]).find(c=>c.key===a.id);
+    const color = exp ? 'var(--rust)' : 'var(--green)', bg = exp ? 'var(--rust-bg)' : 'var(--green-bg)';
+    return `<span style="display:inline-flex; align-items:center; background:${bg}; color:${color}; font-size:12px; font-weight:600; padding:5px 10px; border-radius:20px;">${esc(a.code)} ${esc(a.name)}${custom ? `<button onclick="finDeleteAccount('${esc(a.id)}')" title="Hapus akun" style="background:none; border:none; cursor:pointer; color:${color}; font-weight:700; margin-left:6px; line-height:1;">×</button>` : ''}</span>`;
+  }).join('');
+}
+async function finAddAccount(){
+  const name = document.getElementById('new-account-name').value.trim();
+  const category = document.getElementById('new-account-category').value;
+  if(!name){ showToast('Nama akun wajib diisi'); return; }
+  finRefreshMap();
+  if(FIN_LIST.some(a=> a.name.toLowerCase() === name.toLowerCase())){ showToast('Akun dengan nama itu sudah ada'); return; }
+  const ok = await saveCompanyArrayField('customAccounts', [...DB.customAccounts, { key:'custom-' + uid(), name, category, builtin:false }]);
+  if(!ok) return;
+  document.getElementById('new-account-name').value = '';
+  showToast('Akun baru ditambahkan'); renderKeuangan();
+}
+function finDeleteAccount(key){
+  const used = (DB.adjustments||[]).some(a=>a.type===key)
+    || (DB.finEntries||[]).some(f=> (f.lines||[]).some(l=>l.a===key))
+    || (DB.payables||[]).some(p=> p.debitAcc===key || p.liabAcc===key);
+  if(used){ showToast('Akun ini sudah dipakai di jurnal, tidak bisa dihapus'); return; }
+  finRefreshMap();
+  showConfirm(`Hapus akun <strong>${esc(finAcc(key).name)}</strong>?`, async ()=>{
+    const ok = await saveCompanyArrayField('customAccounts', DB.customAccounts.filter(a=>a.key!==key));
+    if(ok){ showToast('Akun dihapus'); renderKeuangan(); }
+  });
+}
+function finDeleteLegacyAdj(id){
+  const a = (DB.adjustments||[]).find(x=>x.id===id); if(!a) return;
+  if(a.date <= finLockedDate()){ showToast('Periode sudah ditutup — batalkan tutup buku dulu'); return; }
+  showConfirm(`Hapus catatan lama <strong>${esc(a.desc||'')}</strong> (${rupiah(a.amount)}, ${esc(a.date)})?`, async ()=>{
+    const ok = await saveCompanyArrayField('adjustments', DB.adjustments.filter(x=>x.id!==id));
+    if(ok){ showToast('Catatan dihapus'); renderKeuangan(); }
+  });
+}
+document.getElementById('btn-add-account').addEventListener('click', finAddAccount);
+
 /* ---------- Event tab/filter ---------- */
 document.getElementById('fin-tabs').addEventListener('click', e=>{
   const b = e.target.closest('button[data-tab]'); if(!b) return;
@@ -8634,6 +8394,312 @@ document.getElementById('btn-fin-pdf').addEventListener('click', ()=>{
   doc.save(`laporan-keuangan-${S.from}_${S.to}.pdf`);
   showToast('PDF berhasil dibuat');
 });
+
+
+/* ================= PRODUKSI & HPP (batch) =================
+   Alur: Draft (bahan baku + harga beli) -> Selesaikan (hasil jadi => HPP/satuan + stok) -> Tetapkan harga jual.
+   Semua angka resmi dihitung server (save_hpp_batch_rpc / finish_hpp_batch_rpc / set_batch_price_rpc). */
+const BT = { editId:null, expanded:new Set(), saving:false };
+function btCanManage(){ return !!(SESSION && ['owner','spv','gudang'].includes(SESSION.role)); }
+function btCanPrice(){ return !!(SESSION && ['owner','spv'].includes(SESSION.role)); }
+function btProduct(b){ return b.productId ? DB.products.find(p=>p.id===b.productId) : null; }
+function btSell(b){ const p = btProduct(b); return p ? (Number(p.sellPrice)||0) : (Number(b.sellPrice)||0); }
+function btState(b){
+  if(b.status !== 'selesai') return 'draft';
+  return btSell(b) > 0 ? 'berharga' : 'menunggu';
+}
+const BT_STATE_LABEL = { draft:'Draft', menunggu:'Menunggu harga jual', berharga:'Siap dijual' };
+const btMoney = n => rupiah(Math.round(Number(n)||0));
+function btRound(n){ return Math.round((Number(n)||0)*100)/100; }
+
+function renderProduksi(){
+  const el = document.getElementById('view-produksi'); if(!el) return;
+  const all = [...(DB.hppBatches||[])];
+  const cnt = { draft:0, menunggu:0, berharga:0 };
+  all.forEach(b=> cnt[btState(b)]++);
+  document.getElementById('bt-summary').innerHTML =
+    `<span class="fin-badge">${cnt.draft} draft</span>` +
+    `<span class="fin-badge ${cnt.menunggu ? 'bad' : ''}">${cnt.menunggu} menunggu harga jual</span>` +
+    `<span class="fin-badge ok">${cnt.berharga} siap dijual</span>`;
+  const f = document.getElementById('bt-filter').value;
+  const q = (document.getElementById('bt-search').value || '').toLowerCase().trim();
+  const list = all.filter(b=> (f === 'semua' || btState(b) === f) && (!q || String(b.name||'').toLowerCase().includes(q)))
+    .sort((a,b)=> new Date(b.date) - new Date(a.date));
+  document.getElementById('bt-empty').style.display = list.length ? 'none' : 'block';
+  const canM = btCanManage(), canP = btCanPrice();
+  document.getElementById('btn-bt-new').style.display = canM ? '' : 'none';
+  let html = '';
+  list.forEach(b=>{
+    const st = btState(b), done = b.status === 'selesai';
+    const sell = btSell(b);
+    const open = BT.expanded.has(b.id);
+    const badgeStyle = st === 'berharga' ? 'background:var(--green-bg);color:var(--green);' : st === 'menunggu' ? 'background:#FFF1D6;color:#9A6410;' : 'background:var(--paper-alt);color:var(--ink-soft);';
+    let actions = `<button class="btn outline sm" onclick="btToggle('${esc(b.id)}')">${open ? 'Tutup' : 'Rincian'}</button> `;
+    if(!done && canM) actions += `<button class="btn amber sm" onclick="btOpenFinish('${esc(b.id)}')">Selesaikan</button> <button class="btn outline sm" onclick="btOpenEdit('${esc(b.id)}')">Edit</button> <button class="btn danger sm" onclick="btDelete('${esc(b.id)}')">Hapus</button>`;
+    if(done && canP) actions += `<button class="btn ${st === 'menunggu' ? 'amber' : 'outline'} sm" onclick="btOpenPrice('${esc(b.id)}')">${st === 'menunggu' ? 'Tetapkan Harga Jual' : 'Ubah Harga'}</button>`;
+    html += `<tr class="fin-first"><td>${esc(localDateFromIso(b.date))}</td>
+      <td><strong>${esc(b.name)}</strong><div class="fin-hint" style="margin:0;">${(b.ingredients||[]).length} bahan${b.byName ? ' · ' + esc(b.byName) : ''}</div></td>
+      <td class="num mono">${btMoney(b.totalCost)}</td>
+      <td class="num mono">${done ? btRound(b.qtyProduced) + ' ' + esc(b.unit||'') : (Number(b.expectedYield) > 0 ? '~' + btRound(b.expectedYield) + ' ' + esc(b.unit||'') : '-')}</td>
+      <td class="num mono">${done ? btMoney(b.hppPerUnit) : (Number(b.expectedYield) > 0 ? '~' + btMoney(b.totalCost / b.expectedYield) : '-')}</td>
+      <td class="num mono">${done ? (sell > 0 ? btMoney(sell) : '<span style="color:var(--rust);">belum diisi</span>') : '-'}</td>
+      <td><span class="fin-type" style="${badgeStyle}">${BT_STATE_LABEL[st]}</span></td>
+      <td>${actions}</td></tr>`;
+    if(open){
+      const rows = (b.ingredients||[]).map(i=>`<tr><td>${esc(i.name)}</td><td class="num mono">${btRound(i.qty)} ${esc(i.unit||'')}</td><td class="num mono">${btMoney(i.price)}</td><td class="num mono">${btMoney((Number(i.qty)||0)*(Number(i.price)||0))}</td></tr>`).join('');
+      const bahan = (b.ingredients||[]).reduce((s,i)=> s + (Number(i.qty)||0)*(Number(i.price)||0), 0);
+      html += `<tr><td></td><td colspan="7"><table class="fin-table" style="max-width:640px;"><thead><tr><th>Bahan</th><th class="num">Jumlah</th><th class="num">Harga beli</th><th class="num">Subtotal</th></tr></thead><tbody>${rows}
+        <tr><td colspan="3">Total bahan baku</td><td class="num mono">${btMoney(bahan)}</td></tr>
+        <tr><td colspan="3">Tenaga kerja</td><td class="num mono">${btMoney(b.laborCost)}</td></tr>
+        <tr><td colspan="3">Overhead</td><td class="num mono">${btMoney(b.overheadCost)}</td></tr>
+        <tr class="fin-total"><td colspan="3">Total biaya produksi</td><td class="num mono">${btMoney(b.totalCost)}</td></tr></tbody></table>
+        ${b.note ? `<div class="fin-hint">Catatan: ${esc(b.note)}</div>` : ''}
+        ${done ? `<div class="fin-hint">Selesai ${esc(localDateFromIso(b.finishedAt))}${b.finishedBy ? ' oleh ' + esc(b.finishedBy) : ''}${b.pricedAt ? ' · harga jual ditetapkan ' + esc(localDateFromIso(b.pricedAt)) + (b.pricedBy ? ' oleh ' + esc(b.pricedBy) : '') : ''}</div>` : ''}</td></tr>`;
+    }
+  });
+  document.getElementById('bt-tbody').innerHTML = html;
+}
+function btToggle(id){ if(BT.expanded.has(id)) BT.expanded.delete(id); else BT.expanded.add(id); renderProduksi(); }
+
+/* ---- Form batch (draft) ---- */
+function btKnownIngredients(){
+  const map = {};
+  [...(DB.hppBatches||[])].sort((a,b)=> new Date(a.date) - new Date(b.date)).forEach(b=> (b.ingredients||[]).forEach(i=>{ if(i.name) map[i.name.toLowerCase()] = i; }));
+  return map;
+}
+function btAddRow(d){
+  d = d || {};
+  const row = document.createElement('div');
+  row.className = 'bt-row';
+  row.style.cssText = 'display:grid; grid-template-columns:2fr 0.8fr 0.8fr 1.1fr 1fr 28px; gap:6px; margin-bottom:6px; align-items:center;';
+  row.innerHTML = `<input type="text" class="bt-i-name" maxlength="120" list="bt-ing-names" placeholder="Mis. Tepung terigu">
+    <input type="number" class="bt-i-qty" min="0" step="any" placeholder="0">
+    <input type="text" class="bt-i-unit" maxlength="20" list="hpp-unit-list" placeholder="kg">
+    <input type="number" class="bt-i-price" min="0" step="any" placeholder="0">
+    <div class="mono bt-i-sub" style="text-align:right; font-size:12.5px;">Rp 0</div>
+    <button type="button" class="btn danger sm bt-i-del" style="padding:2px 6px;" title="Hapus bahan">×</button>`;
+  row.querySelector('.bt-i-name').value = d.name || '';
+  row.querySelector('.bt-i-qty').value = d.qty != null ? d.qty : '';
+  row.querySelector('.bt-i-unit').value = d.unit || '';
+  row.querySelector('.bt-i-price').value = d.price != null ? d.price : '';
+  row.querySelector('.bt-i-del').addEventListener('click', ()=>{ row.remove(); btRecalc(); });
+  row.querySelectorAll('input').forEach(i=> i.addEventListener('input', btRecalc));
+  row.querySelector('.bt-i-name').addEventListener('change', e=>{
+    const k = btKnownIngredients()[String(e.target.value).trim().toLowerCase()];
+    if(!k) return;
+    const u = row.querySelector('.bt-i-unit'), p = row.querySelector('.bt-i-price');
+    if(!u.value) u.value = k.unit || '';
+    if(!p.value) p.value = k.price != null ? k.price : '';
+    btRecalc();
+  });
+  document.getElementById('bt-ing-list').appendChild(row);
+}
+function btCollect(){
+  const ingredients = [...document.querySelectorAll('#bt-ing-list .bt-row')].map(r=>({
+    name: r.querySelector('.bt-i-name').value.trim(),
+    qty: Number(r.querySelector('.bt-i-qty').value) || 0,
+    unit: r.querySelector('.bt-i-unit').value.trim(),
+    price: Number(r.querySelector('.bt-i-price').value) || 0,
+  }));
+  return {
+    id: BT.editId,
+    name: document.getElementById('bt-name').value.trim(),
+    unit: document.getElementById('bt-unit').value.trim() || 'pcs',
+    expectedYield: Number(document.getElementById('bt-exp').value) || 0,
+    laborCost: Number(document.getElementById('bt-labor').value) || 0,
+    overheadCost: Number(document.getElementById('bt-over').value) || 0,
+    note: document.getElementById('bt-note').value.trim(),
+    ingredients,
+  };
+}
+function btRecalc(){
+  const b = btCollect();
+  let bahan = 0;
+  document.querySelectorAll('#bt-ing-list .bt-row').forEach((r,i)=>{
+    const s = b.ingredients[i].qty * b.ingredients[i].price; bahan += s;
+    r.querySelector('.bt-i-sub').textContent = btMoney(s);
+  });
+  const total = bahan + b.laborCost + b.overheadCost;
+  document.getElementById('bt-calc').innerHTML =
+    `Total bahan baku: <strong class="mono">${btMoney(bahan)}</strong> · Tenaga kerja + overhead: <strong class="mono">${btMoney(b.laborCost + b.overheadCost)}</strong><br>
+     Total biaya produksi: <strong class="mono">${btMoney(total)}</strong>` +
+    (b.expectedYield > 0 ? `<br>Perkiraan HPP: <strong class="mono">${btMoney(total / b.expectedYield)}</strong> per ${esc(b.unit)} (dari perkiraan hasil ${btRound(b.expectedYield)})` : `<br><span style="color:var(--ink-soft);">HPP per satuan dihitung otomatis saat produksi diselesaikan (isi hasil jadi).</span>`);
+}
+function btOpenEdit(id){
+  if(!btCanManage()){ showToast('Hanya Owner/SPV/Gudang yang bisa mengatur produksi'); return; }
+  const b = id ? DB.hppBatches.find(x=>x.id===id) : null;
+  if(id && (!b || b.status === 'selesai')){ showToast('Batch ini sudah selesai dan tidak bisa diubah'); return; }
+  BT.editId = b ? b.id : uid();
+  document.getElementById('bt-title').textContent = b ? 'Edit Batch: ' + b.name : 'Batch Produksi Baru';
+  document.getElementById('bt-name').value = b ? b.name : '';
+  document.getElementById('bt-unit').value = b ? (b.unit || 'pcs') : 'pcs';
+  document.getElementById('bt-exp').value = b && b.expectedYield ? b.expectedYield : '';
+  document.getElementById('bt-labor').value = b && b.laborCost ? b.laborCost : '';
+  document.getElementById('bt-over').value = b && b.overheadCost ? b.overheadCost : '';
+  document.getElementById('bt-note').value = b ? (b.note || '') : '';
+  document.getElementById('bt-ing-list').innerHTML = '';
+  (b && b.ingredients.length ? b.ingredients : [{}]).forEach(btAddRow);
+  document.getElementById('bt-ing-names').innerHTML = Object.values(btKnownIngredients()).map(i=>`<option value="${esc(i.name)}">`).join('');
+  btRecalc();
+  openModal('modal-batch');
+}
+async function btSave(){
+  if(BT.saving) return;
+  const b = btCollect();
+  if(!b.name){ showToast('Nama produk wajib diisi'); return; }
+  if(!b.ingredients.length){ showToast('Tambahkan minimal satu bahan baku'); return; }
+  const bad = b.ingredients.find(i=> !i.name || !(i.qty > 0));
+  if(bad){ showToast('Setiap bahan harus punya nama dan jumlah lebih dari 0 (hapus baris yang tidak dipakai)'); return; }
+  const btn = document.getElementById('btn-bt-save');
+  BT.saving = true; btn.disabled = true;
+  try{
+    const { data, error } = await sb.rpc('save_hpp_batch_rpc', { p_company_id: CURRENT_COMPANY.id, p_batch: b });
+    if(error){ showToast('Gagal menyimpan batch: ' + error.message); return; }
+    applyCompanyDataToCache(data, CACHE.storeName);
+    closeModal('modal-batch'); renderProduksi();
+    showToast('Draft batch tersimpan');
+  } catch(e){ showToast('Gagal menyimpan batch (koneksi bermasalah?)'); }
+  finally { BT.saving = false; btn.disabled = false; }
+}
+function btDelete(id){
+  const b = DB.hppBatches.find(x=>x.id===id); if(!b) return;
+  showConfirm(`Hapus draft batch <strong>${esc(b.name)}</strong>?`, async ()=>{
+    const { data, error } = await sb.rpc('delete_hpp_batch_rpc', { p_company_id: CURRENT_COMPANY.id, p_batch_id: id });
+    if(error){ showToast('Gagal menghapus: ' + error.message); return; }
+    applyCompanyDataToCache(data, CACHE.storeName); renderProduksi(); showToast('Draft dihapus');
+  });
+}
+
+/* ---- Selesaikan produksi ---- */
+function btFinishPlan(){
+  const b = DB.hppBatches.find(x=>x.id===document.getElementById('btf-id').value); if(!b) return null;
+  const qty = Number(document.getElementById('btf-qty').value) || 0;
+  const target = document.getElementById('btf-target').value;
+  const total = Number(b.totalCost) || 0;
+  const hpp = qty > 0 ? Math.round(total / qty) : 0;
+  const tp = target ? DB.products.find(p=>p.id===target) : null;
+  let avg = hpp;
+  if(tp){
+    const os = Math.max(Number(tp.stock)||0, 0), ob = Number(tp.buyPrice)||0;
+    avg = os > 0 ? Math.round((os*ob + qty*hpp) / (os + qty)) : hpp;
+  }
+  return { b, qty, total, hpp, tp, avg };
+}
+function btFinishPreview(){
+  const pl = btFinishPlan(); if(!pl) return;
+  document.getElementById('btf-unit-box').style.display = pl.tp ? 'none' : '';
+  const el = document.getElementById('btf-preview');
+  if(!(pl.qty > 0)){ el.innerHTML = '<span style="color:var(--ink-soft);">Isi hasil jadi untuk melihat HPP.</span>'; return; }
+  el.innerHTML = `HPP batch ini: <strong class="mono">${btMoney(pl.hpp)}</strong> per satuan` +
+    (pl.tp ? `<br>HPP stok setelah digabung (rata-rata): <strong class="mono">${btMoney(pl.avg)}</strong> · stok jadi ${btRound((Number(pl.tp.stock)||0) + pl.qty)}${(Number(pl.tp.sellPrice)||0) > 0 ? `<br>Harga jual produk ini tetap ${btMoney(pl.tp.sellPrice)} (bisa diubah setelahnya).` : ''}` : `<br>Produk baru <strong>${esc(pl.b.name)}</strong> dibuat dengan stok ${btRound(pl.qty)}, <strong>tanpa harga jual</strong> dulu.`);
+}
+function btOpenFinish(id){
+  if(!btCanManage()){ showToast('Hanya Owner/SPV/Gudang yang bisa menyelesaikan produksi'); return; }
+  const b = DB.hppBatches.find(x=>x.id===id); if(!b || b.status === 'selesai') return;
+  document.getElementById('btf-id').value = id;
+  document.getElementById('btf-title').textContent = 'Selesaikan: ' + b.name;
+  document.getElementById('btf-info').innerHTML = `Total biaya produksi: <strong class="mono">${btMoney(b.totalCost)}</strong> (${(b.ingredients||[]).length} bahan baku${(Number(b.laborCost)||Number(b.overheadCost)) ? ' + tenaga kerja/overhead' : ''})`;
+  document.getElementById('btf-qty').value = b.expectedYield || '';
+  document.getElementById('btf-unit').value = b.unit || 'pcs';
+  const same = DB.products.find(p=> String(p.name||'').trim().toLowerCase() === String(b.name).trim().toLowerCase());
+  document.getElementById('btf-target').innerHTML = `<option value="">Produk baru: ${esc(b.name)}</option>` +
+    DB.products.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (stok ${btRound(p.stock)} ${esc(p.unit||'pcs')}, HPP ${btMoney(p.buyPrice)})</option>`).join('');
+  document.getElementById('btf-target').value = same ? same.id : '';
+  btFinishPreview();
+  openModal('modal-batch-finish');
+}
+async function btFinishSave(){
+  if(BT.saving) return;
+  const pl = btFinishPlan(); if(!pl) return;
+  if(!(pl.qty > 0)){ showToast('Isi hasil jadi lebih dari 0'); return; }
+  if(!(pl.total > 0)){ showToast('Total biaya 0 — edit batch dan isi harga beli bahan'); return; }
+  const btn = document.getElementById('btn-btf-save');
+  BT.saving = true; btn.disabled = true;
+  try{
+    const { data, error } = await sb.rpc('finish_hpp_batch_rpc', {
+      p_company_id: CURRENT_COMPANY.id, p_batch_id: pl.b.id, p_qty: pl.qty,
+      p_target_product_id: pl.tp ? pl.tp.id : null, p_unit: pl.tp ? null : (document.getElementById('btf-unit').value.trim() || null),
+    });
+    if(error){ showToast('Gagal menyelesaikan produksi: ' + error.message); return; }
+    applyCompanyDataToCache(data, CACHE.storeName);
+    closeModal('modal-batch-finish'); renderProduksi();
+    try{ renderProducts(); renderStockLog(); renderPriceLog(); }catch(e){}
+    showToast('Produksi selesai. HPP ' + btMoney(pl.hpp) + '/satuan — sekarang tetapkan harga jual');
+  } catch(e){ showToast('Gagal menyelesaikan produksi (koneksi bermasalah? cek dulu lalu muat ulang)'); }
+  finally { BT.saving = false; btn.disabled = false; }
+}
+
+/* ---- Harga jual ---- */
+function btPriceCalc(){
+  const b = DB.hppBatches.find(x=>x.id===document.getElementById('btp-id').value); if(!b) return;
+  const p = btProduct(b);
+  const hpp = Number(b.hppPerUnit) || 0;
+  const price = Number(document.getElementById('btp-price').value) || 0;
+  const el = document.getElementById('btp-calc');
+  if(!(price > 0)){ el.innerHTML = '<span style="color:var(--ink-soft);">Isi harga jual.</span>'; return; }
+  const profit = price - hpp;
+  const margin = price > 0 ? profit / price * 100 : 0;
+  const markup = hpp > 0 ? profit / hpp * 100 : 0;
+  const stockHpp = p ? Number(p.buyPrice) || 0 : hpp;
+  el.innerHTML = `Laba per satuan: <strong class="mono" style="color:${profit >= 0 ? 'var(--green)' : 'var(--rust)'};">${profit < 0 ? '−' : ''}${btMoney(Math.abs(profit))}</strong> · Margin <strong>${btRound(margin)}%</strong> · Markup ${btRound(markup)}%` +
+    (profit < 0 ? '<br><span style="color:var(--rust); font-weight:600;">⚠ Harga jual di bawah HPP (rugi).</span>' : '') +
+    (p && Math.abs(stockHpp - hpp) >= 1 ? `<br><span style="color:var(--ink-soft);">HPP rata-rata stok produk ini ${btMoney(stockHpp)} (laba kasir dihitung dari angka ini).</span>` : '');
+}
+function btOpenPrice(id){
+  if(!btCanPrice()){ showToast('Hanya Owner/SPV yang bisa menetapkan harga jual'); return; }
+  const b = DB.hppBatches.find(x=>x.id===id); if(!b || b.status !== 'selesai') return;
+  if(!btProduct(b)){ showToast('Produk hasil batch ini sudah dihapus dari stok'); return; }
+  const hpp = Number(b.hppPerUnit) || 0;
+  document.getElementById('btp-id').value = id;
+  document.getElementById('btp-title').textContent = 'Harga Jual: ' + b.name;
+  document.getElementById('btp-info').innerHTML = `HPP per ${esc(b.unit||'satuan')}: <strong class="mono">${btMoney(hpp)}</strong> · Hasil ${btRound(b.qtyProduced)} ${esc(b.unit||'')} · Total biaya ${btMoney(b.totalCost)}`;
+  const cur = btSell(b);
+  document.getElementById('btp-price').value = cur > 0 ? cur : '';
+  const target = Number(DB.marginTargetPercent) || 20;
+  const ms = [...new Set([target, 20, 30, 40, 50])].sort((a,b)=>a-b).filter(m=> m > 0 && m < 95);
+  document.getElementById('btp-suggest').innerHTML = ms.map(m=>{
+    const raw = hpp / (1 - m/100);
+    const pr = Math.round(raw/100)*100 || Math.round(raw);
+    return `<button type="button" class="btn outline sm" data-price="${pr}">Margin ${m}%${m === target ? ' (target)' : ''} → ${btMoney(pr)}</button>`;
+  }).join('');
+  document.querySelectorAll('#btp-suggest button').forEach(bn=> bn.addEventListener('click', ()=>{ document.getElementById('btp-price').value = bn.dataset.price; btPriceCalc(); }));
+  btPriceCalc();
+  openModal('modal-batch-price');
+}
+async function btPriceSave(){
+  if(BT.saving) return;
+  const id = document.getElementById('btp-id').value;
+  const b = DB.hppBatches.find(x=>x.id===id); if(!b) return;
+  const price = Number(document.getElementById('btp-price').value) || 0;
+  if(!(price > 0)){ showToast('Harga jual harus lebih dari 0'); return; }
+  const doSave = async ()=>{
+    const btn = document.getElementById('btn-btp-save');
+    BT.saving = true; btn.disabled = true;
+    try{
+      const { data, error } = await sb.rpc('set_batch_price_rpc', { p_company_id: CURRENT_COMPANY.id, p_batch_id: id, p_sell_price: price });
+      if(error){ showToast('Gagal menyimpan harga jual: ' + error.message); return; }
+      applyCompanyDataToCache(data, CACHE.storeName);
+      closeModal('modal-batch-price'); renderProduksi();
+      try{ renderProducts(); renderPriceLog(); renderMarginAlerts(); }catch(e){}
+      showToast('Harga jual ' + btMoney(price) + ' tersimpan — produk siap dijual di Kasir');
+    } catch(e){ showToast('Gagal menyimpan harga jual (koneksi bermasalah?)'); }
+    finally { BT.saving = false; btn.disabled = false; }
+  };
+  if(price < (Number(b.hppPerUnit)||0)){
+    showConfirm(`Harga jual ${btMoney(price)} <strong>di bawah HPP</strong> ${btMoney(b.hppPerUnit)} (rugi per satuan). Tetap simpan?`, doSave);
+  } else await doSave();
+}
+
+document.getElementById('btn-bt-new').addEventListener('click', ()=> btOpenEdit(null));
+document.getElementById('btn-bt-addrow').addEventListener('click', ()=> btAddRow({}));
+['bt-name','bt-unit','bt-exp','bt-labor','bt-over'].forEach(i=> document.getElementById(i).addEventListener('input', btRecalc));
+document.getElementById('btn-bt-save').addEventListener('click', btSave);
+document.getElementById('btn-btf-save').addEventListener('click', btFinishSave);
+document.getElementById('btn-btp-save').addEventListener('click', btPriceSave);
+['btf-qty','btf-target'].forEach(i=> { document.getElementById(i).addEventListener('input', btFinishPreview); document.getElementById(i).addEventListener('change', btFinishPreview); });
+document.getElementById('btp-price').addEventListener('input', btPriceCalc);
+document.getElementById('bt-filter').addEventListener('change', renderProduksi);
+document.getElementById('bt-search').addEventListener('input', renderProduksi);
 
 
 /* ================= INIT ================= */
