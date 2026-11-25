@@ -295,6 +295,30 @@
     .kasir-layout{grid-template-columns:1fr;}
     .stat-row{grid-template-columns:1fr;}
   }
+
+  /* ---------- Laporan Keuangan ---------- */
+  .fin-tabs, .fin-subtabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
+  .fin-tabs button, .fin-subtabs button{background:var(--card); border:1px solid var(--line); color:var(--ink-soft); padding:8px 13px; border-radius:20px; font:600 12.5px 'Inter',sans-serif; cursor:pointer;}
+  .fin-tabs button.active, .fin-subtabs button.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .fin-panel{display:none;} .fin-panel.active{display:block;}
+  .fin-status{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
+  .fin-badge{font-size:12px; font-weight:600; padding:5px 11px; border-radius:20px; background:var(--paper-alt); color:var(--ink-soft);}
+  .fin-badge.ok{background:var(--green-bg); color:var(--green);} .fin-badge.bad{background:var(--rust-bg); color:var(--rust);}
+  .fin-hint{font-size:12.5px; color:var(--ink-soft); margin:4px 0 12px 0;}
+  .fin-table{width:100%; border-collapse:collapse; font-size:13px;}
+  .fin-table th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); padding:8px 6px; border-bottom:1.5px solid var(--line);}
+  .fin-table th.num, .fin-table td.num{text-align:right;}
+  .fin-table td{padding:6px; vertical-align:top;}
+  .fin-table tr.fin-first td{border-top:1px solid var(--line);}
+  .fin-table tr.fin-total td{font-weight:700; background:var(--paper-alt);}
+  .fin-desc{font-weight:600; margin-bottom:2px;}
+  .fin-head{padding:8px 4px 2px 4px; font-weight:700; color:var(--ink-soft); font-size:11px; text-transform:uppercase; letter-spacing:.04em;}
+  .fin-report{max-width:620px;} .fin-period{font-size:12.5px; color:var(--ink-soft); margin:-6px 0 10px 0;}
+  .fin-type{font-size:10px; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:10px; background:var(--paper-alt); color:var(--ink-soft); margin-right:4px;}
+  .fin-type.t-penutup{background:#E8E0F5; color:#5B3E96;} .fin-type.t-penyesuaian{background:#FFF1D6; color:#9A6410;}
+  .fin-type.t-penjualan, .fin-type.t-piutang{background:var(--green-bg); color:var(--green);} .fin-type.t-pembelian, .fin-type.t-utang{background:var(--rust-bg); color:var(--rust);}
+  .fj-line{display:grid; grid-template-columns:minmax(180px,3fr) 1fr 1fr auto; gap:8px; margin-bottom:8px;}
+  @media (max-width:640px){ .fj-line{grid-template-columns:1fr 1fr; } .fj-line select{grid-column:1 / -1;} }
 </style>
 <style id="print-page-style"></style>
 </head>
@@ -493,6 +517,10 @@
     <button data-view="penyesuaian">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       <span>Penyesuaian</span>
+    </button>
+    <button data-view="keuangan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+      <span>Laporan Keuangan</span>
     </button>
     <button data-view="pengaturan">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg>
@@ -1237,6 +1265,193 @@
 
     </section>
 
+    <!-- ============ LAPORAN KEUANGAN ============ -->
+    <section class="view-section" id="view-keuangan">
+
+      <div class="filter-bar">
+        <div class="field">
+          <label>Dari Tanggal</label>
+          <input type="date" id="fin-from">
+        </div>
+        <div class="field">
+          <label>Sampai Tanggal</label>
+          <input type="date" id="fin-to">
+        </div>
+        <button class="btn outline" id="btn-fin-apply">Terapkan</button>
+        <button class="btn amber" id="btn-fin-pdf">📄 Export Laporan Keuangan (PDF)</button>
+      </div>
+
+      <div id="fin-status" class="fin-status"></div>
+
+      <div class="fin-tabs" id="fin-tabs">
+        <button data-tab="jurnal" class="active">Jurnal</button>
+        <button data-tab="bukubesar">Buku Besar</button>
+        <button data-tab="neracasaldo">Neraca Saldo</button>
+        <button data-tab="labarugi">Laba Rugi</button>
+        <button data-tab="ekuitas">Perubahan Ekuitas</button>
+        <button data-tab="neraca">Neraca</button>
+        <button data-tab="aruskas">Arus Kas</button>
+        <button data-tab="utang">Utang Usaha</button>
+        <button data-tab="tutup">Saldo Awal &amp; Tutup Buku</button>
+      </div>
+
+      <!-- JURNAL -->
+      <div class="fin-panel active" id="fin-panel-jurnal">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="fin-subtabs" id="fin-jfilter">
+            <button data-f="semua" class="active">Semua</button>
+            <button data-f="kas">Jurnal Kas</button>
+            <button data-f="piutang">Jurnal Piutang</button>
+            <button data-f="utang">Jurnal Utang</button>
+            <button data-f="penyesuaian">Jurnal Penyesuaian</button>
+            <button data-f="penutup">Jurnal Penutup</button>
+            <button data-f="saldo_awal">Saldo Awal</button>
+          </div>
+          <p class="fin-hint">Jurnal kas, piutang, dan utang terisi <strong>otomatis</strong> dari kasir, pelunasan piutang, retur, pembelian, dan catatan Penyesuaian/Beban. Jurnal penutup dibuat otomatis saat Tutup Buku. Jurnal penyesuaian dan jurnal kas lain (modal, prive, penyusutan, dll.) dicatat manual di bawah.</p>
+          <div style="overflow-x:auto;">
+            <table id="fin-jurnal-table" class="fin-table">
+              <thead><tr><th style="width:96px;">Tanggal</th><th>Keterangan / Akun</th><th class="num" style="width:130px;">Debit</th><th class="num" style="width:130px;">Kredit</th><th style="width:70px;"></th></tr></thead>
+              <tbody id="fin-jurnal-tbody"></tbody>
+              <tfoot id="fin-jurnal-tfoot"></tfoot>
+            </table>
+          </div>
+          <div id="fin-jurnal-empty" class="empty-state" style="display:none;">Belum ada jurnal pada rentang tanggal/filter ini.</div>
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <button class="btn outline sm" id="btn-fin-jmore" style="display:none;">Tampilkan lebih banyak</button>
+            <button class="btn outline sm" id="btn-fin-jcsv">⬇ Unduh CSV</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="display" style="margin-top:0;">Catat Jurnal Manual</h3>
+          <p class="fin-hint" style="margin-top:-6px;">Untuk transaksi di luar kasir: setoran modal, prive, penyusutan, koreksi persediaan, beban yang masih harus dibayar, dll. Total debit harus sama dengan total kredit.</p>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="field" style="flex:1; min-width:150px;"><label>Tanggal</label><input type="date" id="fj-date"></div>
+            <div class="field" style="flex:1; min-width:170px;"><label>Jenis Jurnal</label>
+              <select id="fj-type"><option value="penyesuaian">Penyesuaian</option><option value="kas">Kas / Umum</option></select>
+            </div>
+            <div class="field" style="flex:1; min-width:200px;"><label>Template Cepat</label>
+              <select id="fj-template"><option value="">— pilih template —</option></select>
+            </div>
+          </div>
+          <div class="field"><label>Keterangan</label><input type="text" id="fj-desc" placeholder="Contoh: Penyusutan peralatan bulan Oktober"></div>
+          <div id="fj-lines"></div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+            <button class="btn outline sm" id="btn-fj-addline" type="button">+ Tambah Baris</button>
+            <span id="fj-balance" class="mono" style="font-size:12.5px;"></span>
+          </div>
+          <button class="btn amber" id="btn-fj-save">Simpan Jurnal</button>
+        </div>
+      </div>
+
+      <!-- BUKU BESAR -->
+      <div class="fin-panel" id="fin-panel-bukubesar">
+        <div class="card">
+          <div class="filter-bar" style="margin-bottom:8px;">
+            <div class="field" style="min-width:260px;"><label>Akun</label><select id="fin-ledger-acc"></select></div>
+            <button class="btn outline sm" id="btn-fin-lcsv" style="margin-bottom:14px;">⬇ Unduh CSV</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="fin-table">
+              <thead><tr><th style="width:96px;">Tanggal</th><th>Keterangan</th><th class="num" style="width:120px;">Debit</th><th class="num" style="width:120px;">Kredit</th><th class="num" style="width:130px;">Saldo</th></tr></thead>
+              <tbody id="fin-ledger-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- NERACA SALDO -->
+      <div class="fin-panel" id="fin-panel-neracasaldo">
+        <div class="card" style="max-width:720px; overflow-x:auto;">
+          <h3 class="display" style="margin-top:0;">Neraca Saldo</h3>
+          <p class="fin-hint" style="margin-top:-6px;">Saldo seluruh akun sampai tanggal "Sampai Tanggal" (termasuk jurnal penutup bila sudah tutup buku).</p>
+          <table class="fin-table"><thead><tr><th>Kode</th><th>Akun</th><th class="num">Debit</th><th class="num">Kredit</th></tr></thead>
+          <tbody id="fin-tb-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- LABA RUGI -->
+      <div class="fin-panel" id="fin-panel-labarugi">
+        <div class="card fin-report"><h3 class="display" style="margin-top:0;">Laporan Laba Rugi</h3><div class="fin-period" id="fin-lr-period"></div><table class="fin-table"><tbody id="fin-lr-tbody"></tbody></table></div>
+      </div>
+
+      <!-- EKUITAS -->
+      <div class="fin-panel" id="fin-panel-ekuitas">
+        <div class="card fin-report"><h3 class="display" style="margin-top:0;">Laporan Perubahan Ekuitas</h3><div class="fin-period" id="fin-eq-period"></div><table class="fin-table"><tbody id="fin-eq-tbody"></tbody></table></div>
+      </div>
+
+      <!-- NERACA -->
+      <div class="fin-panel" id="fin-panel-neraca">
+        <div class="card fin-report"><h3 class="display" style="margin-top:0;">Neraca (Laporan Posisi Keuangan)</h3><div class="fin-period" id="fin-bs-period"></div><table class="fin-table"><tbody id="fin-bs-tbody"></tbody></table></div>
+        <div class="card fin-report" id="fin-recon" style="margin-top:16px;"></div>
+      </div>
+
+      <!-- ARUS KAS -->
+      <div class="fin-panel" id="fin-panel-aruskas">
+        <div class="card fin-report"><h3 class="display" style="margin-top:0;">Laporan Arus Kas</h3><div class="fin-period" id="fin-cf-period"></div><table class="fin-table"><tbody id="fin-cf-tbody"></tbody></table></div>
+      </div>
+
+      <!-- UTANG -->
+      <div class="fin-panel" id="fin-panel-utang">
+        <div class="card" style="margin-bottom:16px;">
+          <h3 class="display" style="margin-top:0;">Tambah Utang</h3>
+          <p class="fin-hint" style="margin-top:-6px;">Pembelian yang belum dibayar ke pemasok dicatat sebagai utang. Pilih pembelian yang sudah diinput di menu Pembelian (jurnalnya otomatis berubah dari kas menjadi utang), atau catat utang manual (misal pinjaman, pembelian peralatan kredit).</p>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="field" style="flex:1; min-width:150px;"><label>Tanggal</label><input type="date" id="pay-date"></div>
+            <div class="field" style="flex:2; min-width:220px;"><label>Sumber</label><select id="pay-source"></select></div>
+            <div class="field" style="flex:1; min-width:150px;"><label>Jatuh Tempo (opsional)</label><input type="date" id="pay-due"></div>
+          </div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="field" style="flex:1; min-width:180px;"><label>Pemasok / Pihak</label><input type="text" id="pay-supplier" placeholder="Nama pemasok / pemberi pinjaman"></div>
+            <div class="field" style="flex:2; min-width:200px;"><label>Keterangan</label><input type="text" id="pay-desc" placeholder="Contoh: Pembelian beras 20 karung"></div>
+            <div class="field" style="flex:1; min-width:150px;"><label>Jumlah Utang (Rp)</label><input type="number" id="pay-amount" min="0" placeholder="0"></div>
+          </div>
+          <div id="pay-manual-opts" style="display:none;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <div class="field" style="flex:1; min-width:220px;"><label>Jenis Utang</label>
+                <select id="pay-liab"><option value="2-1100">Utang Usaha</option><option value="2-1300">Utang Lainnya (pinjaman)</option></select></div>
+              <div class="field" style="flex:1; min-width:220px;"><label>Utang ini digunakan untuk</label>
+                <select id="pay-debit"><option value="1-1500">Persediaan Barang Dagang</option><option value="1-2100">Peralatan / Aset Tetap</option><option value="6-9000">Beban Lain-lain</option><option value="1-1100">Kas (pinjaman uang diterima)</option></select></div>
+            </div>
+          </div>
+          <button class="btn amber" id="btn-pay-add">Simpan Utang</button>
+        </div>
+        <div class="card" style="overflow-x:auto;">
+          <h3 class="display" style="margin-top:0;">Daftar Utang <span id="pay-total" class="mono" style="font-size:13px; color:var(--rust); margin-left:8px;"></span></h3>
+          <table class="fin-table"><thead><tr><th>Tanggal</th><th>Pihak / Keterangan</th><th class="num">Utang</th><th class="num">Dibayar</th><th class="num">Sisa</th><th style="min-width:300px;">Bayar</th></tr></thead>
+          <tbody id="pay-tbody"></tbody></table>
+          <div id="pay-empty" class="empty-state" style="display:none;">Belum ada utang tercatat.</div>
+        </div>
+      </div>
+
+      <!-- SALDO AWAL & TUTUP BUKU -->
+      <div class="fin-panel" id="fin-panel-tutup">
+        <div class="card" style="margin-bottom:16px; max-width:760px;">
+          <h3 class="display" style="margin-top:0;">Saldo Awal</h3>
+          <p class="fin-hint" style="margin-top:-6px;">Isi posisi keuangan toko pada saat mulai memakai pembukuan ini (kas yang ada, stok barang, piutang/utang lama, dll). Atur tanggalnya <strong>sebelum</strong> transaksi pertama. Modal awal pemilik dihitung otomatis = Aset − Utang.</p>
+          <div class="field" style="max-width:220px;"><label>Tanggal Saldo Awal</label><input type="date" id="op-date"></div>
+          <div id="op-fields" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:0 14px;"></div>
+          <div id="op-modal" class="mono" style="font-weight:700; margin:4px 0 12px 0;"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn amber" id="btn-op-save">Simpan Saldo Awal</button>
+            <button class="btn danger" id="btn-op-del" style="display:none;">Hapus Saldo Awal</button>
+          </div>
+        </div>
+        <div class="card" style="max-width:760px;">
+          <h3 class="display" style="margin-top:0;">Tutup Buku</h3>
+          <p class="fin-hint" style="margin-top:-6px;">Tutup buku membuat <strong>jurnal penutup</strong> otomatis: pendapatan &amp; beban dipindahkan ke Ikhtisar Laba Rugi, lalu laba/rugi ke Laba Ditahan, dan prive ke Modal. Setelah ditutup, jurnal bertanggal sampai tanggal tutup tidak bisa ditambah/dihapus lagi. Penutupan terakhir bisa dibatalkan.</p>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+            <div class="field" style="margin-bottom:0;"><label>Tutup Buku s/d Tanggal</label><input type="date" id="close-date"></div>
+            <button class="btn amber" id="btn-close-books" style="margin-bottom:14px;">Tutup Buku</button>
+          </div>
+          <table class="fin-table" style="margin-top:8px;"><thead><tr><th>Tanggal Tutup</th><th class="num">Laba/(Rugi) Periode</th><th>Dibuat</th><th></th></tr></thead>
+          <tbody id="close-tbody"></tbody></table>
+          <div id="close-empty" class="empty-state" style="display:none;">Belum pernah tutup buku.</div>
+        </div>
+      </div>
+
+    </section>
+
     <!-- ============ PENGATURAN ============ -->
     <section class="view-section" id="view-pengaturan">
       <div class="card" style="max-width:420px; margin-bottom:20px;">
@@ -1829,7 +2044,7 @@ let SESSION = null;         // { role, name, email } peran user di perusahaan ak
 /* ================= STORAGE (tersinkron ke Supabase per perusahaan) ================= */
 const CACHE = {
   products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [], customers: [], purchases: [], voidLogs: [],
-  receivables: [], pointRedemptions: [], shifts: [], returnLogs: [], settingsLogs: [], productionLogs: [],
+  receivables: [], pointRedemptions: [], shifts: [], returnLogs: [], settingsLogs: [], productionLogs: [], finEntries: [], payables: [], periodCloses: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
   loyaltyConfig: {redeemValue:100}, monthlyTarget: {},
   discountLimitPercent: 100, marginTargetPercent: 20, lastBackupAt: null,
@@ -1848,16 +2063,18 @@ async function saveCompanyData(){
     adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
     customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
     receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
-    returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs,
+    returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses,
     storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
     loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
     discountLimitPercent: CACHE.discountLimitPercent, marginTargetPercent: CACHE.marginTargetPercent, lastBackupAt: CACHE.lastBackupAt,
   };
-  const { error } = await sb.from('company_data').upsert({
-    company_id: CURRENT_COMPANY.id, data: payload,
-    updated_at: new Date().toISOString(), updated_by: AUTH_USER.id,
-  });
-  if(error){ showToast('Gagal menyimpan ke server: ' + error.message); }
+  // Lewat RPC (bukan upsert langsung): izin UPDATE tabel company_data sengaja dicabut dari client,
+  // dan upsert membutuhkan izin itu sehingga toko baru gagal tersimpan datanya.
+  const { data, error } = await sb.rpc('init_company_data_rpc', { p_company_id: CURRENT_COMPANY.id, p_data: payload });
+  if(error){ showToast('Gagal menyimpan ke server: ' + error.message); return false; }
+  // Kalau device lain sudah lebih dulu membuat data, server mengembalikan yang sudah ada (tidak ditimpa).
+  if(data) applyCompanyDataToCache(data, CURRENT_COMPANY.name);
+  return true;
 }
 // Mengisi CACHE dari objek data perusahaan (hasil company_data / hasil RPC). Satu-satunya tempat
 // pemetaan field -> CACHE, dipakai enterCompany, restore, retur, dan sinkron otomatis antar device.
@@ -1878,6 +2095,9 @@ function applyCompanyDataToCache(d, fallbackName){
   CACHE.returnLogs = d.returnLogs || [];
   CACHE.settingsLogs = d.settingsLogs || [];
   CACHE.productionLogs = d.productionLogs || [];
+  CACHE.finEntries = d.finEntries || [];
+  CACHE.payables = d.payables || [];
+  CACHE.periodCloses = d.periodCloses || [];
   CACHE.marginTargetPercent = (d.marginTargetPercent === undefined || d.marginTargetPercent === null) ? 20 : d.marginTargetPercent;
   CACHE.storeName = d.storeName || fallbackName || CACHE.storeName;
   CACHE.storeAddress = d.storeAddress || '';
@@ -1911,6 +2131,9 @@ const DB = {
   get returnLogs(){ return CACHE.returnLogs; },
   get settingsLogs(){ return CACHE.settingsLogs; },
   get productionLogs(){ return CACHE.productionLogs; },
+  get finEntries(){ return CACHE.finEntries; },
+  get payables(){ return CACHE.payables; },
+  get periodCloses(){ return CACHE.periodCloses; },
   get marginTargetPercent(){ return (CACHE.marginTargetPercent === undefined || CACHE.marginTargetPercent === null) ? 20 : CACHE.marginTargetPercent; },
   get loyaltyConfig(){ return CACHE.loyaltyConfig; },
   get monthlyTarget(){ return CACHE.monthlyTarget; },
@@ -2433,14 +2656,14 @@ function renderExpiryWarnings(){
 }
 
 /* ================= ROLE & LOGIN ================= */
-const titles = {dashboard:'Dashboard', kasir:'Kasir', produk:'Produk & Stok', pembelian:'Pembelian', pelanggan:'Pelanggan', pemasok:'Pemasok', laporan:'Laporan', penyesuaian:'Penyesuaian', pengaturan:'Pengaturan'};
+const titles = {dashboard:'Dashboard', kasir:'Kasir', produk:'Produk & Stok', pembelian:'Pembelian', pelanggan:'Pelanggan', pemasok:'Pemasok', laporan:'Laporan', penyesuaian:'Penyesuaian', keuangan:'Laporan Keuangan', pengaturan:'Pengaturan'};
 const ROLE_LABELS = {owner:'Owner', admin:'Admin', user:'User', gudang:'Gudang', spv:'SPV'};
 const ROLE_PERMISSIONS = {
-  owner:  ['dashboard','kasir','produk','pembelian','pelanggan','pemasok','laporan','penyesuaian','pengaturan'],
+  owner:  ['dashboard','kasir','produk','pembelian','pelanggan','pemasok','laporan','penyesuaian','keuangan','pengaturan'],
   admin:  ['kasir'],
   user:   ['kasir','laporan','pelanggan'],
   gudang: ['produk','pembelian','pemasok'],
-  spv:    ['dashboard','kasir','produk','pembelian','pelanggan','pemasok','laporan','penyesuaian','pengaturan'],
+  spv:    ['dashboard','kasir','produk','pembelian','pelanggan','pemasok','laporan','penyesuaian','keuangan','pengaturan'],
 };
 
 function applyRolePermissions(role){
@@ -2470,6 +2693,7 @@ function switchView(v){
   if(v==='pemasok') renderSuppliers();
   if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderReturnLog(); renderProfitReport(); refreshProfilKaryawanSelect(); renderProfilKaryawan(); }
   if(v==='penyesuaian') renderAdjustments();
+  if(v==='keuangan') renderKeuangan();
   if(v==='pengaturan'){ renderServerBackups(); renderSettingsLog(); }
 }
 
@@ -3159,6 +3383,9 @@ async function enterCompany(id, name, role, memberName){
     CACHE.returnLogs = [];
     CACHE.settingsLogs = [];
     CACHE.productionLogs = [];
+    CACHE.finEntries = [];
+    CACHE.payables = [];
+    CACHE.periodCloses = [];
     CACHE.storeName = name;
     CACHE.storeAddress = '';
     CACHE.ppnConfig = {enabled:false, percent:11};
@@ -3439,7 +3666,7 @@ document.getElementById('btn-backup-data').addEventListener('click', async ()=>{
       customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
       customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
       receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
-      returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs,
+      returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses,
       storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
       loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
       discountLimitPercent: CACHE.discountLimitPercent, marginTargetPercent: CACHE.marginTargetPercent, lastBackupAt: CACHE.lastBackupAt,
@@ -3489,6 +3716,7 @@ function rerenderActiveView(){
   else if(v==='pemasok'){ renderSuppliers(); }
   else if(v==='laporan'){ renderRiwayat(); renderVoidLog(); renderReturnLog(); renderProfitReport(); renderProfilKaryawan(); }
   else if(v==='penyesuaian'){ renderAdjustments(); }
+  else if(v==='keuangan'){ renderKeuangan(); }
   else if(v==='pengaturan'){ renderServerBackups(); renderSettingsLog(); }
 }
 async function refreshCompanyData(force){
@@ -7226,6 +7454,7 @@ document.getElementById('btn-add-adjustment').addEventListener('click', async ()
   if(!date){ showToast('Tanggal wajib diisi'); return; }
   if(!desc){ showToast('Keterangan wajib diisi'); return; }
   if(amount <= 0){ showToast('Nominal harus lebih dari 0'); return; }
+  if(date <= finLockedDate()){ showToast('Tanggal sudah masuk periode yang ditutup (' + finLockedDate() + ')'); return; }
 
   const list = [...DB.adjustments, { id: uid(), date, type, desc, amount }];
   const ok = await saveCompanyArrayField('adjustments', list);
@@ -7240,6 +7469,7 @@ document.getElementById('btn-add-adjustment').addEventListener('click', async ()
 function deleteAdjustment(id){
   const item = DB.adjustments.find(a=>a.id===id);
   if(!item) return;
+  if(item.date <= finLockedDate()){ showToast('Periode sudah ditutup — batalkan tutup buku dulu'); return; }
   showConfirm(`Hapus catatan <strong>${esc(accountLabel(item.type))}</strong>: "${esc(item.desc)}" (${rupiah(item.amount)})?`, async ()=>{
     const ok = await saveCompanyArrayField('adjustments', DB.adjustments.filter(a=>a.id!==id));
     if(!ok) return;
@@ -7436,6 +7666,972 @@ document.getElementById('btn-export-labarugi-pdf').addEventListener('click', ()=
   });
 
   doc.save(`laba-rugi-arus-kas-${from}_${to}.pdf`);
+  showToast('PDF berhasil dibuat');
+});
+
+
+/* ================= LAPORAN KEUANGAN (pembukuan double-entry) =================
+   Jurnal kas/piutang/utang dihasilkan OTOMATIS dari data kasir, pelunasan piutang, retur,
+   pembelian, utang, dan catatan Penyesuaian/Beban. Yang disimpan hanya: jurnal manual
+   (finEntries, termasuk saldo awal), utang (payables), dan tanggal tutup buku (periodCloses).
+   Jurnal penutup dihitung ulang otomatis dari buku besar, jadi selalu konsisten. */
+const FIN_CASH = ['1-1100','1-1200','1-1300'];
+const FIN_PM = { cash:'1-1100', transfer:'1-1200', qris:'1-1300' };
+const FIN_ADJ_MAP = { pendapatan:'4-2000', penjualan:'4-1300', gaji:'6-1100', lain:'6-9000' };
+const FIN_COA = [
+  { id:'1-1100', name:'Kas', type:'aset', nd:'d' },
+  { id:'1-1200', name:'Bank (Transfer)', type:'aset', nd:'d' },
+  { id:'1-1300', name:'QRIS / Dompet Digital', type:'aset', nd:'d' },
+  { id:'1-1400', name:'Piutang Usaha', type:'aset', nd:'d' },
+  { id:'1-1500', name:'Persediaan Barang Dagang', type:'aset', nd:'d' },
+  { id:'1-2100', name:'Peralatan & Aset Tetap', type:'aset', nd:'d' },
+  { id:'1-2900', name:'Akumulasi Penyusutan', type:'aset', nd:'c' },
+  { id:'2-1100', name:'Utang Usaha', type:'kewajiban', nd:'c' },
+  { id:'2-1200', name:'Utang PPN', type:'kewajiban', nd:'c' },
+  { id:'2-1300', name:'Utang Lainnya', type:'kewajiban', nd:'c' },
+  { id:'3-1100', name:'Modal Pemilik', type:'ekuitas', nd:'c' },
+  { id:'3-1200', name:'Prive (Pengambilan Pemilik)', type:'ekuitas', nd:'d' },
+  { id:'3-1300', name:'Laba Ditahan', type:'ekuitas', nd:'c' },
+  { id:'3-9000', name:'Ikhtisar Laba Rugi', type:'ekuitas', nd:'c' },
+  { id:'4-1100', name:'Penjualan', type:'pendapatan', nd:'c' },
+  { id:'4-1200', name:'Retur Penjualan', type:'pendapatan', nd:'d' },
+  { id:'4-1300', name:'Penyesuaian Penjualan', type:'pendapatan', nd:'c' },
+  { id:'4-2000', name:'Pendapatan Lain-lain', type:'pendapatan', nd:'c' },
+  { id:'5-1100', name:'Harga Pokok Penjualan (HPP)', type:'beban', nd:'d' },
+  { id:'6-1100', name:'Beban Gaji', type:'beban', nd:'d' },
+  { id:'6-2000', name:'Beban Penyusutan', type:'beban', nd:'d' },
+  { id:'6-9000', name:'Beban Lain-lain', type:'beban', nd:'d' },
+];
+let FIN_MAP = {};
+let FIN_LIST = [];
+const FIN = { tab:'jurnal', jfilter:'semua', jlimit:300, ledgerAcc:'1-1100', init:false };
+
+function finRefreshMap(){
+  const list = FIN_COA.map(a=>({ ...a, code:a.id }));
+  let ip = 0, ib = 0;
+  (DB.customAccounts||[]).forEach(a=>{
+    if(a.category === 'beban'){ ib++; list.push({ id:a.key, code:'6-8'+String(ib).padStart(2,'0'), name:a.name, type:'beban', nd:'d' }); }
+    else { ip++; list.push({ id:a.key, code:'4-8'+String(ip).padStart(2,'0'), name:a.name, type:'pendapatan', nd:'c' }); }
+  });
+  list.sort((x,y)=> x.code.localeCompare(y.code));
+  FIN_LIST = list;
+  FIN_MAP = {};
+  list.forEach(a=>{ FIN_MAP[a.id] = a; });
+}
+function finAcc(id){
+  return FIN_MAP[id] || { id, code:'?', name:'Akun dihapus', type:'pendapatan', nd:'c' };
+}
+function finAccLabel(id){ const a = finAcc(id); return a.code + ' ' + a.name; }
+function finAdjAcc(key){ return FIN_ADJ_MAP[key] || key; }
+const r2 = n => Math.round((Number(n)||0)*100)/100;
+function finMoney(n){ n = r2(n); return (n<0 ? '−' : '') + rupiah(Math.abs(n)); }
+function finDayBefore(d){
+  const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate()-1); return localDateStr(x);
+}
+function finLockedDate(){
+  return (DB.periodCloses||[]).reduce((m,c)=> c.date > m ? c.date : m, '');
+}
+
+let _finSeq = 0;
+function finMk(id, date, ts, type, desc, lines, extra){
+  return Object.assign({
+    id, date, ts, type, desc, seq:_finSeq++,
+    lines: lines.map(l=>({ a:l.a, d:r2(l.d||0), c:r2(l.c||0) })).filter(l=> l.d > 0 || l.c > 0),
+  }, extra || {});
+}
+function finNoonTs(date){ return new Date(date + 'T12:00:00').getTime(); }
+function finEntryCmp(a,b){ return a.date.localeCompare(b.date) || (a.ts - b.ts) || (a.seq - b.seq); }
+
+// Jurnal dasar (tanpa jurnal penutup)
+function finBuildBase(){
+  finRefreshMap();
+  _finSeq = 0;
+  const E = [];
+  const trxById = {};
+  (DB.transactions||[]).forEach(t=>{ trxById[t.id] = t; });
+  const logsByTrx = {};
+  (DB.returnLogs||[]).forEach(l=>{ (logsByTrx[l.transactionId] = logsByTrx[l.transactionId] || []).push(l); });
+
+  // 1) Penjualan kasir (dicatat sebesar nilai awal sebelum retur; retur dicatat terpisah)
+  (DB.transactions||[]).forEach(t=>{
+    const pct = Number(t.ppnPercent)||0;
+    const ppnOf = amt => pct > 0 ? Math.round(amt * pct / (100 + pct)) : 0;
+    const logs = logsByTrx[t.id] || [];
+    const retPpn = logs.reduce((s,l)=> s + ppnOf(Number(l.refundTotal)||0), 0);
+    const G = (Number(t.total)||0) + (Number(t.returnedTotal)||0);
+    const ppnG = (Number(t.ppnAmount)||0) + retPpn;
+    const dAcc = t.paymentMethod === 'tempo' ? '1-1400' : (FIN_PM[t.paymentMethod] || '1-1100');
+    const modal = Number(t.totalModal)||0;
+    const date = localDateFromIso(t.date);
+    E.push(finMk('trx-'+t.id, date, new Date(t.date).getTime(), 'penjualan',
+      'Penjualan #' + String(t.id).slice(-6) + (t.customerName ? ' — ' + t.customerName : ''),
+      [ {a:dAcc, d:G}, {a:'4-1100', c:G - ppnG}, {a:'2-1200', c:ppnG}, {a:'5-1100', d:modal}, {a:'1-1500', c:modal} ]));
+  });
+
+  // 2) Retur penjualan
+  (DB.returnLogs||[]).forEach(l=>{
+    const t = trxById[l.transactionId];
+    if(!t) return; // transaksinya sudah dibatalkan (void) -> jurnal penjualannya juga tidak ada
+    const pct = Number(t.ppnPercent)||0;
+    const refund = Number(l.refundTotal)||0;
+    const ppnR = pct > 0 ? Math.round(refund * pct / (100 + pct)) : 0;
+    const dAcc = t.paymentMethod === 'tempo' ? '1-1400' : (FIN_PM[t.paymentMethod] || '1-1100');
+    E.push(finMk('ret-'+l.id, localDateFromIso(l.date), new Date(l.date).getTime(), 'retur',
+      'Retur penjualan #' + String(l.transactionId).slice(-6),
+      [ {a:'4-1200', d:refund - ppnR}, {a:'2-1200', d:ppnR}, {a:dAcc, c:refund} ]));
+  });
+
+  // 3) Pelunasan piutang
+  (DB.receivables||[]).forEach(r=>{
+    (r.payments||[]).forEach(p=>{
+      const amt = Number(p.amount)||0;
+      E.push(finMk('rcv-'+p.id, localDateFromIso(p.date), new Date(p.date).getTime(), 'piutang',
+        'Pelunasan piutang — ' + (r.customerName || 'Pelanggan'),
+        [ {a:FIN_PM[p.method] || '1-1100', d:amt}, {a:'1-1400', c:amt} ]));
+    });
+  });
+
+  // 4) Pembelian (tunai, atau sebagian/seluruhnya utang bila ditautkan ke data utang)
+  const payByPurchase = {};
+  (DB.payables||[]).forEach(p=>{ if(p.purchaseId) payByPurchase[p.purchaseId] = p; });
+  const purchaseIds = {};
+  (DB.purchases||[]).forEach(pu=>{
+    purchaseIds[pu.id] = true;
+    const total = Number(pu.total)||0;
+    if(total <= 0) return;
+    const pay = payByPurchase[pu.id];
+    const utang = pay ? Math.min(Number(pay.amount)||0, total) : 0;
+    E.push(finMk('buy-'+pu.id, localDateFromIso(pu.date), new Date(pu.date).getTime(), pay ? 'utang' : 'pembelian',
+      'Pembelian ' + (pu.productName || 'barang') + (pu.qty ? ' ×' + pu.qty : '') + (pu.supplier ? ' — ' + pu.supplier : ''),
+      [ {a:'1-1500', d:total}, {a: (pay && pay.liabAcc) || '2-1100', c:utang}, {a:'1-1100', c:total - utang} ]));
+  });
+
+  // 5) Utang manual + pembayaran utang
+  (DB.payables||[]).forEach(p=>{
+    const liab = p.liabAcc || '2-1100';
+    if(!(p.purchaseId && purchaseIds[p.purchaseId])){
+      const amt = Number(p.amount)||0;
+      E.push(finMk('pay-'+p.id, p.date, finNoonTs(p.date), 'utang',
+        'Utang — ' + (p.supplier || 'Pihak') + (p.desc ? ': ' + p.desc : ''),
+        [ {a:p.debitAcc || '1-1500', d:amt}, {a:liab, c:amt} ]));
+    }
+    (p.payments||[]).forEach(py=>{
+      const amt = Number(py.amount)||0;
+      E.push(finMk('pyp-'+py.id, py.date, finNoonTs(py.date), 'utang',
+        'Bayar utang — ' + (p.supplier || 'Pihak'),
+        [ {a:liab, d:amt}, {a:FIN_PM[py.method] || '1-1100', c:amt} ]));
+    });
+  });
+
+  // 6) Catatan Penyesuaian / Beban (halaman Penyesuaian) -> jurnal kas
+  (DB.adjustments||[]).forEach(a=>{
+    const acc = finAdjAcc(a.type);
+    const amt = Number(a.amount)||0;
+    const isExp = finAcc(acc).type === 'beban';
+    E.push(finMk('adj-'+a.id, a.date, finNoonTs(a.date), 'kas',
+      (a.desc || 'Penyesuaian'),
+      isExp ? [ {a:acc, d:amt}, {a:'1-1100', c:amt} ] : [ {a:'1-1100', d:amt}, {a:acc, c:amt} ]));
+  });
+
+  // 7) Jurnal manual (penyesuaian, kas umum, saldo awal)
+  (DB.finEntries||[]).forEach(f=>{
+    E.push(finMk('man-'+f.id, f.date, finNoonTs(f.date), f.type || 'penyesuaian', f.desc || '',
+      (f.lines||[]).map(l=>({ a:l.a, d:Number(l.d)||0, c:Number(l.c)||0 })), { manual:true, mid:f.id }));
+  });
+
+  return E.sort(finEntryCmp);
+}
+
+// Jurnal lengkap = dasar + jurnal penutup (dibuat otomatis untuk setiap tanggal tutup buku)
+function finBuildJournal(){
+  const out = finBuildBase();
+  const closes = [...(DB.periodCloses||[])].sort((a,b)=> a.date.localeCompare(b.date));
+  closes.forEach(cl=>{
+    const bal = {};
+    out.forEach(e=>{ if(e.date <= cl.date) e.lines.forEach(l=>{ bal[l.a] = (bal[l.a]||0) + l.d - l.c; }); });
+    const mkClose = (n, desc, lines)=> {
+      const ls = lines.filter(l=> l.d > 0.004 || l.c > 0.004);
+      if(ls.length) out.push(finMk('close-'+cl.id+'-'+n, cl.date, finNoonTs(cl.date) + 43200000 + n, 'penutup', desc, ls, { closeId:cl.id }));
+    };
+    const closeSet = (types)=>{
+      const lines = []; let off = 0;
+      Object.keys(bal).forEach(a=>{
+        const ac = finAcc(a);
+        if(!types.includes(ac.type)) return;
+        const b = r2(bal[a]);
+        if(Math.abs(b) < 0.005) return;
+        if(b > 0){ lines.push({ a, c:b }); } else { lines.push({ a, d:-b }); }
+        off += b;
+      });
+      // Ikhtisar menerima lawan: off>0 berarti akun-akun dikredit total off -> Ikhtisar didebit off
+      if(off > 0) lines.push({ a:'3-9000', d:off }); else if(off < 0) lines.push({ a:'3-9000', c:-off });
+      return { lines, off };
+    };
+    const rev = closeSet(['pendapatan']);
+    const exp = closeSet(['beban']);
+    mkClose(1, 'Penutup: pendapatan ke Ikhtisar Laba Rugi', rev.lines);
+    mkClose(2, 'Penutup: beban & HPP ke Ikhtisar Laba Rugi', exp.lines);
+    // Ikhtisar: pendapatan menaruh debit sebesar rev.off (jika >0), beban menaruh kredit -> net debit = rev.off + exp.off
+    const ikh = r2(rev.off + exp.off); // >0 = saldo debit (rugi), <0 = saldo kredit (laba)
+    if(ikh < 0) mkClose(3, 'Penutup: laba periode ke Laba Ditahan', [ {a:'3-9000', d:-ikh}, {a:'3-1300', c:-ikh} ]);
+    else if(ikh > 0) mkClose(3, 'Penutup: rugi periode ke Laba Ditahan', [ {a:'3-1300', d:ikh}, {a:'3-9000', c:ikh} ]);
+    const prive = r2(bal['3-1200'] || 0);
+    if(Math.abs(prive) > 0.004) mkClose(4, 'Penutup: prive ke Modal Pemilik', prive > 0 ? [ {a:'3-1100', d:prive}, {a:'3-1200', c:prive} ] : [ {a:'3-1200', d:-prive}, {a:'3-1100', c:-prive} ]);
+  });
+  return out.sort(finEntryCmp);
+}
+
+/* ---------- Perhitungan (fungsi murni di atas daftar jurnal) ---------- */
+function finBalances(entries, to, opts){
+  opts = opts || {};
+  const bal = {};
+  entries.forEach(e=>{
+    if(to && e.date > to) return;
+    if(opts.from && e.date < opts.from) return;
+    if(opts.noClose && e.type === 'penutup') return;
+    if(opts.noOpening && e.type === 'saldo_awal') return;
+    e.lines.forEach(l=>{ bal[l.a] = r2((bal[l.a]||0) + l.d - l.c); });
+  });
+  return bal; // saldo bersih (debit − kredit)
+}
+function finNatural(accId, net){ return finAcc(accId).nd === 'd' ? net : -net; }
+
+function finCalcLabaRugi(entries, from, to){
+  const net = finBalances(entries, to, { from, noClose:true });
+  const g = id => net[id] || 0;
+  const penjualan = -g('4-1100');
+  const retur = g('4-1200');
+  const penjualanBersih = penjualan - retur;
+  const hpp = g('5-1100');
+  const labaKotor = penjualanBersih - hpp;
+  const pend = [], beban = [];
+  Object.keys(net).forEach(id=>{
+    const a = finAcc(id);
+    if(id === '4-1100' || id === '4-1200' || id === '5-1100') return;
+    if(Math.abs(net[id]) < 0.005) return;
+    if(a.type === 'pendapatan') pend.push({ id, name:a.name, amount:-net[id] });
+    else if(a.type === 'beban') beban.push({ id, name:a.name, amount:net[id] });
+  });
+  const sortBy = (x,y)=> finAcc(x.id).code.localeCompare(finAcc(y.id).code);
+  pend.sort(sortBy); beban.sort(sortBy);
+  const totalPend = pend.reduce((s,r)=>s+r.amount,0);
+  const totalBeban = beban.reduce((s,r)=>s+r.amount,0);
+  return { penjualan, retur, penjualanBersih, hpp, labaKotor, pend, beban, totalPend, totalBeban,
+    labaBersih: r2(labaKotor + totalPend - totalBeban) };
+}
+
+function finEquityAt(entries, date){
+  const net = finBalances(entries, date);
+  let e = 0;
+  Object.keys(net).forEach(id=>{
+    const t = finAcc(id).type;
+    if(t === 'ekuitas' || t === 'pendapatan' || t === 'beban') e -= net[id];
+  });
+  return r2(e);
+}
+
+function finCalcNeraca(entries, to){
+  const net = finBalances(entries, to);
+  const aset = [], kew = [], eks = [];
+  let totA = 0, totL = 0, totE = 0, laba = 0;
+  Object.keys(net).forEach(id=>{
+    const a = finAcc(id); const n = net[id];
+    if(a.type === 'pendapatan' || a.type === 'beban'){ laba -= n; return; }
+  });
+  FIN_LIST.forEach(a=>{
+    const n = net[a.id] || 0;
+    if(a.type === 'aset'){
+      const v = n; // saldo debit positif; akumulasi penyusutan otomatis negatif
+      if(Math.abs(v) > 0.004 || ['1-1100','1-1200','1-1300','1-1400','1-1500'].includes(a.id)){ aset.push({ id:a.id, name:a.name, amount:v }); totA += v; }
+    } else if(a.type === 'kewajiban'){
+      const v = -n;
+      if(Math.abs(v) > 0.004 || ['2-1100','2-1200'].includes(a.id)){ kew.push({ id:a.id, name:a.name, amount:v }); totL += v; }
+    } else if(a.type === 'ekuitas' && a.id !== '3-9000'){
+      const v = -n;
+      if(Math.abs(v) > 0.004 || ['3-1100','3-1300'].includes(a.id)){ eks.push({ id:a.id, name:a.name, amount:v }); totE += v; }
+    }
+  });
+  const ik = -(net['3-9000']||0);
+  if(Math.abs(ik) > 0.004){ eks.push({ id:'3-9000', name:'Ikhtisar Laba Rugi', amount:ik }); totE += ik; }
+  laba = r2(laba);
+  totE += laba;
+  return { aset, kew, eks, laba, totA:r2(totA), totL:r2(totL), totE:r2(totE), diff:r2(totA - totL - totE) };
+}
+
+function finCalcEkuitas(entries, from, to){
+  const awal = finEquityAt(entries, finDayBefore(from));
+  const lr = finCalcLabaRugi(entries, from, to);
+  const net = finBalances(entries, to, { from, noClose:true });
+  const setoran = r2(-(net['3-1100']||0));
+  const prive = r2(net['3-1200']||0);
+  const lain = r2(-(net['3-1300']||0) - (net['3-9000']||0));
+  const akhir = finEquityAt(entries, to);
+  const hitung = r2(awal + lr.labaBersih + setoran - prive + lain);
+  return { awal, laba:lr.labaBersih, setoran, prive, lain, akhir, hitung, diff:r2(akhir - hitung) };
+}
+
+function finCashFlowClass(entry, net){
+  const non = entry.lines.filter(l=> !FIN_CASH.includes(l.a));
+  const first = non.length ? non[0].a : null;
+  const a = first ? finAcc(first) : null;
+  if(!a) return { sec:'operasi', key:'x', label:'Lainnya' };
+  if(first === '4-1100') return { sec:'operasi', key:first, label:'Penerimaan dari penjualan' };
+  if(first === '4-1200') return { sec:'operasi', key:first, label:'Pengembalian dana retur penjualan' };
+  if(first === '1-1400') return { sec:'operasi', key:first, label:'Penerimaan pelunasan piutang' };
+  if(first === '1-1500') return { sec:'operasi', key:first, label:'Pembayaran pembelian persediaan' };
+  if(first === '2-1100') return { sec:'operasi', key:first, label:'Pembayaran utang usaha' };
+  if(first === '2-1200') return { sec:'operasi', key:first, label:'Setoran/penerimaan PPN' };
+  if(first === '1-2100' || first === '1-2900') return { sec:'investasi', key:'inv', label:'Pembelian/(penjualan) peralatan' };
+  if(first === '3-1100') return { sec:'pendanaan', key:first, label:'Setoran/(penarikan) modal pemilik' };
+  if(first === '3-1200') return { sec:'pendanaan', key:first, label:'Prive pemilik' };
+  if(first === '3-1300' || first === '3-9000') return { sec:'pendanaan', key:first, label:'Perubahan ekuitas lainnya' };
+  if(first === '2-1300') return { sec:'pendanaan', key:first, label:'Penerimaan/(pembayaran) utang lainnya' };
+  if(a.type === 'pendapatan') return { sec:'operasi', key:first, label:'Penerimaan ' + a.name };
+  if(a.type === 'beban') return { sec:'operasi', key:first, label:'Pembayaran ' + a.name };
+  return { sec:'operasi', key:first, label:'Lainnya: ' + a.name };
+}
+function finCalcArusKas(entries, from, to){
+  const cashOf = e => e.lines.reduce((s,l)=> FIN_CASH.includes(l.a) ? s + l.d - l.c : s, 0);
+  const d0 = finDayBefore(from);
+  let kasAwal = 0;
+  entries.forEach(e=>{
+    const c = cashOf(e);
+    if(e.date <= d0) kasAwal += c;
+    else if(e.date <= to && e.type === 'saldo_awal') kasAwal += c;
+  });
+  const secs = { operasi:{}, investasi:{}, pendanaan:{} };
+  entries.forEach(e=>{
+    if(e.date < from || e.date > to || e.type === 'saldo_awal' || e.type === 'penutup') return;
+    const c = r2(cashOf(e));
+    if(Math.abs(c) < 0.005) return;
+    const k = finCashFlowClass(e, c);
+    const s = secs[k.sec];
+    s[k.key] = s[k.key] || { label:k.label, amount:0 };
+    s[k.key].amount = r2(s[k.key].amount + c);
+  });
+  const toArr = o => Object.keys(o).map(k=>o[k]).filter(x=> Math.abs(x.amount) > 0.004);
+  const operasi = toArr(secs.operasi), investasi = toArr(secs.investasi), pendanaan = toArr(secs.pendanaan);
+  const sum = arr => r2(arr.reduce((s,x)=>s+x.amount,0));
+  const kasAkhirBuku = r2(entries.reduce((s,e)=> e.date <= to ? s + cashOf(e) : s, 0));
+  const netto = r2(sum(operasi) + sum(investasi) + sum(pendanaan));
+  kasAwal = r2(kasAwal);
+  return { kasAwal, operasi, investasi, pendanaan, totOperasi:sum(operasi), totInvestasi:sum(investasi), totPendanaan:sum(pendanaan),
+    netto, kasAkhir:r2(kasAwal + netto), kasAkhirBuku, diff:r2(kasAkhirBuku - (kasAwal + netto)) };
+}
+
+function finLedger(entries, accId, from, to){
+  const a = finAcc(accId);
+  const sign = a.nd === 'd' ? 1 : -1;
+  let running = 0, opening = 0, totD = 0, totC = 0;
+  const rows = [];
+  entries.forEach(e=>{
+    const ls = e.lines.filter(l=> l.a === accId);
+    if(!ls.length) return;
+    const d = ls.reduce((s,l)=>s+l.d,0), c = ls.reduce((s,l)=>s+l.c,0);
+    if(e.date < from){ opening += sign * (d - c); return; }
+    if(e.date > to) return;
+    rows.push({ e, d, c });
+  });
+  running = opening;
+  rows.forEach(r=>{ running += sign * (r.d - r.c); r.saldo = r2(running); totD += r.d; totC += r.c; });
+  return { opening:r2(opening), rows, totD:r2(totD), totC:r2(totC), closing:r2(running), acc:a };
+}
+
+function finCheckJournalBalance(entries){
+  let bad = 0, d = 0, c = 0;
+  entries.forEach(e=>{
+    const ed = e.lines.reduce((s,l)=>s+l.d,0), ec = e.lines.reduce((s,l)=>s+l.c,0);
+    d += ed; c += ec;
+    if(Math.abs(ed - ec) > 0.01) bad++;
+  });
+  return { bad, d:r2(d), c:r2(c) };
+}
+
+/* ---------- Tampilan ---------- */
+function finRange(){
+  let from = document.getElementById('fin-from').value;
+  let to = document.getElementById('fin-to').value;
+  if(!to) to = todayStr();
+  if(!from) from = to.slice(0,8) + '01';
+  if(from > to){ const t = from; from = to; to = t; }
+  return { from, to };
+}
+function finStmtRows(rows){
+  return rows.map(r=>{
+    if(r.head) return `<tr><td colspan="2" class="fin-head">${esc(r.head)}</td></tr>`;
+    if(r.gap) return `<tr><td colspan="2" style="padding:4px;"></td></tr>`;
+    const st = (r.bold ? 'font-weight:700;' : '') + (r.top ? 'border-top:1.5px solid var(--ink);' : '');
+    const color = r.color ? `color:${r.color};` : '';
+    return `<tr><td style="${st}${r.indent?'padding-left:20px;color:var(--ink-soft);':''}">${esc(r.label)}</td><td class="num mono" style="${st}${color}">${finMoney(r.amt)}</td></tr>`;
+  }).join('');
+}
+const finTone = v => v >= 0 ? 'var(--green)' : 'var(--rust)';
+
+function finStatementData(){
+  const { from, to } = finRange();
+  const entries = finBuildJournal();
+  const lr = finCalcLabaRugi(entries, from, to);
+  const eq = finCalcEkuitas(entries, from, to);
+  const bs = finCalcNeraca(entries, to);
+  const cf = finCalcArusKas(entries, from, to);
+  return { from, to, entries, lr, eq, bs, cf };
+}
+function finRowsLR(lr){
+  const rows = [
+    { label:'Penjualan', amt:lr.penjualan, indent:true },
+    { label:'Retur Penjualan', amt:-lr.retur, indent:true },
+    { label:'Penjualan Bersih (di luar PPN)', amt:lr.penjualanBersih, bold:true },
+    { label:'Harga Pokok Penjualan (HPP)', amt:-lr.hpp },
+    { label:'Laba Kotor', amt:lr.labaKotor, bold:true, top:true },
+  ];
+  if(lr.pend.length){ rows.push({ gap:true }, { head:'Pendapatan Lain' }); lr.pend.forEach(p=> rows.push({ label:p.name, amt:p.amount, indent:true })); }
+  if(lr.beban.length){ rows.push({ gap:true }, { head:'Beban Operasional' }); lr.beban.forEach(p=> rows.push({ label:p.name, amt:-p.amount, indent:true })); }
+  rows.push({ gap:true }, { label: lr.labaBersih >= 0 ? 'Laba Bersih' : 'Rugi Bersih', amt:lr.labaBersih, bold:true, top:true, color:finTone(lr.labaBersih) });
+  return rows;
+}
+function finRowsEq(eq){
+  const rows = [
+    { label:'Ekuitas Awal Periode', amt:eq.awal, bold:true },
+    { label:'Laba (Rugi) Bersih Periode', amt:eq.laba, indent:true },
+    { label:'Setoran Modal / Saldo Awal', amt:eq.setoran, indent:true },
+    { label:'Prive (Pengambilan Pemilik)', amt:-eq.prive, indent:true },
+  ];
+  if(Math.abs(eq.lain) > 0.004) rows.push({ label:'Perubahan Ekuitas Lainnya', amt:eq.lain, indent:true });
+  rows.push({ label:'Ekuitas Akhir Periode', amt:eq.akhir, bold:true, top:true });
+  return rows;
+}
+function finRowsBS(bs){
+  const rows = [{ head:'ASET' }];
+  bs.aset.forEach(a=> rows.push({ label:a.name, amt:a.amount, indent:true }));
+  rows.push({ label:'Total Aset', amt:bs.totA, bold:true, top:true }, { gap:true }, { head:'KEWAJIBAN' });
+  bs.kew.forEach(a=> rows.push({ label:a.name, amt:a.amount, indent:true }));
+  rows.push({ label:'Total Kewajiban', amt:bs.totL, bold:true, top:true }, { gap:true }, { head:'EKUITAS' });
+  bs.eks.forEach(a=> rows.push({ label:a.name, amt:a.amount, indent:true }));
+  rows.push({ label: bs.laba >= 0 ? 'Laba Periode Berjalan (belum ditutup)' : 'Rugi Periode Berjalan (belum ditutup)', amt:bs.laba, indent:true });
+  rows.push({ label:'Total Ekuitas', amt:bs.totE, bold:true, top:true }, { gap:true },
+    { label:'Total Kewajiban + Ekuitas', amt:r2(bs.totL + bs.totE), bold:true });
+  return rows;
+}
+function finRowsCF(cf){
+  const rows = [{ head:'Arus Kas dari Aktivitas Operasi' }];
+  cf.operasi.forEach(x=> rows.push({ label:x.label, amt:x.amount, indent:true }));
+  rows.push({ label:'Kas Bersih dari Aktivitas Operasi', amt:cf.totOperasi, bold:true, top:true }, { gap:true }, { head:'Arus Kas dari Aktivitas Investasi' });
+  cf.investasi.forEach(x=> rows.push({ label:x.label, amt:x.amount, indent:true }));
+  rows.push({ label:'Kas Bersih dari Aktivitas Investasi', amt:cf.totInvestasi, bold:true, top:true }, { gap:true }, { head:'Arus Kas dari Aktivitas Pendanaan' });
+  cf.pendanaan.forEach(x=> rows.push({ label:x.label, amt:x.amount, indent:true }));
+  rows.push({ label:'Kas Bersih dari Aktivitas Pendanaan', amt:cf.totPendanaan, bold:true, top:true }, { gap:true },
+    { label:'Kenaikan (Penurunan) Kas Bersih', amt:cf.netto, bold:true },
+    { label:'Kas & Setara Kas Awal Periode', amt:cf.kasAwal },
+    { label:'Kas & Setara Kas Akhir Periode', amt:cf.kasAkhir, bold:true, top:true, color:finTone(cf.kasAkhir) });
+  return rows;
+}
+
+function renderKeuangan(){
+  if(!document.getElementById('view-keuangan')) return;
+  finRefreshMap();
+  if(!FIN.init){
+    FIN.init = true;
+    const t = todayStr();
+    document.getElementById('fin-from').value = t.slice(0,8) + '01';
+    document.getElementById('fin-to').value = t;
+    document.getElementById('fj-date').value = t;
+    document.getElementById('pay-date').value = t;
+    document.getElementById('op-date').value = t;
+    document.getElementById('close-date').value = finDayBefore(t);
+    finInitJournalForm();
+    finInitPayableForm();
+  }
+  finRefreshMap();
+  finRefreshAccountSelects();
+  const entries = finBuildJournal();
+  const { from, to } = finRange();
+  // status keseimbangan
+  const jb = finCheckJournalBalance(entries);
+  const bs = finCalcNeraca(entries, to);
+  const ok = jb.bad === 0 && Math.abs(bs.diff) < 0.02;
+  const kasNeg = finBalances(entries, to)['1-1100'] < -0.5;
+  document.getElementById('fin-status').innerHTML =
+    `<span class="fin-badge ${ok?'ok':'bad'}">${ok ? '✓ Jurnal seimbang (Debit = Kredit) &amp; Neraca seimbang' : '⚠ Ada ketidakseimbangan — cek jurnal manual'}</span>` +
+    `<span class="fin-badge">${entries.length} jurnal</span>` +
+    (finLockedDate() ? `<span class="fin-badge">🔒 Buku ditutup s/d ${esc(finLockedDate())}</span>` : '') +
+    (kasNeg ? `<span class="fin-badge bad">Saldo Kas negatif — isi Saldo Awal (tab Saldo Awal &amp; Tutup Buku)</span>` : '');
+
+  const tab = FIN.tab;
+  document.querySelectorAll('#fin-tabs button').forEach(b=> b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.fin-panel').forEach(p=> p.classList.toggle('active', p.id === 'fin-panel-' + tab));
+  const per = `Periode ${from} s/d ${to}`;
+  if(tab === 'jurnal') finRenderJurnal(entries, from, to);
+  else if(tab === 'bukubesar') finRenderLedger(entries, from, to);
+  else if(tab === 'neracasaldo') finRenderTB(entries, to);
+  else if(tab === 'labarugi'){
+    document.getElementById('fin-lr-period').textContent = DB.storeName + ' — ' + per;
+    document.getElementById('fin-lr-tbody').innerHTML = finStmtRows(finRowsLR(finCalcLabaRugi(entries, from, to)));
+  } else if(tab === 'ekuitas'){
+    document.getElementById('fin-eq-period').textContent = DB.storeName + ' — ' + per;
+    document.getElementById('fin-eq-tbody').innerHTML = finStmtRows(finRowsEq(finCalcEkuitas(entries, from, to)));
+  } else if(tab === 'neraca'){
+    document.getElementById('fin-bs-period').textContent = DB.storeName + ' — per ' + to;
+    document.getElementById('fin-bs-tbody').innerHTML = finStmtRows(finRowsBS(bs));
+    finRenderRecon(entries, to);
+  } else if(tab === 'aruskas'){
+    document.getElementById('fin-cf-period').textContent = DB.storeName + ' — ' + per + ' (metode langsung)';
+    document.getElementById('fin-cf-tbody').innerHTML = finStmtRows(finRowsCF(finCalcArusKas(entries, from, to)));
+  } else if(tab === 'utang') finRenderPayables();
+  else if(tab === 'tutup') finRenderTutup(entries);
+}
+
+const FIN_TYPE_LABEL = { penjualan:'Penjualan', retur:'Retur', piutang:'Piutang', pembelian:'Pembelian', utang:'Utang', kas:'Kas', penyesuaian:'Penyesuaian', penutup:'Penutup', saldo_awal:'Saldo Awal' };
+function finEntryMatches(e, f){
+  if(f === 'semua') return true;
+  if(f === 'kas') return e.lines.some(l=> FIN_CASH.includes(l.a));
+  if(f === 'piutang') return e.lines.some(l=> l.a === '1-1400');
+  if(f === 'utang') return e.lines.some(l=> l.a === '2-1100' || l.a === '2-1300');
+  return e.type === f;
+}
+function finRenderJurnal(entries, from, to){
+  let list = entries.filter(e=> e.date >= from && e.date <= to && finEntryMatches(e, FIN.jfilter));
+  const total = list.length;
+  const empty = document.getElementById('fin-jurnal-empty');
+  empty.style.display = total ? 'none' : 'block';
+  const shown = list.slice(Math.max(0, total - FIN.jlimit));
+  document.getElementById('btn-fin-jmore').style.display = total > shown.length ? '' : 'none';
+  const locked = finLockedDate();
+  let tbl = '', td = 0, tc = 0;
+  shown.forEach(e=>{
+    e.lines.forEach((l,i)=>{
+      td += l.d; tc += l.c;
+      const first = i === 0;
+      tbl += `<tr class="${first?'fin-first':''}">
+        <td>${first ? esc(e.date) : ''}</td>
+        <td style="${l.c>0?'padding-left:28px;':''}">${first ? `<div class="fin-desc"><span class="fin-type t-${e.type}">${esc(FIN_TYPE_LABEL[e.type]||e.type)}</span> ${esc(e.desc)}</div>` : ''}${esc(finAccLabel(l.a))}</td>
+        <td class="num mono">${l.d>0 ? finMoney(l.d) : ''}</td>
+        <td class="num mono">${l.c>0 ? finMoney(l.c) : ''}</td>
+        <td>${first && e.manual && e.type !== 'saldo_awal' && e.date > locked ? `<button class="btn danger sm" onclick="finDeleteManual('${esc(e.mid)}')">Hapus</button>` : ''}</td></tr>`;
+    });
+  });
+  document.getElementById('fin-jurnal-tbody').innerHTML = tbl;
+  document.getElementById('fin-jurnal-tfoot').innerHTML = total ?
+    `<tr class="fin-total"><td colspan="2">Total ${shown.length < total ? '(yang ditampilkan)' : ''}</td><td class="num mono">${finMoney(td)}</td><td class="num mono">${finMoney(tc)}</td><td></td></tr>` : '';
+}
+function finRefreshAccountSelects(){
+  const sel = document.getElementById('fin-ledger-acc');
+  if(sel){
+    const prev = sel.value || FIN.ledgerAcc;
+    sel.innerHTML = FIN_LIST.map(a=>`<option value="${esc(a.id)}">${esc(a.code)} — ${esc(a.name)}</option>`).join('');
+    sel.value = FIN_MAP[prev] ? prev : '1-1100';
+    FIN.ledgerAcc = sel.value;
+  }
+}
+function finRenderLedger(entries, from, to){
+  const L = finLedger(entries, FIN.ledgerAcc, from, to);
+  let html = `<tr class="fin-total"><td>${esc(from)}</td><td>Saldo awal</td><td></td><td></td><td class="num mono">${finMoney(L.opening)}</td></tr>`;
+  L.rows.forEach(r=>{
+    html += `<tr><td>${esc(r.e.date)}</td><td><span class="fin-type t-${r.e.type}">${esc(FIN_TYPE_LABEL[r.e.type]||r.e.type)}</span> ${esc(r.e.desc)}</td>
+      <td class="num mono">${r.d>0?finMoney(r.d):''}</td><td class="num mono">${r.c>0?finMoney(r.c):''}</td><td class="num mono">${finMoney(r.saldo)}</td></tr>`;
+  });
+  html += `<tr class="fin-total"><td colspan="2">Total mutasi / Saldo akhir (${L.acc.nd==='d'?'normal debit':'normal kredit'})</td><td class="num mono">${finMoney(L.totD)}</td><td class="num mono">${finMoney(L.totC)}</td><td class="num mono">${finMoney(L.closing)}</td></tr>`;
+  document.getElementById('fin-ledger-tbody').innerHTML = html;
+}
+function finRenderTB(entries, to){
+  const net = finBalances(entries, to);
+  let td = 0, tc = 0, html = '';
+  FIN_LIST.forEach(a=>{
+    const n = net[a.id] || 0;
+    if(Math.abs(n) < 0.005) return;
+    const d = n > 0 ? n : 0, c = n < 0 ? -n : 0;
+    td += d; tc += c;
+    html += `<tr><td class="mono">${esc(a.code)}</td><td>${esc(a.name)}</td><td class="num mono">${d?finMoney(d):''}</td><td class="num mono">${c?finMoney(c):''}</td></tr>`;
+  });
+  Object.keys(net).forEach(id=>{
+    if(FIN_MAP[id] || Math.abs(net[id]) < 0.005) return;
+    const n = net[id]; td += n > 0 ? n : 0; tc += n < 0 ? -n : 0;
+    html += `<tr><td class="mono">?</td><td>Akun dihapus</td><td class="num mono">${n>0?finMoney(n):''}</td><td class="num mono">${n<0?finMoney(-n):''}</td></tr>`;
+  });
+  html += `<tr class="fin-total"><td colspan="2">Total</td><td class="num mono">${finMoney(td)}</td><td class="num mono">${finMoney(tc)}</td></tr>`;
+  document.getElementById('fin-tb-tbody').innerHTML = html;
+}
+function finRenderRecon(entries, to){
+  const net = finBalances(entries, to);
+  const piutangBuku = net['1-1400'] || 0;
+  const piutangKartu = (DB.receivables||[]).reduce((s,r)=> s + (Number(r.amount)||0) - (Number(r.paidAmount)||0), 0);
+  const utangBuku = -(net['2-1100']||0) - (net['2-1300']||0);
+  const utangKartu = (DB.payables||[]).reduce((s,p)=> s + (Number(p.amount)||0) - (p.payments||[]).reduce((x,y)=>x+(Number(y.amount)||0),0), 0);
+  const line = (label, a, b, note) => {
+    const diff = r2(a - b); const ok = Math.abs(diff) < 1;
+    return `<tr><td>${esc(label)}</td><td class="num mono">${finMoney(a)}</td><td class="num mono">${finMoney(b)}</td><td class="num mono" style="color:${ok?'var(--green)':'var(--rust)'}">${ok ? '✓ cocok' : finMoney(diff)}</td></tr>${ok?'':`<tr><td colspan="4" class="fin-hint" style="padding:2px 4px 8px;">${esc(note)}</td></tr>`}`;
+  };
+  document.getElementById('fin-recon').innerHTML = `<h3 class="display" style="margin-top:0; font-size:16px;">Rekonsiliasi Buku Besar vs Kartu Pembantu</h3>
+    <table class="fin-table"><thead><tr><th></th><th class="num">Buku Besar</th><th class="num">Kartu</th><th class="num">Selisih</th></tr></thead><tbody>
+    ${line('Piutang Usaha vs kartu piutang pelanggan', piutangBuku, piutangKartu, 'Selisih biasanya berasal dari piutang lama sebelum tanggal Saldo Awal, atau sisa piutang yang belum ada di Saldo Awal. Tambahkan lewat Saldo Awal.')}
+    ${line('Utang vs daftar utang', utangBuku, utangKartu, 'Selisih biasanya dari utang pada Saldo Awal atau jurnal manual ke akun utang.')}
+    </tbody></table>`;
+}
+
+/* ---------- Form jurnal manual ---------- */
+const FIN_TEMPLATES = {
+  penyusutan: { label:'Penyusutan peralatan', type:'penyesuaian', desc:'Penyusutan peralatan', lines:[['6-2000','d'],['1-2900','c']] },
+  modal:      { label:'Setoran modal pemilik', type:'kas', desc:'Setoran modal pemilik', lines:[['1-1100','d'],['3-1100','c']] },
+  prive:      { label:'Prive (pemilik ambil kas)', type:'kas', desc:'Pengambilan pribadi pemilik', lines:[['3-1200','d'],['1-1100','c']] },
+  stok:       { label:'Koreksi selisih stok (rusak/hilang)', type:'penyesuaian', desc:'Koreksi persediaan (selisih stok)', lines:[['6-9000','d'],['1-1500','c']] },
+  akrual:     { label:'Beban yang masih harus dibayar', type:'penyesuaian', desc:'Beban yang masih harus dibayar', lines:[['6-9000','d'],['2-1300','c']] },
+  aset:       { label:'Beli peralatan tunai', type:'kas', desc:'Pembelian peralatan', lines:[['1-2100','d'],['1-1100','c']] },
+};
+function finAccOptions(sel){
+  return '<option value="">— akun —</option>' + FIN_LIST.map(a=>`<option value="${esc(a.id)}"${a.id===sel?' selected':''}>${esc(a.code)} ${esc(a.name)}</option>`).join('');
+}
+function finAddLine(acc, side, amt){
+  const box = document.getElementById('fj-lines');
+  const div = document.createElement('div');
+  div.className = 'fj-line';
+  div.innerHTML = `<select class="fj-acc">${finAccOptions(acc)}</select>
+    <input type="number" class="fj-d" min="0" placeholder="Debit" value="${side==='d' && amt ? amt : ''}">
+    <input type="number" class="fj-c" min="0" placeholder="Kredit" value="${side==='c' && amt ? amt : ''}">
+    <button type="button" class="btn danger sm fj-rm">×</button>`;
+  div.querySelector('.fj-rm').addEventListener('click', ()=>{ div.remove(); finUpdateBalance(); });
+  div.querySelectorAll('input').forEach(i=> i.addEventListener('input', finUpdateBalance));
+  box.appendChild(div);
+}
+function finReadLines(){
+  return [...document.querySelectorAll('#fj-lines .fj-line')].map(r=>({
+    a: r.querySelector('.fj-acc').value,
+    d: Number(r.querySelector('.fj-d').value) || 0,
+    c: Number(r.querySelector('.fj-c').value) || 0,
+  }));
+}
+function finUpdateBalance(){
+  const ls = finReadLines();
+  const d = ls.reduce((s,l)=>s+l.d,0), c = ls.reduce((s,l)=>s+l.c,0);
+  const el = document.getElementById('fj-balance');
+  const ok = Math.abs(d - c) < 0.01 && d > 0;
+  el.style.color = ok ? 'var(--green)' : 'var(--rust)';
+  el.textContent = `Debit ${rupiah(d)} | Kredit ${rupiah(c)} ${ok ? '✓ seimbang' : '(selisih ' + rupiah(Math.abs(d-c)) + ')'}`;
+}
+function finInitJournalForm(){
+  const tpl = document.getElementById('fj-template');
+  Object.keys(FIN_TEMPLATES).forEach(k=>{ const o = document.createElement('option'); o.value = k; o.textContent = FIN_TEMPLATES[k].label; tpl.appendChild(o); });
+  tpl.addEventListener('change', ()=>{
+    const t = FIN_TEMPLATES[tpl.value]; if(!t) return;
+    document.getElementById('fj-type').value = t.type;
+    document.getElementById('fj-desc').value = t.desc;
+    document.getElementById('fj-lines').innerHTML = '';
+    t.lines.forEach(([a,s])=> finAddLine(a, s, 0));
+    finUpdateBalance();
+  });
+  document.getElementById('btn-fj-addline').addEventListener('click', ()=>{ finAddLine('', 'd', 0); });
+  finAddLine('', 'd', 0); finAddLine('', 'c', 0); finUpdateBalance();
+  document.getElementById('btn-fj-save').addEventListener('click', finSaveManual);
+}
+async function finSaveManual(){
+  const date = document.getElementById('fj-date').value;
+  const type = document.getElementById('fj-type').value;
+  const desc = document.getElementById('fj-desc').value.trim();
+  const lines = finReadLines().filter(l=> l.a || l.d || l.c);
+  if(!date){ showToast('Tanggal wajib diisi'); return; }
+  if(date <= finLockedDate()){ showToast('Tanggal sudah masuk periode yang ditutup (' + finLockedDate() + ')'); return; }
+  if(!desc){ showToast('Keterangan wajib diisi'); return; }
+  if(lines.length < 2){ showToast('Minimal 2 baris akun'); return; }
+  if(lines.some(l=> !l.a)){ showToast('Setiap baris harus punya akun'); return; }
+  if(lines.some(l=> l.d < 0 || l.c < 0 || (l.d > 0 && l.c > 0) || (l.d === 0 && l.c === 0))){ showToast('Tiap baris harus diisi salah satu: debit ATAU kredit (lebih dari 0)'); return; }
+  const d = lines.reduce((s,l)=>s+l.d,0), c = lines.reduce((s,l)=>s+l.c,0);
+  if(Math.abs(d - c) > 0.01){ showToast('Total debit harus sama dengan total kredit'); return; }
+  const btn = document.getElementById('btn-fj-save'); btn.disabled = true;
+  const ok = await saveCompanyArrayField('finEntries', [...DB.finEntries, { id:uid(), date, type, desc, lines, createdAt:new Date().toISOString() }]);
+  btn.disabled = false;
+  if(!ok) return;
+  document.getElementById('fj-desc').value = '';
+  document.getElementById('fj-lines').innerHTML = '';
+  finAddLine('', 'd', 0); finAddLine('', 'c', 0); finUpdateBalance();
+  document.getElementById('fj-template').value = '';
+  showToast('Jurnal tersimpan');
+  renderKeuangan();
+}
+function finDeleteManual(mid){
+  const f = DB.finEntries.find(x=>x.id===mid); if(!f) return;
+  if(f.date <= finLockedDate()){ showToast('Periode sudah ditutup'); return; }
+  showConfirm(`Hapus jurnal <strong>${esc(f.desc)}</strong> (${esc(f.date)})?`, async ()=>{
+    const ok = await saveCompanyArrayField('finEntries', DB.finEntries.filter(x=>x.id!==mid));
+    if(ok){ showToast('Jurnal dihapus'); renderKeuangan(); }
+  });
+}
+
+/* ---------- Utang ---------- */
+function finInitPayableForm(){
+  const src = document.getElementById('pay-source');
+  src.addEventListener('change', ()=>{
+    const v = src.value;
+    document.getElementById('pay-manual-opts').style.display = v === 'manual' ? '' : 'none';
+    if(v !== 'manual'){
+      const pu = DB.purchases.find(p=>p.id===v);
+      if(pu){
+        document.getElementById('pay-supplier').value = pu.supplier || '';
+        document.getElementById('pay-desc').value = 'Pembelian ' + (pu.productName || '');
+        document.getElementById('pay-amount').value = Math.round(pu.total);
+        document.getElementById('pay-date').value = localDateFromIso(pu.date);
+      }
+    }
+  });
+  document.getElementById('btn-pay-add').addEventListener('click', finSavePayable);
+}
+function finPaid(p){ return (p.payments||[]).reduce((s,x)=> s + (Number(x.amount)||0), 0); }
+function finRenderPayables(){
+  const src = document.getElementById('pay-source');
+  const prev = src.value;
+  const linked = new Set(DB.payables.filter(p=>p.purchaseId).map(p=>p.purchaseId));
+  const opts = [...DB.purchases].filter(p=> !linked.has(p.id) && (Number(p.total)||0) > 0)
+    .sort((a,b)=> new Date(b.date) - new Date(a.date)).slice(0, 80)
+    .map(p=>`<option value="${esc(p.id)}">${esc(localDateFromIso(p.date))} — ${esc(p.productName||'Pembelian')}${p.supplier?' ('+esc(p.supplier)+')':''} — ${rupiah(p.total)}</option>`).join('');
+  src.innerHTML = `<option value="manual">Utang manual (bukan dari menu Pembelian)</option>${opts ? '<optgroup label="Tautkan ke pembelian yang sudah ada">'+opts+'</optgroup>' : ''}`;
+  if([...src.options].some(o=>o.value===prev)) src.value = prev;
+  document.getElementById('pay-manual-opts').style.display = src.value === 'manual' ? '' : 'none';
+
+  const locked = finLockedDate();
+  const list = [...DB.payables].sort((a,b)=> b.date.localeCompare(a.date));
+  document.getElementById('pay-empty').style.display = list.length ? 'none' : 'block';
+  let sisaTotal = 0;
+  document.getElementById('pay-tbody').innerHTML = list.map(p=>{
+    const paid = finPaid(p), sisa = r2((Number(p.amount)||0) - paid);
+    sisaTotal += sisa;
+    const overdue = sisa > 0 && p.dueDate && p.dueDate < todayStr();
+    return `<tr><td>${esc(p.date)}${p.dueDate?`<div class="fin-hint" style="margin:0;${overdue?'color:var(--rust);font-weight:600;':''}">Tempo ${esc(p.dueDate)}${overdue?' (lewat)':''}</div>`:''}</td>
+      <td>${esc(p.supplier||'-')}<div class="fin-hint" style="margin:0;">${esc(p.desc||'')}${p.purchaseId?' · tertaut pembelian':''}${(p.liabAcc==='2-1300')?' · utang lainnya':''}</div></td>
+      <td class="num mono">${finMoney(p.amount)}</td><td class="num mono">${finMoney(paid)}</td>
+      <td class="num mono" style="font-weight:700;color:${sisa>0?'var(--rust)':'var(--green)'};">${sisa>0?finMoney(sisa):'Lunas'}</td>
+      <td>${sisa > 0 ? `<div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <input type="number" min="0" id="pp-amt-${esc(p.id)}" value="${sisa}" style="width:110px;">
+          <select id="pp-mth-${esc(p.id)}" style="width:100px;"><option value="cash">Kas</option><option value="transfer">Transfer</option><option value="qris">QRIS</option></select>
+          <button class="btn amber sm" onclick="finPayPayable('${esc(p.id)}')">Bayar</button></div>` : ''}
+        ${paid === 0 && p.date > locked ? `<button class="btn danger sm" style="margin-top:6px;" onclick="finDeletePayable('${esc(p.id)}')">Hapus</button>` : ''}</td></tr>`;
+  }).join('');
+  document.getElementById('pay-total').textContent = sisaTotal > 0 ? 'Sisa utang: ' + rupiah(sisaTotal) : '';
+}
+async function finSavePayable(){
+  const date = document.getElementById('pay-date').value;
+  const source = document.getElementById('pay-source').value;
+  const supplier = document.getElementById('pay-supplier').value.trim();
+  const desc = document.getElementById('pay-desc').value.trim();
+  const amount = Number(document.getElementById('pay-amount').value) || 0;
+  const due = document.getElementById('pay-due').value || null;
+  if(!date){ showToast('Tanggal wajib diisi'); return; }
+  if(date <= finLockedDate()){ showToast('Tanggal sudah masuk periode yang ditutup'); return; }
+  if(amount <= 0){ showToast('Jumlah utang harus lebih dari 0'); return; }
+  const rec = { id:uid(), date, supplier, desc, amount, dueDate:due, payments:[], createdAt:new Date().toISOString() };
+  if(source === 'manual'){
+    if(!supplier && !desc){ showToast('Isi nama pihak atau keterangan'); return; }
+    rec.liabAcc = document.getElementById('pay-liab').value;
+    rec.debitAcc = document.getElementById('pay-debit').value;
+    if(rec.debitAcc === '1-1100') rec.liabAcc = '2-1300'; // pinjaman uang tunai = utang lainnya
+  } else {
+    const pu = DB.purchases.find(p=>p.id===source);
+    if(!pu){ showToast('Pembelian tidak ditemukan'); return; }
+    if(amount > (Number(pu.total)||0) + 0.01){ showToast('Utang tidak boleh lebih besar dari total pembelian (' + rupiah(pu.total) + ')'); return; }
+    if(localDateFromIso(pu.date) <= finLockedDate()){ showToast('Pembelian itu ada di periode yang sudah ditutup'); return; }
+    rec.purchaseId = pu.id; rec.liabAcc = '2-1100'; rec.date = localDateFromIso(pu.date);
+  }
+  const btn = document.getElementById('btn-pay-add'); btn.disabled = true;
+  const ok = await saveCompanyArrayField('payables', [...DB.payables, rec]);
+  btn.disabled = false;
+  if(!ok) return;
+  ['pay-supplier','pay-desc','pay-amount','pay-due'].forEach(i=> document.getElementById(i).value = '');
+  document.getElementById('pay-source').value = 'manual';
+  showToast('Utang tersimpan');
+  renderKeuangan();
+}
+async function finPayPayable(id){
+  const p = DB.payables.find(x=>x.id===id); if(!p) return;
+  const amt = Number(document.getElementById('pp-amt-' + id).value) || 0;
+  const method = document.getElementById('pp-mth-' + id).value;
+  const sisa = r2((Number(p.amount)||0) - finPaid(p));
+  const date = todayStr();
+  if(date <= finLockedDate()){ showToast('Tanggal hari ini masuk periode yang ditutup'); return; }
+  if(amt <= 0){ showToast('Jumlah bayar harus lebih dari 0'); return; }
+  if(amt > sisa + 0.01){ showToast('Melebihi sisa utang (' + rupiah(sisa) + ')'); return; }
+  const list = DB.payables.map(x=> x.id !== id ? x : { ...x, payments:[...(x.payments||[]), { id:uid(), date, amount:amt, method }] });
+  const ok = await saveCompanyArrayField('payables', list);
+  if(ok){ showToast('Pembayaran utang tersimpan'); renderKeuangan(); }
+}
+function finDeletePayable(id){
+  const p = DB.payables.find(x=>x.id===id); if(!p) return;
+  showConfirm(`Hapus catatan utang <strong>${esc(p.supplier||p.desc||'')}</strong> (${rupiah(p.amount)})?`, async ()=>{
+    const ok = await saveCompanyArrayField('payables', DB.payables.filter(x=>x.id!==id));
+    if(ok){ showToast('Utang dihapus'); renderKeuangan(); }
+  });
+}
+
+/* ---------- Saldo awal & tutup buku ---------- */
+const OP_FIELDS = [
+  ['1-1100','Kas (uang tunai)'], ['1-1200','Bank / Rekening'], ['1-1300','QRIS / Dompet Digital'], ['1-1400','Piutang Usaha'],
+  ['1-1500','Persediaan Barang'], ['1-2100','Peralatan & Aset Tetap'], ['1-2900','Akumulasi Penyusutan (pengurang)'],
+  ['2-1100','Utang Usaha'], ['2-1300','Utang Lainnya'],
+];
+function finOpeningEntry(){ return (DB.finEntries||[]).find(f=> f.type === 'saldo_awal'); }
+function finRenderTutup(entries){
+  const box = document.getElementById('op-fields');
+  if(!box.dataset.ready){
+    box.dataset.ready = '1';
+    box.innerHTML = OP_FIELDS.map(([id,label])=>`<div class="field"><label>${esc(label)}</label><input type="number" min="0" class="op-in" data-acc="${id}" placeholder="0"></div>`).join('');
+    box.querySelectorAll('input').forEach(i=> i.addEventListener('input', finUpdateOpModal));
+    const op = finOpeningEntry();
+    if(op){
+      document.getElementById('op-date').value = op.date;
+      (op.lines||[]).forEach(l=>{
+        const inp = box.querySelector(`.op-in[data-acc="${l.a}"]`);
+        if(inp) inp.value = l.d || l.c || '';
+      });
+    }
+  }
+  const op = finOpeningEntry();
+  document.getElementById('btn-op-del').style.display = op ? '' : 'none';
+  finUpdateOpModal();
+  // daftar tutup buku
+  const closes = [...DB.periodCloses].sort((a,b)=> b.date.localeCompare(a.date));
+  document.getElementById('close-empty').style.display = closes.length ? 'none' : 'block';
+  document.getElementById('close-tbody').innerHTML = closes.map((c,i)=>{
+    const lr = finCalcLabaRugi(entries.filter(e=> e.type !== 'penutup'), (closes[i+1] ? finNextDay(closes[i+1].date) : '1970-01-01'), c.date);
+    return `<tr><td>${esc(c.date)}</td><td class="num mono" style="color:${finTone(lr.labaBersih)}">${finMoney(lr.labaBersih)}</td><td>${esc(c.byName||'')} ${c.createdAt?esc(localDateFromIso(c.createdAt)):''}</td>
+      <td>${i===0 ? `<button class="btn danger sm" onclick="finUndoClose('${esc(c.id)}')">Batalkan</button>` : ''}</td></tr>`;
+  }).join('');
+  if(!document.getElementById('btn-close-books').dataset.bound){
+    document.getElementById('btn-close-books').dataset.bound = '1';
+    document.getElementById('btn-close-books').addEventListener('click', finCloseBooks);
+    document.getElementById('btn-op-save').addEventListener('click', finSaveOpening);
+    document.getElementById('btn-op-del').addEventListener('click', finDeleteOpening);
+  }
+}
+function finNextDay(d){ const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate()+1); return localDateStr(x); }
+function finOpValues(){
+  const v = {};
+  document.querySelectorAll('.op-in').forEach(i=>{ v[i.dataset.acc] = Number(i.value) || 0; });
+  return v;
+}
+function finUpdateOpModal(){
+  const v = finOpValues();
+  const aset = (v['1-1100']||0)+(v['1-1200']||0)+(v['1-1300']||0)+(v['1-1400']||0)+(v['1-1500']||0)+(v['1-2100']||0)-(v['1-2900']||0);
+  const utang = (v['2-1100']||0)+(v['2-1300']||0);
+  const modal = aset - utang;
+  const el = document.getElementById('op-modal');
+  el.style.color = modal >= 0 ? 'var(--green)' : 'var(--rust)';
+  el.textContent = `Modal awal pemilik (otomatis) = Aset ${rupiah(aset)} − Utang ${rupiah(utang)} = ${finMoney(modal)}`;
+}
+async function finSaveOpening(){
+  const date = document.getElementById('op-date').value;
+  if(!date){ showToast('Tanggal saldo awal wajib diisi'); return; }
+  if(date <= finLockedDate()){ showToast('Tanggal sudah masuk periode yang ditutup'); return; }
+  const v = finOpValues();
+  const lines = [];
+  OP_FIELDS.forEach(([id])=>{
+    const n = v[id] || 0; if(n <= 0) return;
+    if(id === '2-1100' || id === '2-1300' || id === '1-2900') lines.push({ a:id, d:0, c:n });
+    else lines.push({ a:id, d:n, c:0 });
+  });
+  const dSum = lines.reduce((s,l)=>s+l.d,0), cSum = lines.reduce((s,l)=>s+l.c,0);
+  const modal = r2(dSum - cSum);
+  if(modal > 0) lines.push({ a:'3-1100', d:0, c:modal }); else if(modal < 0) lines.push({ a:'3-1100', d:-modal, c:0 });
+  if(!lines.length){ showToast('Isi minimal satu saldo awal'); return; }
+  const old = finOpeningEntry();
+  const entry = { id: old ? old.id : uid(), date, type:'saldo_awal', desc:'Saldo awal', lines, createdAt:new Date().toISOString() };
+  const list = [...DB.finEntries.filter(f=> f.type !== 'saldo_awal'), entry];
+  const ok = await saveCompanyArrayField('finEntries', list);
+  if(ok){ showToast('Saldo awal tersimpan'); renderKeuangan(); }
+}
+function finDeleteOpening(){
+  const op = finOpeningEntry(); if(!op) return;
+  if(op.date <= finLockedDate()){ showToast('Periode sudah ditutup — batalkan tutup buku dulu'); return; }
+  showConfirm('Hapus Saldo Awal? Laporan akan dihitung tanpa saldo awal.', async ()=>{
+    const ok = await saveCompanyArrayField('finEntries', DB.finEntries.filter(f=> f.type !== 'saldo_awal'));
+    if(ok){
+      document.querySelectorAll('.op-in').forEach(i=> i.value = '');
+      showToast('Saldo awal dihapus'); renderKeuangan();
+    }
+  });
+}
+function finCloseBooks(){
+  const date = document.getElementById('close-date').value;
+  const last = finLockedDate();
+  if(!date){ showToast('Pilih tanggal tutup buku'); return; }
+  if(date >= todayStr()){ showToast('Tutup buku hanya untuk tanggal yang sudah lewat (sampai kemarin)'); return; }
+  if(date <= last){ showToast('Tanggal harus setelah penutupan terakhir (' + last + ')'); return; }
+  const entries = finBuildJournal().filter(e=> e.type !== 'penutup');
+  const lr = finCalcLabaRugi(entries, last ? finNextDay(last) : '1970-01-01', date);
+  showConfirm(`Tutup buku sampai <strong>${esc(date)}</strong>?<br>${lr.labaBersih>=0?'Laba':'Rugi'} periode: <strong>${finMoney(lr.labaBersih)}</strong> akan dipindahkan ke Laba Ditahan. Jurnal bertanggal s/d ${esc(date)} tidak bisa ditambah/dihapus lagi (penutupan bisa dibatalkan).`, async ()=>{
+    const rec = { id:uid(), date, createdAt:new Date().toISOString(), byName: (SESSION && SESSION.name) || '' };
+    const ok = await saveCompanyArrayField('periodCloses', [...DB.periodCloses, rec]);
+    if(ok){ showToast('Buku ditutup s/d ' + date); renderKeuangan(); }
+  });
+}
+function finUndoClose(id){
+  showConfirm('Batalkan penutupan buku terakhir? Jurnal penutupnya dihapus dan periode itu bisa diubah lagi.', async ()=>{
+    const ok = await saveCompanyArrayField('periodCloses', DB.periodCloses.filter(c=>c.id!==id));
+    if(ok){ showToast('Penutupan dibatalkan'); renderKeuangan(); }
+  });
+}
+
+/* ---------- Event tab/filter ---------- */
+document.getElementById('fin-tabs').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-tab]'); if(!b) return;
+  FIN.tab = b.dataset.tab; renderKeuangan();
+});
+document.getElementById('fin-jfilter').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-f]'); if(!b) return;
+  FIN.jfilter = b.dataset.f; FIN.jlimit = 300;
+  document.querySelectorAll('#fin-jfilter button').forEach(x=> x.classList.toggle('active', x === b));
+  renderKeuangan();
+});
+document.getElementById('btn-fin-apply').addEventListener('click', ()=> renderKeuangan());
+document.getElementById('btn-fin-jmore').addEventListener('click', ()=>{ FIN.jlimit += 500; renderKeuangan(); });
+document.getElementById('fin-ledger-acc').addEventListener('change', e=>{ FIN.ledgerAcc = e.target.value; renderKeuangan(); });
+
+function finDownloadCsv(name, rows){
+  const csv = rows.map(r=> r.map(c=> '"' + String(c==null?'':c).replace(/"/g,'""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type:'text/csv;charset=utf-8' }));
+  a.download = name; a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 2000);
+}
+document.getElementById('btn-fin-jcsv').addEventListener('click', ()=>{
+  const { from, to } = finRange();
+  const rows = [['Tanggal','Jenis','Keterangan','Akun','Debit','Kredit']];
+  finBuildJournal().filter(e=> e.date >= from && e.date <= to && finEntryMatches(e, FIN.jfilter))
+    .forEach(e=> e.lines.forEach(l=> rows.push([e.date, FIN_TYPE_LABEL[e.type]||e.type, e.desc, finAccLabel(l.a), l.d||'', l.c||''])));
+  finDownloadCsv(`jurnal-${from}_${to}.csv`, rows);
+});
+document.getElementById('btn-fin-lcsv').addEventListener('click', ()=>{
+  const { from, to } = finRange();
+  const L = finLedger(finBuildJournal(), FIN.ledgerAcc, from, to);
+  const rows = [['Tanggal','Keterangan','Debit','Kredit','Saldo'], [from,'Saldo awal','','',L.opening]];
+  L.rows.forEach(r=> rows.push([r.e.date, r.e.desc, r.d||'', r.c||'', r.saldo]));
+  finDownloadCsv(`buku-besar-${FIN.ledgerAcc}-${from}_${to}.csv`, rows);
+});
+
+document.getElementById('btn-fin-pdf').addEventListener('click', ()=>{
+  if(typeof window.jspdf === 'undefined'){ showToast('Fitur PDF belum siap. Cek koneksi internet lalu coba lagi.'); return; }
+  const S = finStatementData();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const fm = n => (n<0?'-':'') + rupiah(Math.abs(r2(n)));
+  const body = rows => rows.filter(r=>!r.gap).map(r=> r.head ? [{ content:r.head, colSpan:2, styles:{ fontStyle:'bold', fillColor:[242,236,220] } }] : [ (r.indent?'    ':'') + r.label, fm(r.amt) ]);
+  const bolds = rows => { const arr = []; rows.filter(r=>!r.gap).forEach((r,i)=>{ if(r.bold) arr.push(i); }); return arr; };
+  let y = 18;
+  const section = (title, sub, rows)=>{
+    if(y > 210){ doc.addPage(); y = 18; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(0);
+    doc.text(title, 14, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100);
+    doc.text(sub, 14, y + 5);
+    const b = bolds(rows);
+    doc.autoTable({ startY: y + 8, theme:'grid', styles:{ fontSize:9 }, columnStyles:{ 1:{ halign:'right', cellWidth:45 } },
+      head:[['Komponen','Nominal']], body: body(rows), headStyles:{ fillColor:[20,33,61] },
+      didParseCell: d=>{ if(d.section === 'body' && b.includes(d.row.index)) d.cell.styles.fontStyle = 'bold'; } });
+    y = doc.lastAutoTable.finalY + 12;
+  };
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(0);
+  doc.text(DB.storeName, 14, y); y += 6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(100);
+  doc.text('Laporan Keuangan', 14, y); y += 5;
+  doc.text(`Periode: ${S.from} s/d ${S.to}   |   Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, y); y += 10;
+  section('Laporan Laba Rugi', `Periode ${S.from} s/d ${S.to}`, finRowsLR(S.lr));
+  section('Laporan Perubahan Ekuitas', `Periode ${S.from} s/d ${S.to}`, finRowsEq(S.eq));
+  section('Neraca', `Per ${S.to}`, finRowsBS(S.bs));
+  section('Laporan Arus Kas (metode langsung)', `Periode ${S.from} s/d ${S.to}`, finRowsCF(S.cf));
+  doc.save(`laporan-keuangan-${S.from}_${S.to}.pdf`);
   showToast('PDF berhasil dibuat');
 });
 
