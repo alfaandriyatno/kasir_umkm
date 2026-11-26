@@ -566,6 +566,7 @@
         <div class="stat"><div class="label">Transaksi Per Hari Ini</div><div class="value mono" id="d-trx-today">0</div></div>
         <div class="stat" id="d-overdue-card"><div class="label">Piutang Jatuh Tempo</div><div class="value mono" id="d-overdue-receivables">Rp 0</div></div>
         <div class="stat" id="d-lowstock-card" style="cursor:pointer;" title="Lihat daftar produk stok menipis"><div class="label">Produk Stok Menipis</div><div class="value mono" id="d-lowstock-count">0</div></div>
+        <div class="stat" id="d-matlow-card" style="cursor:pointer;" title="Lihat daftar bahan baku hampir habis"><div class="label">Bahan Baku Hampir Habis</div><div class="value mono" id="d-matlow-count">0</div></div>
       </div>
 
       <div class="card" id="backup-reminder-banner" style="display:none; margin-bottom:20px; border:1px solid var(--amber-dark, #b07a1f); background:var(--amber-bg, #fdf0d5);">
@@ -664,6 +665,16 @@
           <tbody id="dash-lowstock-tbody"></tbody>
         </table>
         <div id="dash-lowstock-empty" class="empty-state" style="display:none;">Semua stok barang masih aman (di atas batas minimum masing-masing).</div>
+      </div>
+
+      <div class="card" id="dash-matlow-card" style="overflow-x:auto; margin-bottom:20px;">
+        <h3 class="display" style="margin-top:0; color:var(--rust);">⚠ Bahan Baku Hampir Habis</h3>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin:-8px 0 12px 0;">Bahan baku produksi yang stoknya sudah di batas peringatan atau habis (batas diatur per bahan di Produksi → Bahan Baku). Stok berkurang otomatis saat produk jadi yang memakai bahan itu terjual.</div>
+        <table id="dash-matlow-table">
+          <thead><tr><th>Bahan Baku</th><th class="num">Sisa Stok</th><th class="num">Batas</th><th>Status</th><th></th></tr></thead>
+          <tbody id="dash-matlow-tbody"></tbody>
+        </table>
+        <div id="dash-matlow-empty" class="empty-state" style="display:none;">Semua bahan baku masih aman (atau belum ada bahan baku terdaftar).</div>
       </div>
 
       <div class="card" style="overflow-x:auto; margin-bottom:20px;">
@@ -1929,6 +1940,10 @@
       <div class="field" style="flex:1; min-width:170px;"><label>Biaya Tenaga Kerja (Rp, total batch)</label><input type="number" id="bt-labor" min="0" step="any" placeholder="0"></div>
       <div class="field" style="flex:1; min-width:170px;"><label>Biaya Overhead (gas, listrik, kemasan; Rp)</label><input type="number" id="bt-over" min="0" step="any" placeholder="0"></div>
     </div>
+    <div style="display:flex; gap:8px; align-items:flex-start; margin:-4px 0 12px 0;">
+      <div id="bt-jr-hint" class="fin-hint" style="margin:0; flex:1;"></div>
+      <button type="button" class="btn outline sm" id="btn-bt-jr">↻ Isi dari jurnal</button>
+    </div>
     <div class="field"><label>Catatan (opsional)</label><input type="text" id="bt-note" maxlength="500"></div>
     <div id="bt-calc" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:14px;"></div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -2014,6 +2029,10 @@
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <div class="field" style="flex:1; min-width:180px;"><label>Biaya Tenaga Kerja (Rp, per resep)</label><input type="number" id="hpp-labor" min="0" placeholder="0"></div>
         <div class="field" style="flex:1; min-width:180px;"><label>Overhead: gas, listrik, kemasan (Rp, per resep)</label><input type="number" id="hpp-overhead" min="0" placeholder="0"></div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:flex-start; margin:-4px 0 12px 0;">
+        <div id="hpp-jr-hint" class="fin-hint" style="margin:0; flex:1;"></div>
+        <button type="button" class="btn outline sm" id="btn-hpp-jr">↻ Isi dari jurnal</button>
       </div>
       <div style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.7;">
         Total bahan: <strong class="mono" id="hpp-sum-ing">Rp 0</strong><br>
@@ -2498,6 +2517,7 @@ function renderDashboard(){
   renderTrendCharts(trxs);
   renderDashboardSoldTable();
   renderLowStock();
+  try{ renderMaterialAlerts(); }catch(e){ console.error(e); }
   renderExpiryWarnings();
   renderMonthlyTarget();
   renderMonthlyTrendCharts();
@@ -2721,6 +2741,26 @@ function renderLowStock(){
   });
   renderMarginAlerts();
 }
+function renderMaterialAlerts(){
+  const rows = (DB.materials||[]).filter(m=> matState(m) !== 'aman')
+    .sort((a,b)=> (matState(a)==='habis'?0:1) - (matState(b)==='habis'?0:1) || (Number(a.stock)||0) - (Number(b.stock)||0));
+  document.getElementById('d-matlow-count').textContent = rows.length;
+  document.getElementById('d-matlow-card').classList.toggle('neg', rows.length > 0);
+  document.getElementById('dash-matlow-empty').style.display = rows.length ? 'none' : 'block';
+  const canBuy = btCanManage();
+  document.getElementById('dash-matlow-tbody').innerHTML = rows.map(m=>{
+    const habis = matState(m) === 'habis';
+    return `<tr><td><strong>${esc(m.name)}</strong></td>
+      <td class="num mono lowstock">${matQty(m.stock)} ${esc(m.unit||'')}</td>
+      <td class="num mono">${Number(m.minStock) > 0 ? matQty(m.minStock) + ' ' + esc(m.unit||'') : '-'}</td>
+      <td><span class="badge low">${habis ? 'Habis' : 'Hampir habis'}</span></td>
+      <td>${canBuy ? `<button class="btn amber sm" onclick="matGoBuy('${esc(m.id)}')">+ Beli</button>` : ''}</td></tr>`;
+  }).join('');
+}
+function matGoBuy(id){ switchView('produksi'); prSwitchTab('bahan'); matOpenBuy(id); }
+document.getElementById('d-matlow-card').addEventListener('click', ()=>{
+  document.getElementById('dash-matlow-card').scrollIntoView({ behavior:'smooth', block:'center' });
+});
 document.getElementById('d-lowstock-card').addEventListener('click', ()=>{
   document.getElementById('dash-lowstock-table').scrollIntoView({ behavior:'smooth', block:'center' });
 });
@@ -5144,6 +5184,7 @@ function openHppModal(id){
   imp.innerHTML = '<option value="">— pilih produk di stok —</option>' + DB.products.filter(x=>x.id!==id).map(x=>`<option value="${esc(x.id)}">${esc(x.name)} (${rupiah(x.buyPrice||0)}/${esc(x.unit||'pcs')}, stok ${x.stock})</option>`).join('');
   renderHppHistory(p);
   hppTypeChanged();
+  try{ document.getElementById('hpp-jr-hint').innerHTML = btJournalHintText(btJournalCosts(null), false); }catch(e){}
   openModal('modal-hpp');
 }
 document.getElementById('hpp-type').addEventListener('change', hppTypeChanged);
@@ -6496,6 +6537,8 @@ async function submitCheckout(approverToken){
   CACHE.products = newData.products || [];
   CACHE.transactions = newData.transactions || [];
   CACHE.stockLogs = newData.stockLogs || [];
+  CACHE.materials = newData.materials || CACHE.materials;
+  CACHE.materialLogs = newData.materialLogs || CACHE.materialLogs;
   CACHE.receivables = newData.receivables || [];
   CACHE.pointRedemptions = newData.pointRedemptions || [];
 
@@ -6574,6 +6617,8 @@ function voidTransaction(id){
       CACHE.products = newData.products || [];
       CACHE.transactions = newData.transactions || [];
       CACHE.stockLogs = newData.stockLogs || [];
+      CACHE.materials = newData.materials || CACHE.materials;
+      CACHE.materialLogs = newData.materialLogs || CACHE.materialLogs;
       CACHE.voidLogs = newData.voidLogs || [];
       CACHE.receivables = newData.receivables || [];
       CACHE.pointRedemptions = newData.pointRedemptions || [];
@@ -7564,6 +7609,8 @@ const FIN_COA = [
   { id:'4-2000', name:'Pendapatan Lain-lain', type:'pendapatan', nd:'c' },
   { id:'5-1100', name:'Harga Pokok Penjualan (HPP)', type:'beban', nd:'d' },
   { id:'6-1100', name:'Beban Gaji', type:'beban', nd:'d' },
+  { id:'6-1200', name:'Beban Tenaga Kerja Produksi', type:'beban', nd:'d' },
+  { id:'6-1300', name:'Beban Overhead Produksi (gas, listrik, kemasan)', type:'beban', nd:'d' },
   { id:'6-2000', name:'Beban Penyusutan', type:'beban', nd:'d' },
   { id:'6-9000', name:'Beban Lain-lain', type:'beban', nd:'d' },
 ];
@@ -8150,6 +8197,8 @@ function finRenderRecon(entries, to){
 
 /* ---------- Form jurnal manual ---------- */
 const FIN_TEMPLATES = {
+  tenaga:     { label:'Biaya tenaga kerja produksi (tunai)', type:'kas', desc:'Biaya tenaga kerja produksi', lines:[['6-1200','d'],['1-1100','c']] },
+  overhead:   { label:'Biaya overhead produksi (gas/listrik/kemasan, tunai)', type:'kas', desc:'Biaya overhead produksi', lines:[['6-1300','d'],['1-1100','c']] },
   penyusutan: { label:'Penyusutan peralatan', type:'penyesuaian', desc:'Penyusutan peralatan', lines:[['6-2000','d'],['1-2900','c']] },
   modal:      { label:'Setoran modal pemilik', type:'kas', desc:'Setoran modal pemilik', lines:[['1-1100','d'],['3-1100','c']] },
   prive:      { label:'Prive (pemilik ambil kas)', type:'kas', desc:'Pengambilan pribadi pemilik', lines:[['3-1200','d'],['1-1100','c']] },
@@ -8625,6 +8674,35 @@ function renderProduksi(){
   document.getElementById('bt-tbody').innerHTML = html;
   try{ renderBahan(); }catch(e){ console.error(e); }
 }
+/* ---- Biaya tenaga kerja & overhead otomatis dari Jurnal Keuangan ----
+   Tenaga kerja = Beban Gaji (6-1100) + Beban Tenaga Kerja Produksi (6-1200)
+   Overhead     = Beban Overhead Produksi (6-1300) + Beban Penyusutan (6-2000)
+   Dihitung dari jurnal bulan berjalan, lalu dibagi jumlah batch bulan ini (termasuk batch yang sedang dibuat). */
+function btJournalCosts(excludeBatchId){
+  const key = monthKey(new Date());
+  const sums = {};
+  finBuildBase().forEach(e=>{
+    if(String(e.date).slice(0,7) !== key) return;
+    e.lines.forEach(l=>{ sums[l.a] = (sums[l.a]||0) + (Number(l.d)||0) - (Number(l.c)||0); });
+  });
+  const labor = Math.max(0, (sums['6-1100']||0) + (sums['6-1200']||0));
+  const over = Math.max(0, (sums['6-1300']||0) + (sums['6-2000']||0));
+  const others = (DB.hppBatches||[]).filter(b=> b.id !== excludeBatchId && monthKey(new Date(b.date)) === key).length;
+  const n = others + 1;
+  return { key, labor, over, n, laborShare: Math.round(labor / n), overShare: Math.round(over / n) };
+}
+function btJournalHintText(c, manual){
+  if(!(c.labor > 0) && !(c.over > 0)) return 'Belum ada biaya tenaga kerja/overhead di jurnal bulan ini. Catat lewat Keuangan → Jurnal → tambah jurnal (template "Biaya tenaga kerja produksi" / "Biaya overhead produksi"), atau isi manual.';
+  return `Dari jurnal ${esc(new Date().toLocaleDateString('id-ID',{month:'long',year:'numeric'}))}: tenaga kerja ${btMoney(c.labor)}, overhead ${btMoney(c.over)} ÷ ${c.n} batch bulan ini = ${btMoney(c.laborShare)} + ${btMoney(c.overShare)} per batch.` + (manual ? ' <strong>(diubah manual)</strong>' : ' Boleh diubah.');
+}
+function btApplyJournalCosts(force){
+  const c = btJournalCosts(BT.editId); BT.jrC = c;
+  BT.jrManual = false;
+  if(force || !document.getElementById('bt-labor').value) document.getElementById('bt-labor').value = c.laborShare > 0 ? c.laborShare : '';
+  if(force || !document.getElementById('bt-over').value) document.getElementById('bt-over').value = c.overShare > 0 ? c.overShare : '';
+  document.getElementById('bt-jr-hint').innerHTML = btJournalHintText(c, false);
+  btRecalc();
+}
 function btToggle(id){ if(BT.expanded.has(id)) BT.expanded.delete(id); else BT.expanded.add(id); renderProduksi(); }
 
 /* ---- Form batch (draft) ---- */
@@ -8719,6 +8797,8 @@ function btOpenEdit(id){
   { const _names = new Set((DB.materials||[]).map(m=>m.name)); Object.values(btKnownIngredients()).forEach(i=> _names.add(i.name));
     document.getElementById('bt-ing-names').innerHTML = [..._names].map(n=>`<option value="${esc(n)}">`).join(''); }
   btRecalc();
+  if(!b) btApplyJournalCosts(true);
+  else { BT.jrManual = false; BT.jrC = btJournalCosts(b.id); document.getElementById('bt-jr-hint').innerHTML = btJournalHintText(BT.jrC, false); }
   openModal('modal-batch');
 }
 async function btSave(){
@@ -8869,6 +8949,18 @@ async function btPriceSave(){
 }
 
 document.getElementById('btn-bt-new').addEventListener('click', ()=> btOpenEdit(null));
+document.getElementById('btn-bt-jr').addEventListener('click', ()=> btApplyJournalCosts(true));
+['bt-labor','bt-over'].forEach(i=> document.getElementById(i).addEventListener('input', ()=>{
+  BT.jrManual = true;
+  const h = document.getElementById('bt-jr-hint'); if(h && BT.jrC) h.innerHTML = btJournalHintText(BT.jrC, true);
+}));
+document.getElementById('btn-hpp-jr').addEventListener('click', ()=>{
+  const c = btJournalCosts(null);
+  document.getElementById('hpp-labor').value = c.laborShare > 0 ? c.laborShare : '';
+  document.getElementById('hpp-overhead').value = c.overShare > 0 ? c.overShare : '';
+  document.getElementById('hpp-jr-hint').innerHTML = btJournalHintText(c, false);
+  hppRecalc();
+});
 document.getElementById('btn-bt-addrow').addEventListener('click', ()=> btAddRow({}));
 ['bt-name','bt-unit','bt-exp','bt-labor','bt-over'].forEach(i=> document.getElementById(i).addEventListener('input', btRecalc));
 document.getElementById('btn-bt-save').addEventListener('click', btSave);
