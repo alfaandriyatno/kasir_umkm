@@ -1187,9 +1187,14 @@
           <h3 class="display" style="margin:0; flex:1;">Produksi &amp; HPP</h3>
           <button class="btn amber" id="btn-bt-new">+ Batch Produksi Baru</button>
         </div>
-        <p class="fin-hint" style="margin:0;">Alur: <strong>1)</strong> catat bahan baku &amp; harga belinya → <strong>2)</strong> setelah selesai diproduksi, isi hasil jadi dan sistem menghitung <strong>HPP per satuan</strong> + menambah stok → <strong>3)</strong> baru tentukan <strong>harga jual</strong>. Produk yang belum diberi harga jual tidak bisa dijual di Kasir.</p>
+        <p class="fin-hint" style="margin:0;">Alur: <strong>0)</strong> daftarkan stok &amp; harga beli di tab <strong>Bahan Baku</strong> → <strong>1)</strong> catat bahan baku &amp; harga belinya → <strong>2)</strong> setelah selesai diproduksi, isi hasil jadi dan sistem menghitung <strong>HPP per satuan</strong> + menambah stok → <strong>3)</strong> baru tentukan <strong>harga jual</strong>. Produk yang belum diberi harga jual tidak bisa dijual di Kasir.</p>
         <div id="bt-summary" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
       </div>
+      <div class="fin-tabs" id="pr-tabs" style="margin-bottom:14px;">
+        <button data-tab="batch" class="active">Batch Produksi</button>
+        <button data-tab="bahan" id="pr-tab-bahan">Bahan Baku</button>
+      </div>
+      <div id="pr-pane-batch">
       <div class="filter-bar">
         <div class="field"><label>Tampilkan</label>
           <select id="bt-filter"><option value="semua">Semua batch</option><option value="draft">Draft (belum diproduksi)</option><option value="menunggu">Selesai — menunggu harga jual</option><option value="berharga">Selesai — sudah ada harga jual</option></select>
@@ -1202,6 +1207,32 @@
           <tbody id="bt-tbody"></tbody>
         </table>
         <div id="bt-empty" class="empty-state" style="display:none;">Belum ada batch produksi. Klik "+ Batch Produksi Baru".</div>
+      </div>
+      </div><!-- /pr-pane-batch -->
+
+      <div id="pr-pane-bahan" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="filter-bar" style="margin-bottom:6px;">
+            <h3 class="display" style="margin:0; flex:1;">Bahan Baku</h3>
+            <button class="btn amber" id="btn-mat-new">+ Bahan Baku Baru</button>
+          </div>
+          <p class="fin-hint" style="margin:0;">Bahan baku <strong>hanya untuk produksi</strong>: tidak muncul di Kasir dan tidak bisa dijual mentah. Saat produk jadi yang resepnya memakai bahan ini <strong>terjual</strong>, stok bahan otomatis berkurang (dikembalikan bila transaksi diretur/dibatalkan). Untuk menautkan, ketik nama bahan di baris bahan pada Batch Produksi atau pada HPP produk.</p>
+          <div id="mat-summary" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
+        </div>
+        <div id="mat-alert"></div>
+        <div class="filter-bar">
+          <div class="field"><label>Tampilkan</label>
+            <select id="mat-filter"><option value="semua">Semua bahan</option><option value="peringatan">Hampir habis &amp; habis</option><option value="menipis">Hampir habis</option><option value="habis">Habis</option><option value="aman">Stok aman</option></select>
+          </div>
+          <div class="field" style="flex:1; min-width:180px;"><label>Cari</label><input type="text" id="mat-search" placeholder="Nama bahan baku..."></div>
+        </div>
+        <div class="card" style="overflow-x:auto;">
+          <table class="fin-table">
+            <thead><tr><th>Bahan Baku</th><th class="num">Sisa Stok</th><th class="num">Batas Hampir Habis</th><th class="num">Harga Beli Rata-rata</th><th class="num">Harga Beli Terakhir</th><th class="num">Nilai Stok</th><th>Status</th><th style="min-width:270px;"></th></tr></thead>
+            <tbody id="mat-tbody"></tbody>
+          </table>
+          <div id="mat-empty" class="empty-state" style="display:none;">Belum ada bahan baku. Klik "+ Bahan Baku Baru".</div>
+        </div>
       </div>
     </section>
 
@@ -1801,6 +1832,83 @@
   </div>
 </div>
 
+<div class="modal-bg" id="modal-material">
+  <div class="modal" style="width:520px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-material">×</button>
+    <h2 style="font-size:18px;" id="mat-title">Bahan Baku Baru</h2>
+    <div class="field"><label>Nama Bahan Baku</label><input type="text" id="mat-name" maxlength="100" placeholder="Contoh: Tepung terigu"></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:120px;"><label>Satuan</label><input type="text" id="mat-unit" maxlength="20" list="hpp-unit-list" placeholder="kg"></div>
+      <div class="field" style="flex:1; min-width:160px;"><label>Peringatan jika stok ≤</label><input type="number" id="mat-min" min="0" step="any" placeholder="0 = tanpa peringatan"></div>
+    </div>
+    <div class="field"><label>Catatan (opsional)</label><input type="text" id="mat-note" maxlength="300"></div>
+    <div id="mat-initial-box" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; margin-bottom:12px;">
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Stok awal &amp; harga beli (opsional)</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div class="field" style="flex:1; min-width:120px;"><label>Jumlah</label><input type="number" id="mat-iqty" min="0" step="any" placeholder="0"></div>
+        <div class="field" style="flex:1; min-width:150px;"><label>Harga beli / satuan (Rp)</label><input type="number" id="mat-iprice" min="0" step="any" placeholder="0"></div>
+        <div class="field" style="flex:1; min-width:150px;"><label>Sumber dana</label>
+          <select id="mat-ipay"><option value="kas">Kas (tunai)</option><option value="bank">Bank / transfer</option><option value="awal">Stok awal (sudah dimiliki)</option></select></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn amber" id="btn-mat-save">Simpan</button>
+      <button class="btn outline" data-close="modal-material">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-material-buy">
+  <div class="modal" style="width:480px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-material-buy">×</button>
+    <h2 style="font-size:18px;" id="mb-title">Beli Bahan Baku</h2>
+    <div id="mb-info" class="fin-hint" style="margin-top:0;"></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:130px;"><label id="mb-qty-label">Jumlah dibeli</label><input type="number" id="mb-qty" min="0" step="any" placeholder="0"></div>
+      <div class="field" style="flex:1; min-width:150px;"><label>Harga beli / satuan (Rp)</label><input type="number" id="mb-price" min="0" step="any" placeholder="0"></div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:150px;"><label>Dibayar dari</label><select id="mb-pay"><option value="kas">Kas (tunai)</option><option value="bank">Bank / transfer</option></select></div>
+      <div class="field" style="flex:1; min-width:150px;"><label>Pemasok (opsional)</label><input type="text" id="mb-supplier" maxlength="100"></div>
+    </div>
+    <div class="field"><label>Catatan (opsional)</label><input type="text" id="mb-note" maxlength="300"></div>
+    <div id="mb-calc" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:14px;"></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn amber" id="btn-mb-save">Simpan Pembelian</button>
+      <button class="btn outline" data-close="modal-material-buy">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-material-adjust">
+  <div class="modal" style="width:440px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-material-adjust">×</button>
+    <h2 style="font-size:18px;" id="ma-title">Koreksi Stok</h2>
+    <div id="ma-info" class="fin-hint" style="margin-top:0;"></div>
+    <div class="field"><label>Stok sebenarnya (hasil hitung fisik)</label><input type="number" id="ma-stock" min="0" step="any" placeholder="0"></div>
+    <div class="field"><label>Alasan (mis. rusak, tumpah, hasil opname)</label><input type="text" id="ma-note" maxlength="300"></div>
+    <div id="ma-calc" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:14px;"></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn amber" id="btn-ma-save">Simpan Koreksi</button>
+      <button class="btn outline" data-close="modal-material-adjust">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-material-history">
+  <div class="modal" style="width:760px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-material-history">×</button>
+    <h2 style="font-size:18px;" id="mh-title">Riwayat Bahan Baku</h2>
+    <div style="overflow-x:auto; max-height:60vh;">
+      <table class="fin-table">
+        <thead><tr><th>Waktu</th><th>Jenis</th><th class="num">Jumlah</th><th class="num">Harga / satuan</th><th class="num">Stok setelah</th><th>Keterangan</th></tr></thead>
+        <tbody id="mh-tbody"></tbody>
+      </table>
+      <div id="mh-empty" class="empty-state" style="display:none;">Belum ada riwayat.</div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-batch">
   <div class="modal" style="width:700px; max-width:96vw;">
     <button class="modal-close" data-close="modal-batch">×</button>
@@ -1900,6 +2008,7 @@
       </div>
       <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:6px;">Bahan bertanda 🔗 tertaut ke produk di stok: harganya otomatis mengikuti harga beli terbaru, dan stoknya berkurang saat produksi dicatat. Bahan tanpa tautan diisi manual dan tidak mengurangi stok.</div>
       <div id="hpp-ing-list"></div>
+      <datalist id="mat-names"></datalist>
       <datalist id="hpp-unit-list"><option value="kg"><option value="gram"><option value="liter"><option value="ml"><option value="pcs"><option value="butir"><option value="bungkus"><option value="sdm"><option value="sdt"></datalist>
       <button class="btn outline sm" type="button" id="btn-hpp-add-ing" style="margin:8px 0 12px;">+ Tambah Bahan</button>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -2059,7 +2168,7 @@ let SESSION = null;         // { role, name, email } peran user di perusahaan ak
 /* ================= STORAGE (tersinkron ke Supabase per perusahaan) ================= */
 const CACHE = {
   products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [], customers: [], purchases: [], voidLogs: [],
-  receivables: [], pointRedemptions: [], shifts: [], returnLogs: [], settingsLogs: [], productionLogs: [], finEntries: [], payables: [], periodCloses: [], hppBatches: [],
+  receivables: [], pointRedemptions: [], shifts: [], returnLogs: [], settingsLogs: [], productionLogs: [], finEntries: [], payables: [], periodCloses: [], hppBatches: [], materials: [], materialLogs: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
   loyaltyConfig: {redeemValue:100}, monthlyTarget: {},
   discountLimitPercent: 100, marginTargetPercent: 20, lastBackupAt: null,
@@ -2078,7 +2187,7 @@ async function saveCompanyData(){
     adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
     customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
     receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
-    returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches,
+    returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches, materials: CACHE.materials, materialLogs: CACHE.materialLogs,
     storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
     loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
     discountLimitPercent: CACHE.discountLimitPercent, marginTargetPercent: CACHE.marginTargetPercent, lastBackupAt: CACHE.lastBackupAt,
@@ -2114,6 +2223,8 @@ function applyCompanyDataToCache(d, fallbackName){
   CACHE.payables = d.payables || [];
   CACHE.periodCloses = d.periodCloses || [];
   CACHE.hppBatches = d.hppBatches || [];
+  CACHE.materials = d.materials || [];
+  CACHE.materialLogs = d.materialLogs || [];
   CACHE.marginTargetPercent = (d.marginTargetPercent === undefined || d.marginTargetPercent === null) ? 20 : d.marginTargetPercent;
   CACHE.storeName = d.storeName || fallbackName || CACHE.storeName;
   CACHE.storeAddress = d.storeAddress || '';
@@ -2151,6 +2262,8 @@ const DB = {
   get payables(){ return CACHE.payables; },
   get periodCloses(){ return CACHE.periodCloses; },
   get hppBatches(){ return CACHE.hppBatches; },
+  get materials(){ return CACHE.materials; },
+  get materialLogs(){ return CACHE.materialLogs; },
   get marginTargetPercent(){ return (CACHE.marginTargetPercent === undefined || CACHE.marginTargetPercent === null) ? 20 : CACHE.marginTargetPercent; },
   get loyaltyConfig(){ return CACHE.loyaltyConfig; },
   get monthlyTarget(){ return CACHE.monthlyTarget; },
@@ -2777,10 +2890,24 @@ document.getElementById('btn-forgot-password-submit').addEventListener('click', 
   errEl.style.display = 'none';
   const email = document.getElementById('forgot-password-email').value.trim();
   if(!email){ errEl.textContent = 'Email wajib diisi.'; errEl.style.display = 'block'; return; }
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://kasir-umkm-sigma.vercel.app/',
-  });
-  if(error){ errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('btn-forgot-password-submit');
+  if(btn.disabled) return;
+  btn.disabled = true;
+  let error = null;
+  try{
+    ({ error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: 'https://kasir-umkm-sigma.vercel.app/' }));
+  } catch(e){ error = { message: 'network' }; }
+  if(error){
+    const m = String(error.message || '').toLowerCase();
+    errEl.textContent = (m.includes('rate limit') || error.status === 429)
+      ? 'Terlalu banyak permintaan email dalam waktu singkat. Tunggu sekitar 1 jam lalu coba lagi, atau minta Owner/admin sistem mengatur ulang password kamu.'
+      : (m === 'network' ? 'Koneksi bermasalah. Cek internet lalu coba lagi.' : error.message);
+    errEl.style.display = 'block';
+    // cegah kirim berulang yang memperparah batas email
+    setTimeout(()=>{ btn.disabled = false; }, 30000);
+    return;
+  }
+  btn.disabled = false;
   showToast('Tautan reset password sudah dikirim ke email kamu (cek juga folder spam).');
   document.getElementById('forgot-password-screen').classList.add('app-hidden');
   document.getElementById('login-screen').classList.remove('hidden');
@@ -3404,6 +3531,8 @@ async function enterCompany(id, name, role, memberName){
     CACHE.payables = [];
     CACHE.periodCloses = [];
     CACHE.hppBatches = [];
+    CACHE.materials = [];
+    CACHE.materialLogs = [];
     CACHE.storeName = name;
     CACHE.storeAddress = '';
     CACHE.ppnConfig = {enabled:false, percent:11};
@@ -3684,7 +3813,7 @@ document.getElementById('btn-backup-data').addEventListener('click', async ()=>{
       customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
       customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
       receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
-      returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches,
+      returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches, materials: CACHE.materials, materialLogs: CACHE.materialLogs,
       storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
       loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
       discountLimitPercent: CACHE.discountLimitPercent, marginTargetPercent: CACHE.marginTargetPercent, lastBackupAt: CACHE.lastBackupAt,
@@ -4870,7 +4999,7 @@ function hppAddRow(d){
   row.className = 'hpp-row';
   row.style.cssText = 'display:grid; grid-template-columns:2fr 0.8fr 0.8fr 1.1fr 1fr 28px 28px; gap:6px; margin-bottom:6px; align-items:center;';
   row.innerHTML = `
-    <input type="text" class="hpp-i-name" maxlength="100" placeholder="Mis. Tepung terigu">
+    <input type="text" class="hpp-i-name" maxlength="100" list="mat-names" placeholder="Mis. Tepung terigu">
     <input type="number" class="hpp-i-qty" min="0" step="any" placeholder="0">
     <input type="text" class="hpp-i-unit" maxlength="20" list="hpp-unit-list" placeholder="kg">
     <input type="number" class="hpp-i-price" min="0" step="any" placeholder="0">
@@ -4897,7 +5026,24 @@ function hppAddRow(d){
     }
   };
   setLinked(!!linkedProd);
-  linkBtn.addEventListener('click', ()=>{ setLinked(false); hppRecalc(); });
+  const markMat = ()=>{
+    const m = row.dataset.mid ? matById(row.dataset.mid) : null;
+    if(!m) return;
+    linkBtn.style.visibility = 'visible';
+    linkBtn.title = `Tertaut ke bahan baku "${m.name}" (stok ${matQty(m.stock)} ${m.unit||''}). Klik untuk lepas tautan.`;
+  };
+  const _mm = d.materialId ? matById(d.materialId) : null;
+  if(_mm){ setLinked(false); matLinkRow(row, nameEl, unitEl, priceEl, _mm); markMat(); }
+  nameEl.addEventListener('change', ()=>{
+    const m = matByName(nameEl.value);
+    if(m){ setLinked(false); matLinkRow(row, nameEl, unitEl, priceEl, m); markMat(); hppRecalc(); }
+    else if(row.dataset.mid){ matLinkRow(row, nameEl, unitEl, priceEl, null); linkBtn.style.visibility = 'hidden'; hppRecalc(); }
+  });
+  linkBtn.addEventListener('click', ()=>{
+    if(row.dataset.mid){ matLinkRow(row, nameEl, unitEl, priceEl, null); linkBtn.style.visibility = 'hidden'; }
+    else setLinked(false);
+    hppRecalc();
+  });
   row.querySelectorAll('input').forEach(i=> i.addEventListener('input', hppRecalc));
   row.querySelector('.hpp-i-del').addEventListener('click', ()=>{ row.remove(); hppRecalc(); });
   document.getElementById('hpp-ing-list').appendChild(row);
@@ -4911,7 +5057,8 @@ function hppCollectRecipe(){
       unit: r.querySelector('.hpp-i-unit').value.trim(),
       price: Number(r.querySelector('.hpp-i-price').value) || 0,
     };
-    if(r.dataset.pid) o.productId = r.dataset.pid;
+    if(r.dataset.mid) o.materialId = r.dataset.mid;
+    else if(r.dataset.pid) o.productId = r.dataset.pid;
     return o;
   });
   return {
@@ -4989,6 +5136,7 @@ function openHppModal(id){
   document.getElementById('hpp-labor').value = rec.laborCost || '';
   document.getElementById('hpp-overhead').value = rec.overheadCost || '';
   document.getElementById('hpp-ing-list').innerHTML = '';
+  matFillDatalists();
   (rec.ingredients && rec.ingredients.length ? rec.ingredients : [{}]).forEach(hppAddRow);
   document.getElementById('hpp-sell').value = p.sellPrice || '';
   document.getElementById('hpp-target').value = '';
@@ -7523,6 +7671,22 @@ function finBuildBase(){
       [ {a:'1-1500', d:total}, {a: (pay && pay.liabAcc) || '2-1100', c:utang}, {a:'1-1100', c:total - utang} ]));
   });
 
+  // 4b) Pembelian & koreksi stok BAHAN BAKU (pemakaian saat penjualan sudah tercakup di HPP penjualan)
+  (DB.materialLogs||[]).forEach(l=>{
+    const tot = Math.round(Number(l.total)||0);
+    if(l.type === 'beli' && tot > 0){
+      const cr = l.pay === 'bank' ? '1-1200' : (l.pay === 'awal' ? '3-1100' : '1-1100');
+      E.push(finMk('mat-'+l.id, localDateFromIso(l.date), new Date(l.date).getTime(), l.pay === 'awal' ? 'penyesuaian' : 'pembelian',
+        (l.pay === 'awal' ? 'Stok awal bahan baku ' : 'Pembelian bahan baku ') + (l.name || '') + (l.qty ? ' ×' + l.qty : '') + (l.supplier ? ' — ' + l.supplier : ''),
+        [ {a:'1-1500', d:tot}, {a:cr, c:tot} ]));
+    } else if(l.type === 'koreksi' && tot !== 0){
+      const a = Math.abs(tot);
+      E.push(finMk('mat-'+l.id, localDateFromIso(l.date), new Date(l.date).getTime(), 'penyesuaian',
+        'Koreksi stok bahan baku ' + (l.name || '') + (l.note ? ' (' + l.note + ')' : ''),
+        tot < 0 ? [ {a:'6-9000', d:a}, {a:'1-1500', c:a} ] : [ {a:'1-1500', d:a}, {a:'6-9000', c:a} ]));
+    }
+  });
+
   // 5) Utang manual + pembayaran utang
   (DB.payables||[]).forEach(p=>{
     const liab = p.liabAcc || '2-1100';
@@ -8400,6 +8564,7 @@ document.getElementById('btn-fin-pdf').addEventListener('click', ()=>{
    Alur: Draft (bahan baku + harga beli) -> Selesaikan (hasil jadi => HPP/satuan + stok) -> Tetapkan harga jual.
    Semua angka resmi dihitung server (save_hpp_batch_rpc / finish_hpp_batch_rpc / set_batch_price_rpc). */
 const BT = { editId:null, expanded:new Set(), saving:false };
+const MT = { tab:'batch', saving:false, editId:null, buyId:null, adjId:null, logId:null };
 function btCanManage(){ return !!(SESSION && ['owner','spv','gudang'].includes(SESSION.role)); }
 function btCanPrice(){ return !!(SESSION && ['owner','spv'].includes(SESSION.role)); }
 function btProduct(b){ return b.productId ? DB.products.find(p=>p.id===b.productId) : null; }
@@ -8427,7 +8592,7 @@ function renderProduksi(){
     .sort((a,b)=> new Date(b.date) - new Date(a.date));
   document.getElementById('bt-empty').style.display = list.length ? 'none' : 'block';
   const canM = btCanManage(), canP = btCanPrice();
-  document.getElementById('btn-bt-new').style.display = canM ? '' : 'none';
+  document.getElementById('btn-bt-new').style.display = (canM && MT.tab === 'batch') ? '' : 'none';
   let html = '';
   list.forEach(b=>{
     const st = btState(b), done = b.status === 'selesai';
@@ -8458,6 +8623,7 @@ function renderProduksi(){
     }
   });
   document.getElementById('bt-tbody').innerHTML = html;
+  try{ renderBahan(); }catch(e){ console.error(e); }
 }
 function btToggle(id){ if(BT.expanded.has(id)) BT.expanded.delete(id); else BT.expanded.add(id); renderProduksi(); }
 
@@ -8472,7 +8638,7 @@ function btAddRow(d){
   const row = document.createElement('div');
   row.className = 'bt-row';
   row.style.cssText = 'display:grid; grid-template-columns:2fr 0.8fr 0.8fr 1.1fr 1fr 28px; gap:6px; margin-bottom:6px; align-items:center;';
-  row.innerHTML = `<input type="text" class="bt-i-name" maxlength="120" list="bt-ing-names" placeholder="Mis. Tepung terigu">
+  row.innerHTML = `<input type="text" class="bt-i-name" maxlength="120" list="bt-ing-names" placeholder="Mis. Tepung terigu (ketik nama bahan baku untuk menautkan stok)">
     <input type="number" class="bt-i-qty" min="0" step="any" placeholder="0">
     <input type="text" class="bt-i-unit" maxlength="20" list="hpp-unit-list" placeholder="kg">
     <input type="number" class="bt-i-price" min="0" step="any" placeholder="0">
@@ -8484,7 +8650,13 @@ function btAddRow(d){
   row.querySelector('.bt-i-price').value = d.price != null ? d.price : '';
   row.querySelector('.bt-i-del').addEventListener('click', ()=>{ row.remove(); btRecalc(); });
   row.querySelectorAll('input').forEach(i=> i.addEventListener('input', btRecalc));
+  const _mm = d.materialId ? matById(d.materialId) : null;
+  if(_mm) matLinkRow(row, row.querySelector('.bt-i-name'), row.querySelector('.bt-i-unit'), row.querySelector('.bt-i-price'), _mm);
   row.querySelector('.bt-i-name').addEventListener('change', e=>{
+    const _nm = row.querySelector('.bt-i-name'), _un = row.querySelector('.bt-i-unit'), _pr = row.querySelector('.bt-i-price');
+    const _m = matByName(e.target.value);
+    if(_m){ matLinkRow(row, _nm, _un, _pr, _m); btRecalc(); return; }
+    if(row.dataset.mid){ matLinkRow(row, _nm, _un, _pr, null); btRecalc(); }
     const k = btKnownIngredients()[String(e.target.value).trim().toLowerCase()];
     if(!k) return;
     const u = row.querySelector('.bt-i-unit'), p = row.querySelector('.bt-i-price');
@@ -8495,12 +8667,16 @@ function btAddRow(d){
   document.getElementById('bt-ing-list').appendChild(row);
 }
 function btCollect(){
-  const ingredients = [...document.querySelectorAll('#bt-ing-list .bt-row')].map(r=>({
-    name: r.querySelector('.bt-i-name').value.trim(),
-    qty: Number(r.querySelector('.bt-i-qty').value) || 0,
-    unit: r.querySelector('.bt-i-unit').value.trim(),
-    price: Number(r.querySelector('.bt-i-price').value) || 0,
-  }));
+  const ingredients = [...document.querySelectorAll('#bt-ing-list .bt-row')].map(r=>{
+    const o = {
+      name: r.querySelector('.bt-i-name').value.trim(),
+      qty: Number(r.querySelector('.bt-i-qty').value) || 0,
+      unit: r.querySelector('.bt-i-unit').value.trim(),
+      price: Number(r.querySelector('.bt-i-price').value) || 0,
+    };
+    if(r.dataset.mid) o.materialId = r.dataset.mid;
+    return o;
+  });
   return {
     id: BT.editId,
     name: document.getElementById('bt-name').value.trim(),
@@ -8517,7 +8693,8 @@ function btRecalc(){
   let bahan = 0;
   document.querySelectorAll('#bt-ing-list .bt-row').forEach((r,i)=>{
     const s = b.ingredients[i].qty * b.ingredients[i].price; bahan += s;
-    r.querySelector('.bt-i-sub').textContent = btMoney(s);
+    const _mt = r.dataset.mid ? matById(r.dataset.mid) : null;
+    r.querySelector('.bt-i-sub').innerHTML = btMoney(s) + (_mt ? `<div style="font-size:10.5px; color:var(--green);">🔗 stok ${matQty(_mt.stock)} ${esc(_mt.unit||'')}</div>` : '');
   });
   const total = bahan + b.laborCost + b.overheadCost;
   document.getElementById('bt-calc').innerHTML =
@@ -8539,7 +8716,8 @@ function btOpenEdit(id){
   document.getElementById('bt-note').value = b ? (b.note || '') : '';
   document.getElementById('bt-ing-list').innerHTML = '';
   (b && b.ingredients.length ? b.ingredients : [{}]).forEach(btAddRow);
-  document.getElementById('bt-ing-names').innerHTML = Object.values(btKnownIngredients()).map(i=>`<option value="${esc(i.name)}">`).join('');
+  { const _names = new Set((DB.materials||[]).map(m=>m.name)); Object.values(btKnownIngredients()).forEach(i=> _names.add(i.name));
+    document.getElementById('bt-ing-names').innerHTML = [..._names].map(n=>`<option value="${esc(n)}">`).join(''); }
   btRecalc();
   openModal('modal-batch');
 }
@@ -8700,6 +8878,237 @@ document.getElementById('btn-btp-save').addEventListener('click', btPriceSave);
 document.getElementById('btp-price').addEventListener('input', btPriceCalc);
 document.getElementById('bt-filter').addEventListener('change', renderProduksi);
 document.getElementById('bt-search').addEventListener('input', renderProduksi);
+
+/* ================= BAHAN BAKU ================= */
+const matQty = n => (Math.round((Number(n)||0)*1000)/1000).toLocaleString('id-ID');
+function matById(id){ return (DB.materials||[]).find(m=>m.id===id) || null; }
+function matByName(n){
+  n = String(n||'').trim().toLowerCase();
+  return n ? ((DB.materials||[]).find(m=> String(m.name||'').toLowerCase() === n) || null) : null;
+}
+function matState(m){
+  const s = Number(m.stock)||0, mn = Number(m.minStock)||0;
+  if(s <= 0) return 'habis';
+  if(mn > 0 && s <= mn) return 'menipis';
+  return 'aman';
+}
+const MAT_STATE_LABEL = { habis:'Habis', menipis:'Hampir habis', aman:'Aman' };
+const MAT_LOG_LABEL = { beli:'Pembelian', pakai:'Terpakai (penjualan)', retur:'Kembali (retur)', batal:'Kembali (batal transaksi)', koreksi:'Koreksi stok' };
+function matFillDatalists(){
+  const el = document.getElementById('mat-names');
+  if(el) el.innerHTML = (DB.materials||[]).map(m=>`<option value="${esc(m.name)}">`).join('');
+}
+function matLinkRow(row, nameEl, unitEl, priceEl, m){
+  if(m){
+    row.dataset.mid = m.id;
+    nameEl.value = m.name; unitEl.value = m.unit || ''; priceEl.value = Number(m.avgCost)||0;
+    [unitEl, priceEl].forEach(e=>{ e.disabled = true; e.style.background = 'var(--paper-alt)'; });
+  } else {
+    delete row.dataset.mid;
+    [unitEl, priceEl].forEach(e=>{ e.disabled = false; e.style.background = ''; });
+  }
+}
+
+function prSwitchTab(t){
+  MT.tab = (t === 'bahan') ? 'bahan' : 'batch';
+  document.getElementById('pr-pane-batch').style.display = MT.tab === 'batch' ? '' : 'none';
+  document.getElementById('pr-pane-bahan').style.display = MT.tab === 'bahan' ? '' : 'none';
+  document.querySelectorAll('#pr-tabs button').forEach(b=> b.classList.toggle('active', b.dataset.tab === MT.tab));
+  renderProduksi();
+}
+
+function renderBahan(){
+  const canM = btCanManage();
+  const mats = [...(DB.materials||[])];
+  const cnt = { habis:0, menipis:0, aman:0 };
+  let nilai = 0;
+  mats.forEach(m=>{ cnt[matState(m)]++; nilai += (Number(m.stock)||0) * (Number(m.avgCost)||0); });
+  const warn = cnt.habis + cnt.menipis;
+  const tabBtn = document.getElementById('pr-tab-bahan');
+  if(tabBtn) tabBtn.textContent = 'Bahan Baku' + (warn ? ` (${warn} ⚠)` : '');
+  document.getElementById('btn-mat-new').style.display = canM ? '' : 'none';
+  document.getElementById('mat-summary').innerHTML =
+    `<span class="fin-badge">${mats.length} jenis bahan</span>` +
+    `<span class="fin-badge ${cnt.menipis ? 'bad' : ''}">${cnt.menipis} hampir habis</span>` +
+    `<span class="fin-badge ${cnt.habis ? 'bad' : ''}">${cnt.habis} habis</span>` +
+    `<span class="fin-badge ok">Nilai stok bahan: ${btMoney(nilai)}</span>`;
+  const low = mats.filter(m=> matState(m) !== 'aman').sort((a,b)=> (matState(a)==='habis'?0:1) - (matState(b)==='habis'?0:1));
+  document.getElementById('mat-alert').innerHTML = low.length
+    ? `<div class="card" style="margin-bottom:16px; border-left:4px solid var(--rust); background:#FFF6F0;"><strong>⚠ ${low.length} bahan baku perlu dibeli:</strong> ` +
+      low.map(m=>`<span style="display:inline-block; margin:3px 6px 0 0;"><strong>${esc(m.name)}</strong> — ${matState(m)==='habis' ? '<span style="color:var(--rust);">habis</span>' : 'sisa ' + matQty(m.stock) + ' ' + esc(m.unit||'')}</span>`).join('') + `</div>`
+    : '';
+  const f = document.getElementById('mat-filter').value;
+  const q = (document.getElementById('mat-search').value || '').toLowerCase().trim();
+  const list = mats.filter(m=>{
+    const st = matState(m);
+    const okF = f === 'semua' || (f === 'peringatan' ? st !== 'aman' : st === f);
+    return okF && (!q || String(m.name||'').toLowerCase().includes(q));
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name), 'id'));
+  document.getElementById('mat-empty').style.display = list.length ? 'none' : 'block';
+  let html = '';
+  list.forEach(m=>{
+    const st = matState(m);
+    const badgeStyle = st === 'aman' ? 'background:var(--green-bg);color:var(--green);' : st === 'menipis' ? 'background:#FFF1D6;color:#9A6410;' : 'background:#FDE8E2;color:var(--rust);';
+    const id = esc(m.id);
+    let actions = '';
+    if(canM) actions += `<button class="btn amber sm" onclick="matOpenBuy('${id}')">+ Beli</button> <button class="btn outline sm" onclick="matOpenAdjust('${id}')">Koreksi</button> `;
+    actions += `<button class="btn outline sm" onclick="matOpenHistory('${id}')">Riwayat</button> `;
+    if(canM) actions += `<button class="btn outline sm" onclick="matOpenEdit('${id}')">Edit</button> <button class="btn danger sm" onclick="matDelete('${id}')">Hapus</button>`;
+    html += `<tr class="fin-first"><td><strong>${esc(m.name)}</strong>${m.note ? `<div class="fin-hint" style="margin:0;">${esc(m.note)}</div>` : ''}</td>
+      <td class="num mono" style="font-weight:700;">${matQty(m.stock)} ${esc(m.unit||'')}</td>
+      <td class="num mono">${Number(m.minStock) > 0 ? matQty(m.minStock) + ' ' + esc(m.unit||'') : '-'}</td>
+      <td class="num mono">${btMoney(m.avgCost)}</td>
+      <td class="num mono">${btMoney(m.lastCost)}</td>
+      <td class="num mono">${btMoney((Number(m.stock)||0) * (Number(m.avgCost)||0))}</td>
+      <td><span class="fin-type" style="${badgeStyle}">${MAT_STATE_LABEL[st]}</span></td>
+      <td>${actions}</td></tr>`;
+  });
+  document.getElementById('mat-tbody').innerHTML = html;
+}
+
+async function matRpc(name, args, okMsg, modalId){
+  if(MT.saving) return false;
+  MT.saving = true;
+  try{
+    const { data, error } = await sb.rpc(name, Object.assign({ p_company_id: CURRENT_COMPANY.id }, args));
+    if(error){ showToast('Gagal: ' + error.message); return false; }
+    applyCompanyDataToCache(data, CACHE.storeName);
+    if(modalId) closeModal(modalId);
+    renderProduksi();
+    try{ renderProducts(); }catch(e){}
+    if(okMsg) showToast(okMsg);
+    return true;
+  } catch(e){ showToast('Gagal menyimpan (koneksi bermasalah?)'); return false; }
+  finally { MT.saving = false; }
+}
+
+/* ---- Tambah / edit bahan ---- */
+function matOpenEdit(id){
+  if(!btCanManage()){ showToast('Hanya Owner/SPV/Gudang yang bisa mengatur bahan baku'); return; }
+  const m = id ? matById(id) : null;
+  if(id && !m){ showToast('Bahan baku tidak ditemukan'); return; }
+  MT.editId = m ? m.id : uid(); MT.logId = uid();
+  document.getElementById('mat-title').textContent = m ? 'Edit Bahan: ' + m.name : 'Bahan Baku Baru';
+  document.getElementById('mat-name').value = m ? m.name : '';
+  document.getElementById('mat-unit').value = m ? (m.unit || '') : '';
+  document.getElementById('mat-min').value = m && m.minStock ? m.minStock : '';
+  document.getElementById('mat-note').value = m ? (m.note || '') : '';
+  document.getElementById('mat-initial-box').style.display = m ? 'none' : '';
+  document.getElementById('mat-iqty').value = ''; document.getElementById('mat-iprice').value = '';
+  document.getElementById('mat-ipay').value = 'kas';
+  openModal('modal-material');
+}
+async function matSave(){
+  const name = document.getElementById('mat-name').value.trim();
+  const unit = document.getElementById('mat-unit').value.trim();
+  if(!name){ showToast('Nama bahan baku wajib diisi'); return; }
+  if(!unit){ showToast('Satuan wajib diisi (mis. kg, liter, pcs)'); return; }
+  const isNew = !matById(MT.editId);
+  const iq = Number(document.getElementById('mat-iqty').value) || 0;
+  const ip = Number(document.getElementById('mat-iprice').value) || 0;
+  if(isNew && iq > 0 && !(ip > 0)){ showToast('Isi harga beli per satuan untuk stok awal'); return; }
+  const mat = { id: MT.editId, name, unit, minStock: Number(document.getElementById('mat-min').value) || 0, note: document.getElementById('mat-note').value.trim() };
+  if(isNew){ mat.initialQty = iq; mat.initialPrice = ip; mat.pay = document.getElementById('mat-ipay').value; mat.logId = MT.logId; }
+  const btn = document.getElementById('btn-mat-save'); btn.disabled = true;
+  try{ await matRpc('save_material_rpc', { p_material: mat }, 'Bahan baku tersimpan', 'modal-material'); }
+  finally { btn.disabled = false; }
+}
+
+/* ---- Beli / tambah stok ---- */
+function matBuyCalc(){
+  const m = matById(MT.buyId); if(!m) return;
+  const q = Number(document.getElementById('mb-qty').value) || 0, p = Number(document.getElementById('mb-price').value) || 0;
+  const s = Number(m.stock)||0, a = Number(m.avgCost)||0;
+  const ns = s + q, na = (s > 0 && ns > 0) ? (s * a + q * p) / ns : p;
+  document.getElementById('mb-calc').innerHTML = `Total pembelian: <strong class="mono">${btMoney(q * p)}</strong><br>
+    Stok menjadi: <strong class="mono">${matQty(ns)} ${esc(m.unit||'')}</strong> · Harga beli rata-rata baru: <strong class="mono">${btMoney(na)}</strong> per ${esc(m.unit||'')}`;
+}
+function matOpenBuy(id){
+  if(!btCanManage()){ showToast('Hanya Owner/SPV/Gudang yang bisa mencatat pembelian'); return; }
+  const m = matById(id); if(!m) return;
+  MT.buyId = id; MT.logId = uid();
+  document.getElementById('mb-title').textContent = 'Beli Bahan Baku: ' + m.name;
+  document.getElementById('mb-info').textContent = `Stok sekarang ${matQty(m.stock)} ${m.unit||''} · harga beli rata-rata ${btMoney(m.avgCost)} · terakhir ${btMoney(m.lastCost)}`;
+  document.getElementById('mb-qty-label').textContent = 'Jumlah dibeli (' + (m.unit||'satuan') + ')';
+  document.getElementById('mb-qty').value = '';
+  document.getElementById('mb-price').value = Number(m.lastCost) > 0 ? m.lastCost : '';
+  document.getElementById('mb-pay').value = 'kas';
+  document.getElementById('mb-supplier').value = ''; document.getElementById('mb-note').value = '';
+  matBuyCalc();
+  openModal('modal-material-buy');
+}
+async function matBuySave(){
+  const q = Number(document.getElementById('mb-qty').value) || 0, p = Number(document.getElementById('mb-price').value);
+  if(!(q > 0)){ showToast('Jumlah dibeli harus lebih dari 0'); return; }
+  if(!(p >= 0) || document.getElementById('mb-price').value === ''){ showToast('Isi harga beli per satuan'); return; }
+  const btn = document.getElementById('btn-mb-save'); btn.disabled = true;
+  try{
+    await matRpc('receive_material_rpc', { p_material_id: MT.buyId, p_qty: q, p_unit_price: p, p_pay: document.getElementById('mb-pay').value,
+      p_note: document.getElementById('mb-note').value.trim(), p_log_id: MT.logId, p_supplier: document.getElementById('mb-supplier').value.trim() },
+      'Pembelian bahan baku tersimpan — stok bertambah', 'modal-material-buy');
+  } finally { btn.disabled = false; }
+}
+
+/* ---- Koreksi stok ---- */
+function matAdjCalc(){
+  const m = matById(MT.adjId); if(!m) return;
+  const raw = document.getElementById('ma-stock').value;
+  if(raw === ''){ document.getElementById('ma-calc').textContent = 'Isi stok hasil hitung fisik.'; return; }
+  const d = (Number(raw)||0) - (Number(m.stock)||0);
+  document.getElementById('ma-calc').innerHTML = d === 0 ? 'Tidak ada selisih.' :
+    `Selisih: <strong class="mono" style="color:${d < 0 ? 'var(--rust)' : 'var(--green)'};">${d > 0 ? '+' : ''}${matQty(d)} ${esc(m.unit||'')}</strong> · nilai ${btMoney(Math.abs(d) * (Number(m.avgCost)||0))} ${d < 0 ? 'dicatat sebagai kerugian persediaan' : 'dicatat sebagai penambahan persediaan'}`;
+}
+function matOpenAdjust(id){
+  if(!btCanManage()){ showToast('Hanya Owner/SPV/Gudang yang bisa mengoreksi stok'); return; }
+  const m = matById(id); if(!m) return;
+  MT.adjId = id; MT.logId = uid();
+  document.getElementById('ma-title').textContent = 'Koreksi Stok: ' + m.name;
+  document.getElementById('ma-info').textContent = `Stok tercatat di sistem: ${matQty(m.stock)} ${m.unit||''}`;
+  document.getElementById('ma-stock').value = m.stock; document.getElementById('ma-note').value = '';
+  matAdjCalc();
+  openModal('modal-material-adjust');
+}
+async function matAdjSave(){
+  const raw = document.getElementById('ma-stock').value;
+  if(raw === '' || !(Number(raw) >= 0)){ showToast('Isi stok sebenarnya (0 atau lebih)'); return; }
+  const btn = document.getElementById('btn-ma-save'); btn.disabled = true;
+  try{ await matRpc('adjust_material_rpc', { p_material_id: MT.adjId, p_new_stock: Number(raw), p_note: document.getElementById('ma-note').value.trim(), p_log_id: MT.logId }, 'Stok dikoreksi', 'modal-material-adjust'); }
+  finally { btn.disabled = false; }
+}
+
+/* ---- Riwayat & hapus ---- */
+function matOpenHistory(id){
+  const m = matById(id); if(!m) return;
+  document.getElementById('mh-title').textContent = 'Riwayat: ' + m.name;
+  const logs = (DB.materialLogs||[]).filter(l=> l.materialId === id).sort((a,b)=> new Date(b.date) - new Date(a.date)).slice(0, 200);
+  document.getElementById('mh-empty').style.display = logs.length ? 'none' : 'block';
+  document.getElementById('mh-tbody').innerHTML = logs.map(l=>{
+    const q = Number(l.qty)||0;
+    return `<tr><td>${new Date(l.date).toLocaleString('id-ID')}</td><td>${esc(MAT_LOG_LABEL[l.type] || l.type)}</td>
+      <td class="num mono" style="color:${q < 0 ? 'var(--rust)' : 'var(--green)'};">${q > 0 ? '+' : ''}${matQty(q)} ${esc(m.unit||'')}</td>
+      <td class="num mono">${l.type === 'pakai' || l.type === 'retur' || l.type === 'batal' ? '-' : btMoney(l.price)}</td>
+      <td class="num mono">${matQty(l.stockAfter)}</td>
+      <td style="font-size:12px;">${esc(l.note || '')}${l.supplier ? ' · ' + esc(l.supplier) : ''}${l.byName ? ' · ' + esc(l.byName) : ''}</td></tr>`;
+  }).join('');
+  openModal('modal-material-history');
+}
+function matDelete(id){
+  if(!btCanManage()){ showToast('Hanya Owner/SPV/Gudang yang bisa menghapus bahan baku'); return; }
+  const m = matById(id); if(!m) return;
+  showConfirm(`Hapus bahan baku <strong>${esc(m.name)}</strong>? (Hanya bisa jika stok 0 dan tidak dipakai di resep.)`, async ()=>{
+    await matRpc('delete_material_rpc', { p_material_id: id }, 'Bahan baku dihapus', null);
+  });
+}
+
+document.querySelectorAll('#pr-tabs button').forEach(b=> b.addEventListener('click', ()=> prSwitchTab(b.dataset.tab)));
+document.getElementById('btn-mat-new').addEventListener('click', ()=> matOpenEdit(null));
+document.getElementById('btn-mat-save').addEventListener('click', matSave);
+document.getElementById('btn-mb-save').addEventListener('click', matBuySave);
+document.getElementById('btn-ma-save').addEventListener('click', matAdjSave);
+['mb-qty','mb-price'].forEach(i=> document.getElementById(i).addEventListener('input', matBuyCalc));
+document.getElementById('ma-stock').addEventListener('input', matAdjCalc);
+document.getElementById('mat-filter').addEventListener('change', renderBahan);
+document.getElementById('mat-search').addEventListener('input', renderBahan);
 
 
 /* ================= INIT ================= */
