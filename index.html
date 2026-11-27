@@ -1305,7 +1305,7 @@
             <button data-f="penutup">Jurnal Penutup</button>
             <button data-f="saldo_awal">Saldo Awal</button>
           </div>
-          <p class="fin-hint">Jurnal kas, piutang, dan utang terisi <strong>otomatis</strong> dari kasir, pelunasan piutang, retur, pembelian, dan catatan Penyesuaian/Beban. Jurnal penutup dibuat otomatis saat Tutup Buku. Jurnal penyesuaian dan jurnal kas lain (modal, prive, penyusutan, dll.) dicatat manual di bawah.</p>
+          <p class="fin-hint">Jurnal kas, piutang, dan utang terisi <strong>otomatis</strong> dari kasir, pelunasan piutang, retur, pembelian, dan catatan Penyesuaian/Beban. Jurnal penutup dibuat otomatis setiap akhir bulan. Jurnal penyesuaian dan jurnal kas lain (modal, prive, penyusutan, dll.) dicatat manual di bawah.</p>
           <div style="overflow-x:auto;">
             <table id="fin-jurnal-table" class="fin-table">
               <thead><tr><th style="width:96px;">Tanggal</th><th>Keterangan / Akun</th><th class="num" style="width:130px;">Debit</th><th class="num" style="width:130px;">Kredit</th><th style="width:70px;"></th></tr></thead>
@@ -1362,7 +1362,7 @@
       <div class="fin-panel" id="fin-panel-neracasaldo">
         <div class="card" style="max-width:720px; overflow-x:auto;">
           <h3 class="display" style="margin-top:0;">Neraca Saldo</h3>
-          <p class="fin-hint" style="margin-top:-6px;">Saldo seluruh akun sampai tanggal "Sampai Tanggal" (termasuk jurnal penutup bila sudah tutup buku).</p>
+          <p class="fin-hint" style="margin-top:-6px;">Saldo seluruh akun sampai tanggal "Sampai Tanggal" (termasuk jurnal penutup otomatis akhir bulan).</p>
           <table class="fin-table"><thead><tr><th>Kode</th><th>Akun</th><th class="num">Debit</th><th class="num">Kredit</th></tr></thead>
           <tbody id="fin-tb-tbody"></tbody></table>
         </div>
@@ -1456,7 +1456,7 @@
         </div>
         <div class="card" style="max-width:760px;">
           <h3 class="display" style="margin-top:0;">Tutup Buku</h3>
-          <p class="fin-hint" style="margin-top:-6px;">Tutup buku membuat <strong>jurnal penutup</strong> otomatis: pendapatan &amp; beban dipindahkan ke Ikhtisar Laba Rugi, lalu laba/rugi ke Laba Ditahan, dan prive ke Modal. Setelah ditutup, jurnal bertanggal sampai tanggal tutup tidak bisa ditambah/dihapus lagi. Penutupan terakhir bisa dibatalkan.</p>
+          <p class="fin-hint" style="margin-top:-6px;"><strong>Jurnal penutup dibuat otomatis setiap akhir bulan</strong> (tidak perlu tindakan): pendapatan &amp; beban (termasuk HPP) dipindahkan ke Ikhtisar Laba Rugi, lalu <strong>laba menambah / rugi mengurangi Modal Pemilik</strong>, dan prive juga dipindahkan ke Modal Pemilik. Bulan berjalan baru ditutup setelah bulan berakhir. Tutup Buku manual di bawah bersifat <em>mengunci</em> periode: setelah ditutup, jurnal bertanggal sampai tanggal tutup tidak bisa ditambah/dihapus lagi. Penutupan terakhir bisa dibatalkan.</p>
           <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
             <div class="field" style="margin-bottom:0;"><label>Tutup Buku s/d Tanggal</label><input type="date" id="close-date"></div>
             <button class="btn amber" id="btn-close-books" style="margin-bottom:14px;">Tutup Buku</button>
@@ -7884,16 +7884,43 @@ function finBuildBase(){
   return E.sort(finEntryCmp);
 }
 
-// Jurnal lengkap = dasar + jurnal penutup (dibuat otomatis untuk setiap tanggal tutup buku)
+// Jurnal lengkap = dasar + jurnal penutup.
+// Jurnal penutup dibuat OTOMATIS setiap akhir bulan yang sudah lewat (tanpa perlu Tutup Buku manual),
+// ditambah setiap tanggal Tutup Buku manual. Pendapatan & beban (termasuk HPP) -> Ikhtisar Laba Rugi,
+// lalu laba menambah / rugi mengurangi Modal Pemilik (3-1100); Prive juga dipindahkan ke Modal Pemilik.
+function finAutoCloseDates(base){
+  if(!base.length) return [];
+  const today = todayStr();
+  const first = base[0].date; // base sudah terurut
+  let y = Number(first.slice(0,4)), m = Number(first.slice(5,7));
+  const out = [];
+  for(let guard=0; guard<600; guard++){
+    const last = new Date(y, m, 0).getDate(); // hari terakhir bulan m
+    const d = y + '-' + String(m).padStart(2,'0') + '-' + String(last).padStart(2,'0');
+    if(d >= today) break; // bulan berjalan belum ditutup
+    out.push(d);
+    m++; if(m > 12){ m = 1; y++; }
+  }
+  return out;
+}
 function finBuildJournal(){
   const out = finBuildBase();
-  const closes = [...(DB.periodCloses||[])].sort((a,b)=> a.date.localeCompare(b.date));
+  const manual = [...(DB.periodCloses||[])];
+  const manualDates = new Set(manual.map(c=> c.date));
+  const closes = manual.map(c=> ({ id:c.id, date:c.date }));
+  finAutoCloseDates(out).forEach(d=>{ if(!manualDates.has(d)) closes.push({ id:'auto-'+d, date:d, auto:true }); });
+  closes.sort((a,b)=> a.date.localeCompare(b.date));
+  const base = out.slice(); // terurut tanggal
+  const bal = {}; let ptr = 0;
+  const addLines = lines => lines.forEach(l=>{ bal[l.a] = (bal[l.a]||0) + (l.d||0) - (l.c||0); });
   closes.forEach(cl=>{
-    const bal = {};
-    out.forEach(e=>{ if(e.date <= cl.date) e.lines.forEach(l=>{ bal[l.a] = (bal[l.a]||0) + l.d - l.c; }); });
+    while(ptr < base.length && base[ptr].date <= cl.date){ addLines(base[ptr].lines); ptr++; }
+    const closing = [];
     const mkClose = (n, desc, lines)=> {
       const ls = lines.filter(l=> l.d > 0.004 || l.c > 0.004);
-      if(ls.length) out.push(finMk('close-'+cl.id+'-'+n, cl.date, finNoonTs(cl.date) + 43200000 + n, 'penutup', desc, ls, { closeId:cl.id }));
+      if(!ls.length) return;
+      const e = finMk('close-'+cl.id+'-'+n, cl.date, finNoonTs(cl.date) + 43200000 + n, 'penutup', desc, ls, { closeId:cl.id, autoClose:!!cl.auto });
+      out.push(e); closing.push(e); addLines(e.lines);
     };
     const closeSet = (types)=>{
       const lines = []; let off = 0;
@@ -7905,18 +7932,16 @@ function finBuildJournal(){
         if(b > 0){ lines.push({ a, c:b }); } else { lines.push({ a, d:-b }); }
         off += b;
       });
-      // Ikhtisar menerima lawan: off>0 berarti akun-akun dikredit total off -> Ikhtisar didebit off
       if(off > 0) lines.push({ a:'3-9000', d:off }); else if(off < 0) lines.push({ a:'3-9000', c:-off });
       return { lines, off };
     };
     const rev = closeSet(['pendapatan']);
-    const exp = closeSet(['beban']);
     mkClose(1, 'Penutup: pendapatan ke Ikhtisar Laba Rugi', rev.lines);
+    const exp = closeSet(['beban']);
     mkClose(2, 'Penutup: beban & HPP ke Ikhtisar Laba Rugi', exp.lines);
-    // Ikhtisar: pendapatan menaruh debit sebesar rev.off (jika >0), beban menaruh kredit -> net debit = rev.off + exp.off
     const ikh = r2(rev.off + exp.off); // >0 = saldo debit (rugi), <0 = saldo kredit (laba)
-    if(ikh < 0) mkClose(3, 'Penutup: laba periode ke Laba Ditahan', [ {a:'3-9000', d:-ikh}, {a:'3-1300', c:-ikh} ]);
-    else if(ikh > 0) mkClose(3, 'Penutup: rugi periode ke Laba Ditahan', [ {a:'3-1300', d:ikh}, {a:'3-9000', c:ikh} ]);
+    if(ikh < 0) mkClose(3, 'Penutup: laba periode menambah Modal Pemilik', [ {a:'3-9000', d:-ikh}, {a:'3-1100', c:-ikh} ]);
+    else if(ikh > 0) mkClose(3, 'Penutup: rugi periode mengurangi Modal Pemilik', [ {a:'3-1100', d:ikh}, {a:'3-9000', c:ikh} ]);
     const prive = r2(bal['3-1200'] || 0);
     if(Math.abs(prive) > 0.004) mkClose(4, 'Penutup: prive ke Modal Pemilik', prive > 0 ? [ {a:'3-1100', d:prive}, {a:'3-1200', c:prive} ] : [ {a:'3-1200', d:-prive}, {a:'3-1100', c:-prive} ]);
   });
@@ -8597,7 +8622,7 @@ function finCloseBooks(){
   if(date <= last){ showToast('Tanggal harus setelah penutupan terakhir (' + last + ')'); return; }
   const entries = finBuildJournal().filter(e=> e.type !== 'penutup');
   const lr = finCalcLabaRugi(entries, last ? finNextDay(last) : '1970-01-01', date);
-  showConfirm(`Tutup buku sampai <strong>${esc(date)}</strong>?<br>${lr.labaBersih>=0?'Laba':'Rugi'} periode: <strong>${finMoney(lr.labaBersih)}</strong> akan dipindahkan ke Laba Ditahan. Jurnal bertanggal s/d ${esc(date)} tidak bisa ditambah/dihapus lagi (penutupan bisa dibatalkan).`, async ()=>{
+  showConfirm(`Tutup buku sampai <strong>${esc(date)}</strong>?<br>${lr.labaBersih>=0?'Laba':'Rugi'} periode: <strong>${finMoney(lr.labaBersih)}</strong> akan menambah/mengurangi Modal Pemilik. Jurnal bertanggal s/d ${esc(date)} tidak bisa ditambah/dihapus lagi (penutupan bisa dibatalkan).`, async ()=>{
     const rec = { id:uid(), date, createdAt:new Date().toISOString(), byName: (SESSION && SESSION.name) || '' };
     const ok = await saveCompanyArrayField('periodCloses', [...DB.periodCloses, rec]);
     if(ok){ showToast('Buku ditutup s/d ' + date); renderKeuangan(); }
