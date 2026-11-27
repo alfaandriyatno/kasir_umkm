@@ -1302,10 +1302,8 @@
             <button data-f="piutang">Jurnal Piutang</button>
             <button data-f="utang">Jurnal Utang</button>
             <button data-f="penyesuaian">Jurnal Penyesuaian</button>
-            <button data-f="penutup">Jurnal Penutup</button>
-            <button data-f="saldo_awal">Saldo Awal</button>
           </div>
-          <p class="fin-hint">Jurnal kas, piutang, dan utang terisi <strong>otomatis</strong> dari kasir, pelunasan piutang, retur, pembelian, dan catatan Penyesuaian/Beban. Jurnal penutup dibuat otomatis saat Tutup Buku. Jurnal penyesuaian dan jurnal kas lain (modal, prive, penyusutan, dll.) dicatat manual di bawah.</p>
+          <p class="fin-hint">Jurnal kas, piutang, dan utang terisi <strong>otomatis</strong> dari kasir, pelunasan piutang, retur, pembelian, dan catatan Penyesuaian/Beban. Daftar ini adalah <strong>riwayat</strong> seluruh jurnal; jurnal manual dicatat lewat form <strong>Jurnal Umum</strong> di bawah. Saldo awal dan jurnal penutup ada di tab <em>Saldo Awal &amp; Tutup Buku</em>.</p>
           <div style="overflow-x:auto;">
             <table id="fin-jurnal-table" class="fin-table">
               <thead><tr><th style="width:96px;">Tanggal</th><th>Keterangan / Akun</th><th class="num" style="width:130px;">Debit</th><th class="num" style="width:130px;">Kredit</th><th style="width:70px;"></th></tr></thead>
@@ -1321,7 +1319,7 @@
         </div>
 
         <div class="card">
-          <h3 class="display" style="margin-top:0;">Catat Jurnal Manual</h3>
+          <h3 class="display" style="margin-top:0;">Jurnal Umum (Input Manual)</h3>
           <p class="fin-hint" style="margin-top:-6px;">Untuk transaksi di luar kasir: setoran modal, prive, penyusutan, koreksi persediaan, beban yang masih harus dibayar, dll. Total debit harus sama dengan total kredit.</p>
           <div style="display:flex; gap:12px; flex-wrap:wrap;">
             <div class="field" style="flex:1; min-width:150px;"><label>Tanggal</label><input type="date" id="fj-date"></div>
@@ -8248,6 +8246,7 @@ function renderKeuangan(){
 
 const FIN_TYPE_LABEL = { penjualan:'Penjualan', retur:'Retur', piutang:'Piutang', pembelian:'Pembelian', utang:'Utang', kas:'Kas', penutup:'Penutup', saldo_awal:'Saldo Awal', penyesuaian:'Penyesuaian' };
 function finEntryMatches(e, f){
+  if(e.type === 'penutup' || e.type === 'saldo_awal') return false; // ada di tab Saldo Awal & Tutup Buku
   if(f === 'semua') return true;
   if(f === 'kas') return e.lines.some(l=> FIN_CASH.includes(l.a));
   if(f === 'piutang') return e.lines.some(l=> l.a === '1-1400');
