@@ -1305,7 +1305,7 @@
             <button data-f="penutup">Jurnal Penutup</button>
             <button data-f="saldo_awal">Saldo Awal</button>
           </div>
-          <p class="fin-hint">Jurnal kas, piutang, dan utang terisi <strong>otomatis</strong> dari kasir, pelunasan piutang, retur, pembelian, dan catatan Penyesuaian/Beban. Jurnal penutup dibuat otomatis setiap akhir bulan. Jurnal penyesuaian dan jurnal kas lain (modal, prive, penyusutan, dll.) dicatat manual di bawah.</p>
+          <p class="fin-hint">Jurnal kas, piutang, dan utang terisi <strong>otomatis</strong> dari kasir, pelunasan piutang, retur, pembelian, dan catatan Penyesuaian/Beban. Jurnal penutup dibuat otomatis saat Tutup Buku. Jurnal penyesuaian dan jurnal kas lain (modal, prive, penyusutan, dll.) dicatat manual di bawah.</p>
           <div style="overflow-x:auto;">
             <table id="fin-jurnal-table" class="fin-table">
               <thead><tr><th style="width:96px;">Tanggal</th><th>Keterangan / Akun</th><th class="num" style="width:130px;">Debit</th><th class="num" style="width:130px;">Kredit</th><th style="width:70px;"></th></tr></thead>
@@ -1362,7 +1362,7 @@
       <div class="fin-panel" id="fin-panel-neracasaldo">
         <div class="card" style="max-width:720px; overflow-x:auto;">
           <h3 class="display" style="margin-top:0;">Neraca Saldo</h3>
-          <p class="fin-hint" style="margin-top:-6px;">Saldo seluruh akun sampai tanggal "Sampai Tanggal" (termasuk jurnal penutup otomatis akhir bulan).</p>
+          <p class="fin-hint" style="margin-top:-6px;">Saldo seluruh akun sampai tanggal "Sampai Tanggal" (termasuk jurnal penutup bila sudah tutup buku).</p>
           <table class="fin-table"><thead><tr><th>Kode</th><th>Akun</th><th class="num">Debit</th><th class="num">Kredit</th></tr></thead>
           <tbody id="fin-tb-tbody"></tbody></table>
         </div>
@@ -1456,7 +1456,7 @@
         </div>
         <div class="card" style="max-width:760px;">
           <h3 class="display" style="margin-top:0;">Tutup Buku</h3>
-          <p class="fin-hint" style="margin-top:-6px;"><strong>Jurnal penutup dibuat otomatis setiap akhir bulan</strong> (tidak perlu tindakan): pendapatan &amp; beban (termasuk HPP) dipindahkan ke Ikhtisar Laba Rugi, lalu <strong>laba menambah / rugi mengurangi Modal Pemilik</strong>, dan prive juga dipindahkan ke Modal Pemilik. Bulan berjalan baru ditutup setelah bulan berakhir. Tutup Buku manual di bawah bersifat <em>mengunci</em> periode: setelah ditutup, jurnal bertanggal sampai tanggal tutup tidak bisa ditambah/dihapus lagi. Penutupan terakhir bisa dibatalkan.</p>
+          <p class="fin-hint" style="margin-top:-6px;">Saat Tutup Buku, <strong>jurnal penutup dibuat otomatis</strong>: pendapatan &amp; beban (termasuk HPP) dipindahkan ke Ikhtisar Laba Rugi, lalu <strong>laba menambah / rugi mengurangi Modal Pemilik</strong>, dan prive juga dipindahkan ke Modal Pemilik. Setelah ditutup, jurnal bertanggal sampai tanggal tutup tidak bisa ditambah/dihapus lagi. Penutupan terakhir bisa dibatalkan.</p>
           <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
             <div class="field" style="margin-bottom:0;"><label>Tutup Buku s/d Tanggal</label><input type="date" id="close-date"></div>
             <button class="btn amber" id="btn-close-books" style="margin-bottom:14px;">Tutup Buku</button>
@@ -7885,8 +7885,7 @@ function finBuildBase(){
 }
 
 // Jurnal lengkap = dasar + jurnal penutup.
-// Jurnal penutup dibuat OTOMATIS setiap akhir bulan yang sudah lewat (tanpa perlu Tutup Buku manual),
-// ditambah setiap tanggal Tutup Buku manual. Pendapatan & beban (termasuk HPP) -> Ikhtisar Laba Rugi,
+// Jurnal penutup dibuat OTOMATIS begitu Tutup Buku dilakukan (satu set jurnal per tanggal tutup buku). Pendapatan & beban (termasuk HPP) -> Ikhtisar Laba Rugi,
 // lalu laba menambah / rugi mengurangi Modal Pemilik (3-1100); Prive juga dipindahkan ke Modal Pemilik.
 function finAutoCloseDates(base){
   if(!base.length) return [];
@@ -7908,7 +7907,6 @@ function finBuildJournal(){
   const manual = [...(DB.periodCloses||[])];
   const manualDates = new Set(manual.map(c=> c.date));
   const closes = manual.map(c=> ({ id:c.id, date:c.date }));
-  finAutoCloseDates(out).forEach(d=>{ if(!manualDates.has(d)) closes.push({ id:'auto-'+d, date:d, auto:true }); });
   closes.sort((a,b)=> a.date.localeCompare(b.date));
   const base = out.slice(); // terurut tanggal
   const bal = {}; let ptr = 0;
