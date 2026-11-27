@@ -1378,7 +1378,6 @@
       <!-- NERACA -->
       <div class="fin-panel" id="fin-panel-neraca">
         <div class="card fin-report"><h3 class="display" style="margin-top:0;">Neraca (Laporan Posisi Keuangan)</h3><div class="fin-period" id="fin-bs-period"></div><table class="fin-table"><tbody id="fin-bs-tbody"></tbody></table></div>
-        <div class="card fin-report" id="fin-recon" style="margin-top:16px;"></div>
       </div>
 
       <!-- ARUS KAS -->
@@ -8200,7 +8199,6 @@ function renderKeuangan(){
   } else if(tab === 'neraca'){
     document.getElementById('fin-bs-period').textContent = DB.storeName + ' — per ' + to;
     document.getElementById('fin-bs-tbody').innerHTML = finStmtRows(finRowsBS(bs));
-    finRenderRecon(entries, to);
   } else if(tab === 'aruskas'){
     document.getElementById('fin-cf-period').textContent = DB.storeName + ' — ' + per + ' (metode langsung)';
     document.getElementById('fin-cf-tbody').innerHTML = finStmtRows(finRowsCF(finCalcArusKas(entries, from, to)));
@@ -8279,20 +8277,6 @@ function finRenderTB(entries, to){
   html += `<tr class="fin-total"><td colspan="2">Total</td><td class="num mono">${finMoney(td)}</td><td class="num mono">${finMoney(tc)}</td></tr>`;
   document.getElementById('fin-tb-tbody').innerHTML = html;
 }
-function finRenderRecon(entries, to){
-  const net = finBalances(entries, to);
-  const piutangBuku = net['1-1400'] || 0;
-  const piutangKartu = (DB.receivables||[]).reduce((s,r)=> s + (Number(r.amount)||0) - (Number(r.paidAmount)||0), 0);
-  const line = (label, a, b, note) => {
-    const diff = r2(a - b); const ok = Math.abs(diff) < 1;
-    return `<tr><td>${esc(label)}</td><td class="num mono">${finMoney(a)}</td><td class="num mono">${finMoney(b)}</td><td class="num mono" style="color:${ok?'var(--green)':'var(--rust)'}">${ok ? '✓ cocok' : finMoney(diff)}</td></tr>${ok?'':`<tr><td colspan="4" class="fin-hint" style="padding:2px 4px 8px;">${esc(note)}</td></tr>`}`;
-  };
-  document.getElementById('fin-recon').innerHTML = `<h3 class="display" style="margin-top:0; font-size:16px;">Rekonsiliasi Buku Besar vs Kartu Pembantu</h3>
-    <table class="fin-table"><thead><tr><th></th><th class="num">Buku Besar</th><th class="num">Kartu</th><th class="num">Selisih</th></tr></thead><tbody>
-    ${line('Piutang Usaha vs kartu piutang pelanggan', piutangBuku, piutangKartu, 'Selisih biasanya berasal dari piutang lama sebelum tanggal Saldo Awal, atau sisa piutang yang belum ada di Saldo Awal. Tambahkan lewat Saldo Awal.')}
-    </tbody></table>`;
-}
-
 /* ---------- Form jurnal manual ---------- */
 const FIN_TEMPLATES = {
   tenaga:     { label:'Biaya tenaga kerja produksi (tunai)', type:'kas', desc:'Biaya tenaga kerja produksi', lines:[['6-1200','d'],['1-1100','c']] },
