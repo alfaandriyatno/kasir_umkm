@@ -1319,14 +1319,14 @@
         </div>
 
         <div class="card">
-          <h3 class="display" style="margin-top:0;">Jurnal Umum (Input Manual)</h3>
-          <p class="fin-hint" style="margin-top:-6px;">Untuk transaksi di luar kasir: setoran modal, prive, penyusutan, koreksi persediaan, beban yang masih harus dibayar, dll. Total debit harus sama dengan total kredit.</p>
+          <h3 class="display" id="fj-title" style="margin-top:0;">Jurnal Umum</h3>
+          <p class="fin-hint" id="fj-hint" style="margin-top:-6px;">Untuk transaksi di luar kasir: setoran modal, prive, penyusutan, koreksi persediaan, beban yang masih harus dibayar, dll. Total debit harus sama dengan total kredit.</p>
           <div style="display:flex; gap:12px; flex-wrap:wrap;">
             <div class="field" style="flex:1; min-width:150px;"><label>Tanggal</label><input type="date" id="fj-date"></div>
-            <div class="field" style="flex:1; min-width:170px;"><label>Jenis Jurnal</label>
+            <div class="field" id="fj-type-box" style="flex:1; min-width:170px;"><label>Jenis Jurnal</label>
               <select id="fj-type"><option value="penyesuaian">Penyesuaian</option><option value="kas">Kas / Umum</option></select>
             </div>
-            <div class="field" style="flex:1; min-width:200px;"><label>Template Cepat</label>
+            <div class="field" id="fj-tpl-box" style="flex:1; min-width:200px;"><label>Template Cepat</label>
               <select id="fj-template"><option value="">— pilih template —</option></select>
             </div>
           </div>
@@ -8205,6 +8205,7 @@ function renderKeuangan(){
     finInitPayableForm();
   }
   finRefreshMap();
+  finApplyJournalMode();
   finRefreshAccountSelects();
   const entries = finBuildJournal();
   const { from, to } = finRange();
@@ -8373,6 +8374,22 @@ function finUpdateBalance(){
   el.style.color = ok ? 'var(--green)' : 'var(--rust)';
   el.textContent = `Debit ${rupiah(d)} | Kredit ${rupiah(c)} ${ok ? '✓ seimbang' : '(selisih ' + rupiah(Math.abs(d-c)) + ')'}`;
 }
+const FIN_JMODE = {
+  semua:       { title:'Jurnal Umum',        type:null,          hint:'Untuk transaksi di luar kasir: setoran modal, prive, penyusutan, koreksi persediaan, beban yang masih harus dibayar, dll. Total debit harus sama dengan total kredit.' },
+  kas:         { title:'Jurnal Kas',         type:'kas',         hint:'Catat jurnal kas manual (penerimaan/pengeluaran kas). Total debit harus sama dengan total kredit.' },
+  piutang:     { title:'Jurnal Piutang',     type:'piutang',     hint:'Catat jurnal piutang manual. Total debit harus sama dengan total kredit.' },
+  utang:       { title:'Jurnal Utang',       type:'utang',       hint:'Catat jurnal utang manual. Total debit harus sama dengan total kredit.' },
+  penyesuaian: { title:'Jurnal Penyesuaian', type:'penyesuaian', hint:'Catat jurnal penyesuaian manual (koreksi, beban yang masih harus dibayar, dll). Total debit harus sama dengan total kredit.' }
+};
+function finApplyJournalMode(){
+  const m = FIN_JMODE[FIN.jfilter] || FIN_JMODE.semua;
+  const set = (id, fn)=>{ const el = document.getElementById(id); if(el) fn(el); };
+  set('fj-title', el=> el.textContent = m.title);
+  set('fj-hint', el=> el.textContent = m.hint);
+  set('fj-type-box', el=> el.style.display = m.type ? 'none' : '');
+  set('fj-tpl-box', el=> el.style.display = m.type ? 'none' : '');
+  set('btn-fj-save', el=> el.textContent = 'Simpan ' + m.title);
+}
 function finInitJournalForm(){
   const tpl = document.getElementById('fj-template');
   Object.keys(FIN_TEMPLATES).forEach(k=>{ const o = document.createElement('option'); o.value = k; o.textContent = FIN_TEMPLATES[k].label; tpl.appendChild(o); });
@@ -8390,7 +8407,7 @@ function finInitJournalForm(){
 }
 async function finSaveManual(){
   const date = document.getElementById('fj-date').value;
-  const type = document.getElementById('fj-type').value;
+  const type = (FIN_JMODE[FIN.jfilter] || FIN_JMODE.semua).type || document.getElementById('fj-type').value;
   const desc = document.getElementById('fj-desc').value.trim();
   const lines = finReadLines().filter(l=> l.a || l.d || l.c);
   if(!date){ showToast('Tanggal wajib diisi'); return; }
@@ -8409,7 +8426,7 @@ async function finSaveManual(){
   document.getElementById('fj-lines').innerHTML = '';
   finAddLine('', 'd', 0); finAddLine('', 'c', 0); finUpdateBalance();
   document.getElementById('fj-template').value = '';
-  showToast('Jurnal tersimpan');
+  showToast((FIN_JMODE[FIN.jfilter] || FIN_JMODE.semua).title + ' tersimpan');
   renderKeuangan();
 }
 function finDeleteManual(mid){
