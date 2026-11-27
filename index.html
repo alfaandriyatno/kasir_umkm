@@ -1289,7 +1289,6 @@
         <button data-tab="neraca">Neraca</button>
         <button data-tab="aruskas">Arus Kas</button>
         <button data-tab="aset">Aset &amp; Penyusutan</button>
-        <button data-tab="utang">Utang Usaha</button>
         <button data-tab="tutup">Saldo Awal &amp; Tutup Buku</button>
       </div>
 
@@ -1385,39 +1384,6 @@
       <!-- ARUS KAS -->
       <div class="fin-panel" id="fin-panel-aruskas">
         <div class="card fin-report"><h3 class="display" style="margin-top:0;">Laporan Arus Kas</h3><div class="fin-period" id="fin-cf-period"></div><table class="fin-table"><tbody id="fin-cf-tbody"></tbody></table></div>
-      </div>
-
-      <!-- UTANG -->
-      <div class="fin-panel" id="fin-panel-utang">
-        <div class="card" style="margin-bottom:16px;">
-          <h3 class="display" style="margin-top:0;">Tambah Utang</h3>
-          <p class="fin-hint" style="margin-top:-6px;">Pembelian yang belum dibayar ke pemasok dicatat sebagai utang. Pilih pembelian yang sudah diinput di menu Pembelian (jurnalnya otomatis berubah dari kas menjadi utang), atau catat utang manual (misal pinjaman, pembelian peralatan kredit).</p>
-          <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <div class="field" style="flex:1; min-width:150px;"><label>Tanggal</label><input type="date" id="pay-date"></div>
-            <div class="field" style="flex:2; min-width:220px;"><label>Sumber</label><select id="pay-source"></select></div>
-            <div class="field" style="flex:1; min-width:150px;"><label>Jatuh Tempo (opsional)</label><input type="date" id="pay-due"></div>
-          </div>
-          <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <div class="field" style="flex:1; min-width:180px;"><label>Pemasok / Pihak</label><input type="text" id="pay-supplier" placeholder="Nama pemasok / pemberi pinjaman"></div>
-            <div class="field" style="flex:2; min-width:200px;"><label>Keterangan</label><input type="text" id="pay-desc" placeholder="Contoh: Pembelian beras 20 karung"></div>
-            <div class="field" style="flex:1; min-width:150px;"><label>Jumlah Utang (Rp)</label><input type="number" id="pay-amount" min="0" placeholder="0"></div>
-          </div>
-          <div id="pay-manual-opts" style="display:none;">
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-              <div class="field" style="flex:1; min-width:220px;"><label>Jenis Utang</label>
-                <select id="pay-liab"><option value="2-1100">Utang Usaha</option><option value="2-1300">Utang Lainnya (pinjaman)</option></select></div>
-              <div class="field" style="flex:1; min-width:220px;"><label>Utang ini digunakan untuk</label>
-                <select id="pay-debit"><option value="1-1500">Persediaan Barang Dagang</option><option value="1-2100">Peralatan / Aset Tetap</option><option value="6-9000">Beban Lain-lain</option><option value="1-1100">Kas (pinjaman uang diterima)</option></select></div>
-            </div>
-          </div>
-          <button class="btn amber" id="btn-pay-add">Simpan Utang</button>
-        </div>
-        <div class="card" style="overflow-x:auto;">
-          <h3 class="display" style="margin-top:0;">Daftar Utang <span id="pay-total" class="mono" style="font-size:13px; color:var(--rust); margin-left:8px;"></span></h3>
-          <table class="fin-table"><thead><tr><th>Tanggal</th><th>Pihak / Keterangan</th><th class="num">Utang</th><th class="num">Dibayar</th><th class="num">Sisa</th><th style="min-width:300px;">Bayar</th></tr></thead>
-          <tbody id="pay-tbody"></tbody></table>
-          <div id="pay-empty" class="empty-state" style="display:none;">Belum ada utang tercatat.</div>
-        </div>
       </div>
 
       <!-- ASET & PENYUSUTAN -->
@@ -8198,11 +8164,9 @@ function renderKeuangan(){
     document.getElementById('fin-from').value = t.slice(0,8) + '01';
     document.getElementById('fin-to').value = t;
     document.getElementById('fj-date').value = t;
-    document.getElementById('pay-date').value = t;
     document.getElementById('op-date').value = t;
     document.getElementById('close-date').value = finDayBefore(t);
     finInitJournalForm();
-    finInitPayableForm();
   }
   finRefreshMap();
   finApplyJournalMode();
@@ -8240,8 +8204,7 @@ function renderKeuangan(){
   } else if(tab === 'aruskas'){
     document.getElementById('fin-cf-period').textContent = DB.storeName + ' — ' + per + ' (metode langsung)';
     document.getElementById('fin-cf-tbody').innerHTML = finStmtRows(finRowsCF(finCalcArusKas(entries, from, to)));
-  } else if(tab === 'utang') finRenderPayables();
-  else if(tab === 'aset') renderAset();
+  } else if(tab === 'aset') renderAset();
   else if(tab === 'tutup'){ finRenderTutup(entries); finRenderAccounts(); }
 }
 
@@ -8320,8 +8283,6 @@ function finRenderRecon(entries, to){
   const net = finBalances(entries, to);
   const piutangBuku = net['1-1400'] || 0;
   const piutangKartu = (DB.receivables||[]).reduce((s,r)=> s + (Number(r.amount)||0) - (Number(r.paidAmount)||0), 0);
-  const utangBuku = -(net['2-1100']||0) - (net['2-1300']||0);
-  const utangKartu = (DB.payables||[]).reduce((s,p)=> s + (Number(p.amount)||0) - (p.payments||[]).reduce((x,y)=>x+(Number(y.amount)||0),0), 0);
   const line = (label, a, b, note) => {
     const diff = r2(a - b); const ok = Math.abs(diff) < 1;
     return `<tr><td>${esc(label)}</td><td class="num mono">${finMoney(a)}</td><td class="num mono">${finMoney(b)}</td><td class="num mono" style="color:${ok?'var(--green)':'var(--rust)'}">${ok ? '✓ cocok' : finMoney(diff)}</td></tr>${ok?'':`<tr><td colspan="4" class="fin-hint" style="padding:2px 4px 8px;">${esc(note)}</td></tr>`}`;
@@ -8329,7 +8290,6 @@ function finRenderRecon(entries, to){
   document.getElementById('fin-recon').innerHTML = `<h3 class="display" style="margin-top:0; font-size:16px;">Rekonsiliasi Buku Besar vs Kartu Pembantu</h3>
     <table class="fin-table"><thead><tr><th></th><th class="num">Buku Besar</th><th class="num">Kartu</th><th class="num">Selisih</th></tr></thead><tbody>
     ${line('Piutang Usaha vs kartu piutang pelanggan', piutangBuku, piutangKartu, 'Selisih biasanya berasal dari piutang lama sebelum tanggal Saldo Awal, atau sisa piutang yang belum ada di Saldo Awal. Tambahkan lewat Saldo Awal.')}
-    ${line('Utang vs daftar utang', utangBuku, utangKartu, 'Selisih biasanya dari utang pada Saldo Awal atau jurnal manual ke akun utang.')}
     </tbody></table>`;
 }
 
@@ -8438,108 +8398,8 @@ function finDeleteManual(mid){
   });
 }
 
-/* ---------- Utang ---------- */
-function finInitPayableForm(){
-  const src = document.getElementById('pay-source');
-  src.addEventListener('change', ()=>{
-    const v = src.value;
-    document.getElementById('pay-manual-opts').style.display = v === 'manual' ? '' : 'none';
-    if(v !== 'manual'){
-      const pu = DB.purchases.find(p=>p.id===v);
-      if(pu){
-        document.getElementById('pay-supplier').value = pu.supplier || '';
-        document.getElementById('pay-desc').value = 'Pembelian ' + (pu.productName || '');
-        document.getElementById('pay-amount').value = Math.round(pu.total);
-        document.getElementById('pay-date').value = localDateFromIso(pu.date);
-      }
-    }
-  });
-  document.getElementById('btn-pay-add').addEventListener('click', finSavePayable);
-}
+/* Utang: dicek lewat Buku Besar (akun Utang Usaha / Utang Lainnya); catatan utang lama tetap masuk jurnal. */
 function finPaid(p){ return (p.payments||[]).reduce((s,x)=> s + (Number(x.amount)||0), 0); }
-function finRenderPayables(){
-  const src = document.getElementById('pay-source');
-  const prev = src.value;
-  const linked = new Set(DB.payables.filter(p=>p.purchaseId).map(p=>p.purchaseId));
-  const opts = [...DB.purchases].filter(p=> !linked.has(p.id) && (Number(p.total)||0) > 0)
-    .sort((a,b)=> new Date(b.date) - new Date(a.date)).slice(0, 80)
-    .map(p=>`<option value="${esc(p.id)}">${esc(localDateFromIso(p.date))} — ${esc(p.productName||'Pembelian')}${p.supplier?' ('+esc(p.supplier)+')':''} — ${rupiah(p.total)}</option>`).join('');
-  src.innerHTML = `<option value="manual">Utang manual (bukan dari menu Pembelian)</option>${opts ? '<optgroup label="Tautkan ke pembelian yang sudah ada">'+opts+'</optgroup>' : ''}`;
-  if([...src.options].some(o=>o.value===prev)) src.value = prev;
-  document.getElementById('pay-manual-opts').style.display = src.value === 'manual' ? '' : 'none';
-
-  const locked = finLockedDate();
-  const list = [...DB.payables].sort((a,b)=> b.date.localeCompare(a.date));
-  document.getElementById('pay-empty').style.display = list.length ? 'none' : 'block';
-  let sisaTotal = 0;
-  document.getElementById('pay-tbody').innerHTML = list.map(p=>{
-    const paid = finPaid(p), sisa = r2((Number(p.amount)||0) - paid);
-    sisaTotal += sisa;
-    const overdue = sisa > 0 && p.dueDate && p.dueDate < todayStr();
-    return `<tr><td>${esc(p.date)}${p.dueDate?`<div class="fin-hint" style="margin:0;${overdue?'color:var(--rust);font-weight:600;':''}">Tempo ${esc(p.dueDate)}${overdue?' (lewat)':''}</div>`:''}</td>
-      <td>${esc(p.supplier||'-')}<div class="fin-hint" style="margin:0;">${esc(p.desc||'')}${p.purchaseId?' · tertaut pembelian':''}${(p.liabAcc==='2-1300')?' · utang lainnya':''}</div></td>
-      <td class="num mono">${finMoney(p.amount)}</td><td class="num mono">${finMoney(paid)}</td>
-      <td class="num mono" style="font-weight:700;color:${sisa>0?'var(--rust)':'var(--green)'};">${sisa>0?finMoney(sisa):'Lunas'}</td>
-      <td>${sisa > 0 ? `<div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <input type="number" min="0" id="pp-amt-${esc(p.id)}" value="${sisa}" style="width:110px;">
-          <select id="pp-mth-${esc(p.id)}" style="width:100px;"><option value="cash">Kas</option><option value="transfer">Transfer</option><option value="qris">QRIS</option></select>
-          <button class="btn amber sm" onclick="finPayPayable('${esc(p.id)}')">Bayar</button></div>` : ''}
-        ${paid === 0 && p.date > locked ? `<button class="btn danger sm" style="margin-top:6px;" onclick="finDeletePayable('${esc(p.id)}')">Hapus</button>` : ''}</td></tr>`;
-  }).join('');
-  document.getElementById('pay-total').textContent = sisaTotal > 0 ? 'Sisa utang: ' + rupiah(sisaTotal) : '';
-}
-async function finSavePayable(){
-  const date = document.getElementById('pay-date').value;
-  const source = document.getElementById('pay-source').value;
-  const supplier = document.getElementById('pay-supplier').value.trim();
-  const desc = document.getElementById('pay-desc').value.trim();
-  const amount = Number(document.getElementById('pay-amount').value) || 0;
-  const due = document.getElementById('pay-due').value || null;
-  if(!date){ showToast('Tanggal wajib diisi'); return; }
-  if(date <= finLockedDate()){ showToast('Tanggal sudah masuk periode yang ditutup'); return; }
-  if(amount <= 0){ showToast('Jumlah utang harus lebih dari 0'); return; }
-  const rec = { id:uid(), date, supplier, desc, amount, dueDate:due, payments:[], createdAt:new Date().toISOString() };
-  if(source === 'manual'){
-    if(!supplier && !desc){ showToast('Isi nama pihak atau keterangan'); return; }
-    rec.liabAcc = document.getElementById('pay-liab').value;
-    rec.debitAcc = document.getElementById('pay-debit').value;
-    if(rec.debitAcc === '1-1100') rec.liabAcc = '2-1300'; // pinjaman uang tunai = utang lainnya
-  } else {
-    const pu = DB.purchases.find(p=>p.id===source);
-    if(!pu){ showToast('Pembelian tidak ditemukan'); return; }
-    if(amount > (Number(pu.total)||0) + 0.01){ showToast('Utang tidak boleh lebih besar dari total pembelian (' + rupiah(pu.total) + ')'); return; }
-    if(localDateFromIso(pu.date) <= finLockedDate()){ showToast('Pembelian itu ada di periode yang sudah ditutup'); return; }
-    rec.purchaseId = pu.id; rec.liabAcc = '2-1100'; rec.date = localDateFromIso(pu.date);
-  }
-  const btn = document.getElementById('btn-pay-add'); btn.disabled = true;
-  const ok = await saveCompanyArrayField('payables', [...DB.payables, rec]);
-  btn.disabled = false;
-  if(!ok) return;
-  ['pay-supplier','pay-desc','pay-amount','pay-due'].forEach(i=> document.getElementById(i).value = '');
-  document.getElementById('pay-source').value = 'manual';
-  showToast('Utang tersimpan');
-  renderKeuangan();
-}
-async function finPayPayable(id){
-  const p = DB.payables.find(x=>x.id===id); if(!p) return;
-  const amt = Number(document.getElementById('pp-amt-' + id).value) || 0;
-  const method = document.getElementById('pp-mth-' + id).value;
-  const sisa = r2((Number(p.amount)||0) - finPaid(p));
-  const date = todayStr();
-  if(date <= finLockedDate()){ showToast('Tanggal hari ini masuk periode yang ditutup'); return; }
-  if(amt <= 0){ showToast('Jumlah bayar harus lebih dari 0'); return; }
-  if(amt > sisa + 0.01){ showToast('Melebihi sisa utang (' + rupiah(sisa) + ')'); return; }
-  const list = DB.payables.map(x=> x.id !== id ? x : { ...x, payments:[...(x.payments||[]), { id:uid(), date, amount:amt, method }] });
-  const ok = await saveCompanyArrayField('payables', list);
-  if(ok){ showToast('Pembayaran utang tersimpan'); renderKeuangan(); }
-}
-function finDeletePayable(id){
-  const p = DB.payables.find(x=>x.id===id); if(!p) return;
-  showConfirm(`Hapus catatan utang <strong>${esc(p.supplier||p.desc||'')}</strong> (${rupiah(p.amount)})?`, async ()=>{
-    const ok = await saveCompanyArrayField('payables', DB.payables.filter(x=>x.id!==id));
-    if(ok){ showToast('Utang dihapus'); renderKeuangan(); }
-  });
-}
 
 /* ---------- Saldo awal & tutup buku ---------- */
 const OP_FIELDS = [
