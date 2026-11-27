@@ -1203,6 +1203,7 @@
       </div>
       <div class="fin-tabs" id="pr-tabs" style="margin-bottom:14px;">
         <button data-tab="batch" class="active">Batch Produksi</button>
+        <button data-tab="formula">Formula Produk</button>
         <button data-tab="bahan" id="pr-tab-bahan">Bahan Baku</button>
       </div>
       <div id="pr-pane-batch">
@@ -1220,6 +1221,20 @@
         <div id="bt-empty" class="empty-state" style="display:none;">Belum ada batch produksi. Klik "+ Batch Produksi Baru".</div>
       </div>
       </div><!-- /pr-pane-batch -->
+
+      <div id="pr-pane-formula" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <h3 class="display" style="margin:0 0 6px 0;">Formula HPP Produk</h3>
+          <p class="fin-hint" style="margin:0;">Komposisi bahan baku tiap produk jadi. Bila komposisi berubah (bahan diganti, takaran berubah, harga bahan naik), klik <strong>Edit Formula</strong>: HPP dihitung ulang dan <strong>stok bahan baku yang terpotong saat produk terjual</strong> mengikuti komposisi terbaru. Harga bahan tertaut otomatis mengikuti harga beli rata-rata di tab Bahan Baku. Untuk produksi berikutnya dengan komposisi baru, pakai <strong>Produksi Lagi</strong>.</p>
+        </div>
+        <div class="card" style="overflow-x:auto;">
+          <table class="fin-table">
+            <thead><tr><th>Produk</th><th>Komposisi (per hasil jadi)</th><th class="num">HPP / satuan</th><th class="num">Harga Jual</th><th class="num">Margin</th><th class="num">Cukup untuk</th><th style="min-width:230px;"></th></tr></thead>
+            <tbody id="fm-tbody"></tbody>
+          </table>
+          <div id="fm-empty" class="empty-state" style="display:none;">Belum ada produk hasil produksi. Selesaikan batch produksi atau atur resep produk di Produk &amp; Stok.</div>
+        </div>
+      </div>
 
       <div id="pr-pane-bahan" style="display:none;">
         <div class="card" style="margin-bottom:16px;">
@@ -1273,6 +1288,7 @@
         <button data-tab="ekuitas">Perubahan Ekuitas</button>
         <button data-tab="neraca">Neraca</button>
         <button data-tab="aruskas">Arus Kas</button>
+        <button data-tab="aset">Aset &amp; Penyusutan</button>
         <button data-tab="utang">Utang Usaha</button>
         <button data-tab="tutup">Saldo Awal &amp; Tutup Buku</button>
       </div>
@@ -1403,6 +1419,25 @@
           <table class="fin-table"><thead><tr><th>Tanggal</th><th>Pihak / Keterangan</th><th class="num">Utang</th><th class="num">Dibayar</th><th class="num">Sisa</th><th style="min-width:300px;">Bayar</th></tr></thead>
           <tbody id="pay-tbody"></tbody></table>
           <div id="pay-empty" class="empty-state" style="display:none;">Belum ada utang tercatat.</div>
+        </div>
+      </div>
+
+      <!-- ASET & PENYUSUTAN -->
+      <div class="fin-panel" id="fin-panel-aset">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="filter-bar" style="margin-bottom:6px;">
+            <h3 class="display" style="margin:0; flex:1;">Aset &amp; Penyusutan</h3>
+            <button class="btn amber" id="btn-as-new">+ Catat Aset</button>
+          </div>
+          <p class="fin-hint" style="margin:0;">Catat aset tetap perusahaan (peralatan, mesin, kendaraan, dll). Perolehannya masuk jurnal (Peralatan &amp; Aset Tetap), dan <strong>penyusutan garis lurus dibukukan otomatis setiap akhir bulan</strong> (Beban Penyusutan ⟷ Akumulasi Penyusutan) tanpa perlu input manual. Aset yang bulan perolehannya sudah lewat langsung disusutkan sampai bulan terakhir yang sudah berakhir. <strong>Jangan</strong> membuat jurnal manual penyusutan/pembelian peralatan untuk aset yang sudah dicatat di sini agar tidak dobel.</p>
+          <div id="as-summary" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
+        </div>
+        <div class="card" style="overflow-x:auto;">
+          <table class="fin-table">
+            <thead><tr><th>Aset</th><th>Tgl Perolehan</th><th class="num">Harga Perolehan</th><th class="num">Umur</th><th class="num">Akumulasi Penyusutan</th><th class="num">Nilai Buku</th><th>Status</th><th></th></tr></thead>
+            <tbody id="as-tbody"></tbody>
+          </table>
+          <div id="as-empty" class="empty-state" style="display:none;">Belum ada aset. Klik "+ Catat Aset".</div>
         </div>
       </div>
 
@@ -1843,6 +1878,70 @@
   </div>
 </div>
 
+<div class="modal-bg" id="modal-asset">
+  <div class="modal" style="width:560px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-asset">×</button>
+    <h2 style="font-size:18px;" id="as-title">Catat Aset Baru</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:2; min-width:200px;"><label>Nama Aset</label><input type="text" id="as-name" maxlength="100" placeholder="Contoh: Oven Gas 3 Rak"></div>
+      <div class="field" style="flex:1; min-width:140px;"><label>Kategori</label><input type="text" id="as-cat" maxlength="50" list="as-cat-list" placeholder="Peralatan"></div>
+    </div>
+    <datalist id="as-cat-list"><option value="Peralatan"><option value="Mesin"><option value="Kendaraan"><option value="Bangunan"><option value="Furnitur"><option value="Elektronik"><option value="Lainnya"></datalist>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:150px;"><label>Tanggal Perolehan</label><input type="date" id="as-date"></div>
+      <div class="field" style="flex:1; min-width:150px;"><label>Harga Perolehan (Rp)</label><input type="number" id="as-cost" min="0" step="any" placeholder="0"></div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:150px;"><label>Umur Ekonomis (bulan)</label><input type="number" id="as-life" min="1" max="600" step="1" placeholder="Mis. 48 (= 4 tahun)"></div>
+      <div class="field" style="flex:1; min-width:150px;"><label>Nilai Sisa / Residu (Rp)</label><input type="number" id="as-salv" min="0" step="any" placeholder="0"></div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:170px;"><label>Dibayar dari</label>
+        <select id="as-pay"><option value="kas">Kas (tunai)</option><option value="bank">Bank / transfer</option><option value="awal">Aset awal (modal pemilik)</option><option value="tercatat">Sudah tercatat di jurnal (hanya susutkan)</option></select></div>
+      <div class="field" style="flex:1; min-width:170px;"><label>Mulai disusutkan bulan (opsional)</label><input type="month" id="as-from"></div>
+    </div>
+    <div class="field"><label>Catatan (opsional)</label><input type="text" id="as-note" maxlength="300"></div>
+    <div class="fin-hint" style="margin-top:-4px;">Bulan mulai kosong = otomatis: bulan perolehan bila tanggal ≤ 15, selain itu bulan berikutnya. Untuk aset lama yang pembeliannya sudah ada di jurnal/saldo awal pilih "Sudah tercatat"; atur bulan mulai agar tidak menyusutkan periode yang sudah ditutup.</div>
+    <div id="as-preview" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; margin:10px 0 14px;"></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn amber" id="btn-as-save">Simpan Aset</button>
+      <button class="btn outline" data-close="modal-asset">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-asset-sched">
+  <div class="modal" style="width:720px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-asset-sched">×</button>
+    <h2 style="font-size:18px;" id="asc-title">Jadwal Penyusutan</h2>
+    <div id="asc-info" class="fin-hint" style="margin-top:0;"></div>
+    <div style="overflow-x:auto; max-height:60vh;">
+      <table class="fin-table">
+        <thead><tr><th>Akhir bulan</th><th class="num">Penyusutan</th><th class="num">Akumulasi</th><th class="num">Nilai buku</th><th>Status</th></tr></thead>
+        <tbody id="asc-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-asset-dispose">
+  <div class="modal" style="width:480px; max-width:96vw;">
+    <button class="modal-close" data-close="modal-asset-dispose">×</button>
+    <h2 style="font-size:18px;" id="asd-title">Jual / Hapus Aset</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:150px;"><label>Tanggal</label><input type="date" id="asd-date"></div>
+      <div class="field" style="flex:1; min-width:150px;"><label>Hasil penjualan (Rp, isi 0 jika dibuang)</label><input type="number" id="asd-proceeds" min="0" step="any" placeholder="0"></div>
+    </div>
+    <div class="field"><label>Uang diterima di</label><select id="asd-to"><option value="kas">Kas</option><option value="bank">Bank</option></select></div>
+    <div class="field"><label>Catatan (opsional)</label><input type="text" id="asd-note" maxlength="300"></div>
+    <div id="asd-calc" style="background:var(--paper-alt); border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:14px;"></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn amber" id="btn-asd-save">Simpan Pelepasan</button>
+      <button class="btn outline" data-close="modal-asset-dispose">Batal</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-material">
   <div class="modal" style="width:520px; max-width:96vw;">
     <button class="modal-close" data-close="modal-material">×</button>
@@ -1963,6 +2062,7 @@
     <div class="field"><label>Masukkan hasil ke</label><select id="btf-target"></select></div>
     <div class="field" id="btf-unit-box"><label>Satuan produk baru</label><input type="text" id="btf-unit" maxlength="20" list="hpp-unit-list"></div>
     <div id="btf-preview" style="font-size:13px; margin-bottom:14px;"></div>
+    <label id="btf-formula-box" style="display:none; font-size:13px; margin-bottom:14px; cursor:pointer;"><input type="checkbox" id="btf-formula" style="width:auto; margin-right:6px;">Jadikan komposisi batch ini sebagai <strong>formula produk</strong> (HPP formula &amp; stok bahan baku yang terpotong saat terjual mengikuti komposisi ini)</label>
     <p class="fin-hint" style="margin-top:0;">Setelah diselesaikan, batch tidak bisa diubah. Stok bertambah sebesar hasil jadi dan <strong>harga jual belum ditetapkan</strong> — atur setelah ini lewat tombol "Tetapkan Harga Jual".</p>
     <div style="display:flex; gap:8px;">
       <button class="btn amber" id="btn-btf-save">Selesaikan Produksi</button>
@@ -2048,6 +2148,7 @@
         <div class="field" style="flex:1; min-width:140px; margin-bottom:0;"><label>Target margin (%)</label><input type="number" id="hpp-target" min="0" max="95" placeholder="mis. 30"></div>
         <button class="btn outline sm" type="button" id="btn-hpp-suggest" style="margin-bottom:2px;">Pakai saran harga</button>
       </div>
+      <div id="hpp-compare" style="font-size:13px; margin-top:8px;"></div>
       <div id="hpp-margin-info" style="font-size:13px; margin-top:8px; font-weight:600;"></div>
       <div id="hpp-sell-note" style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;"></div>
     </div>
@@ -2187,7 +2288,7 @@ let SESSION = null;         // { role, name, email } peran user di perusahaan ak
 /* ================= STORAGE (tersinkron ke Supabase per perusahaan) ================= */
 const CACHE = {
   products: [], transactions: [], adjustments: [], customAccounts: [], stockLogs: [], priceLogs: [], customers: [], purchases: [], voidLogs: [],
-  receivables: [], pointRedemptions: [], shifts: [], returnLogs: [], settingsLogs: [], productionLogs: [], finEntries: [], payables: [], periodCloses: [], hppBatches: [], materials: [], materialLogs: [],
+  receivables: [], pointRedemptions: [], shifts: [], returnLogs: [], settingsLogs: [], productionLogs: [], finEntries: [], payables: [], periodCloses: [], hppBatches: [], materials: [], materialLogs: [], assets: [],
   storeName: 'Toko Saya', storeAddress: '', ppnConfig: {enabled:false, percent:11}, receiptPaperSize: '80mm',
   loyaltyConfig: {redeemValue:100}, monthlyTarget: {},
   discountLimitPercent: 100, marginTargetPercent: 20, lastBackupAt: null,
@@ -2206,7 +2307,7 @@ async function saveCompanyData(){
     adjustments: CACHE.adjustments, customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
     customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
     receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
-    returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches, materials: CACHE.materials, materialLogs: CACHE.materialLogs,
+    returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches, materials: CACHE.materials, materialLogs: CACHE.materialLogs, assets: CACHE.assets,
     storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
     loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
     discountLimitPercent: CACHE.discountLimitPercent, marginTargetPercent: CACHE.marginTargetPercent, lastBackupAt: CACHE.lastBackupAt,
@@ -2244,6 +2345,7 @@ function applyCompanyDataToCache(d, fallbackName){
   CACHE.hppBatches = d.hppBatches || [];
   CACHE.materials = d.materials || [];
   CACHE.materialLogs = d.materialLogs || [];
+  CACHE.assets = d.assets || [];
   CACHE.marginTargetPercent = (d.marginTargetPercent === undefined || d.marginTargetPercent === null) ? 20 : d.marginTargetPercent;
   CACHE.storeName = d.storeName || fallbackName || CACHE.storeName;
   CACHE.storeAddress = d.storeAddress || '';
@@ -2283,6 +2385,7 @@ const DB = {
   get hppBatches(){ return CACHE.hppBatches; },
   get materials(){ return CACHE.materials; },
   get materialLogs(){ return CACHE.materialLogs; },
+  get assets(){ return CACHE.assets; },
   get marginTargetPercent(){ return (CACHE.marginTargetPercent === undefined || CACHE.marginTargetPercent === null) ? 20 : CACHE.marginTargetPercent; },
   get loyaltyConfig(){ return CACHE.loyaltyConfig; },
   get monthlyTarget(){ return CACHE.monthlyTarget; },
@@ -3573,6 +3676,7 @@ async function enterCompany(id, name, role, memberName){
     CACHE.hppBatches = [];
     CACHE.materials = [];
     CACHE.materialLogs = [];
+    CACHE.assets = [];
     CACHE.storeName = name;
     CACHE.storeAddress = '';
     CACHE.ppnConfig = {enabled:false, percent:11};
@@ -3853,7 +3957,7 @@ document.getElementById('btn-backup-data').addEventListener('click', async ()=>{
       customAccounts: CACHE.customAccounts, stockLogs: CACHE.stockLogs, priceLogs: CACHE.priceLogs,
       customers: CACHE.customers, purchases: CACHE.purchases, voidLogs: CACHE.voidLogs,
       receivables: CACHE.receivables, pointRedemptions: CACHE.pointRedemptions, shifts: CACHE.shifts,
-      returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches, materials: CACHE.materials, materialLogs: CACHE.materialLogs,
+      returnLogs: CACHE.returnLogs, settingsLogs: CACHE.settingsLogs, productionLogs: CACHE.productionLogs, finEntries: CACHE.finEntries, payables: CACHE.payables, periodCloses: CACHE.periodCloses, hppBatches: CACHE.hppBatches, materials: CACHE.materials, materialLogs: CACHE.materialLogs, assets: CACHE.assets,
       storeName: CACHE.storeName, storeAddress: CACHE.storeAddress, ppnConfig: CACHE.ppnConfig, receiptPaperSize: CACHE.receiptPaperSize,
       loyaltyConfig: CACHE.loyaltyConfig, monthlyTarget: CACHE.monthlyTarget,
       discountLimitPercent: CACHE.discountLimitPercent, marginTargetPercent: CACHE.marginTargetPercent, lastBackupAt: CACHE.lastBackupAt,
@@ -5133,6 +5237,12 @@ function hppRecalc(){
     document.getElementById('hpp-per-unit').textContent = rec.yield > 0 ? rupiah(Math.round(total / rec.yield)) : '—';
   }
   const hpp = hppCurrentHpp();
+  { const cp = DB.products.find(x=>x.id===document.getElementById('hpp-product-id').value), ce = document.getElementById('hpp-compare');
+    if(cp && ce){
+      const old = productHpp(cp), diff = hpp - old;
+      ce.innerHTML = Math.abs(diff) < 0.5 ? '' :
+        `HPP sebelumnya <strong class="mono">${rupiah(old)}</strong> → baru <strong class="mono">${rupiah(hpp)}</strong> <span style="color:${diff > 0 ? 'var(--rust)' : 'var(--green)'}; font-weight:600;">(${diff > 0 ? '+' : '−'}${rupiah(Math.abs(diff))}${old > 0 ? ', ' + (diff > 0 ? '+' : '−') + (Math.abs(diff) / old * 100).toFixed(1) + '%' : ''})</span><br><span style="color:var(--ink-soft);">Setelah disimpan, HPP produk menjadi angka baru dan stok bahan baku yang terpotong saat penjualan mengikuti komposisi baru.</span>`;
+    } }
   const sell = Number(document.getElementById('hpp-sell').value) || 0;
   const info = document.getElementById('hpp-margin-info');
   if(sell > 0){
@@ -5231,6 +5341,7 @@ document.getElementById('btn-save-hpp').addEventListener('click', async ()=>{
     applyCompanyDataToCache(newData, CACHE.storeName);
     closeModal('modal-hpp');
     renderProducts(); renderPriceLog(); renderMarginAlerts();
+    try{ renderProduksi(); }catch(e){}
     showToast('HPP produk disimpan');
   } catch(e){
     showToast('Gagal menyimpan HPP (koneksi bermasalah?)');
@@ -7734,6 +7845,9 @@ function finBuildBase(){
     }
   });
 
+  // 4c) Aset tetap: perolehan, penyusutan otomatis akhir bulan, pelepasan
+  assetJournalEntries().forEach(e=> E.push(e));
+
   // 5) Utang manual + pembayaran utang
   (DB.payables||[]).forEach(p=>{
     const liab = p.liabAcc || '2-1100';
@@ -8105,10 +8219,11 @@ function renderKeuangan(){
     document.getElementById('fin-cf-period').textContent = DB.storeName + ' — ' + per + ' (metode langsung)';
     document.getElementById('fin-cf-tbody').innerHTML = finStmtRows(finRowsCF(finCalcArusKas(entries, from, to)));
   } else if(tab === 'utang') finRenderPayables();
+  else if(tab === 'aset') renderAset();
   else if(tab === 'tutup'){ finRenderTutup(entries); finRenderAccounts(); }
 }
 
-const FIN_TYPE_LABEL = { penjualan:'Penjualan', retur:'Retur', piutang:'Piutang', pembelian:'Pembelian', utang:'Utang', kas:'Kas', penutup:'Penutup', saldo_awal:'Saldo Awal' };
+const FIN_TYPE_LABEL = { penjualan:'Penjualan', retur:'Retur', piutang:'Piutang', pembelian:'Pembelian', utang:'Utang', kas:'Kas', penutup:'Penutup', saldo_awal:'Saldo Awal', penyesuaian:'Penyesuaian' };
 function finEntryMatches(e, f){
   if(f === 'semua') return true;
   if(f === 'kas') return e.lines.some(l=> FIN_CASH.includes(l.a));
@@ -8199,12 +8314,12 @@ function finRenderRecon(entries, to){
 const FIN_TEMPLATES = {
   tenaga:     { label:'Biaya tenaga kerja produksi (tunai)', type:'kas', desc:'Biaya tenaga kerja produksi', lines:[['6-1200','d'],['1-1100','c']] },
   overhead:   { label:'Biaya overhead produksi (gas/listrik/kemasan, tunai)', type:'kas', desc:'Biaya overhead produksi', lines:[['6-1300','d'],['1-1100','c']] },
-  penyusutan: { label:'Penyusutan peralatan', type:'penyesuaian', desc:'Penyusutan peralatan', lines:[['6-2000','d'],['1-2900','c']] },
+  penyusutan: { label:'Penyusutan peralatan (manual — tidak perlu jika aset dicatat di tab Aset)', type:'penyesuaian', desc:'Penyusutan peralatan', lines:[['6-2000','d'],['1-2900','c']] },
   modal:      { label:'Setoran modal pemilik', type:'kas', desc:'Setoran modal pemilik', lines:[['1-1100','d'],['3-1100','c']] },
   prive:      { label:'Prive (pemilik ambil kas)', type:'kas', desc:'Pengambilan pribadi pemilik', lines:[['3-1200','d'],['1-1100','c']] },
   stok:       { label:'Koreksi selisih stok (rusak/hilang)', type:'penyesuaian', desc:'Koreksi persediaan (selisih stok)', lines:[['6-9000','d'],['1-1500','c']] },
   akrual:     { label:'Beban yang masih harus dibayar', type:'penyesuaian', desc:'Beban yang masih harus dibayar', lines:[['6-9000','d'],['2-1300','c']] },
-  aset:       { label:'Beli peralatan tunai', type:'kas', desc:'Pembelian peralatan', lines:[['1-2100','d'],['1-1100','c']] },
+  aset:       { label:'Beli peralatan tunai (manual — tidak perlu jika aset dicatat di tab Aset)', type:'kas', desc:'Pembelian peralatan', lines:[['1-2100','d'],['1-1100','c']] },
 };
 function finAccOptions(sel){
   return '<option value="">— akun —</option>' + FIN_LIST.map(a=>`<option value="${esc(a.id)}"${a.id===sel?' selected':''}>${esc(a.code)} ${esc(a.name)}</option>`).join('');
@@ -8645,11 +8760,14 @@ function renderProduksi(){
   let html = '';
   list.forEach(b=>{
     const st = btState(b), done = b.status === 'selesai';
+    const canEditF = canManageProducts();
     const sell = btSell(b);
     const open = BT.expanded.has(b.id);
     const badgeStyle = st === 'berharga' ? 'background:var(--green-bg);color:var(--green);' : st === 'menunggu' ? 'background:#FFF1D6;color:#9A6410;' : 'background:var(--paper-alt);color:var(--ink-soft);';
     let actions = `<button class="btn outline sm" onclick="btToggle('${esc(b.id)}')">${open ? 'Tutup' : 'Rincian'}</button> `;
     if(!done && canM) actions += `<button class="btn amber sm" onclick="btOpenFinish('${esc(b.id)}')">Selesaikan</button> <button class="btn outline sm" onclick="btOpenEdit('${esc(b.id)}')">Edit</button> <button class="btn danger sm" onclick="btDelete('${esc(b.id)}')">Hapus</button>`;
+    if(done && canM && canEditF && btProduct(b)) actions += `<button class="btn outline sm" onclick="openHppModal('${esc(b.productId)}')">Edit Formula</button> `;
+    if(done && canM) actions += `<button class="btn outline sm" onclick="btRepeat('${esc(b.id)}')">Produksi Lagi</button> `;
     if(done && canP) actions += `<button class="btn ${st === 'menunggu' ? 'amber' : 'outline'} sm" onclick="btOpenPrice('${esc(b.id)}')">${st === 'menunggu' ? 'Tetapkan Harga Jual' : 'Ubah Harga'}</button>`;
     html += `<tr class="fin-first"><td>${esc(localDateFromIso(b.date))}</td>
       <td><strong>${esc(b.name)}</strong><div class="fin-hint" style="margin:0;">${(b.ingredients||[]).length} bahan${b.byName ? ' · ' + esc(b.byName) : ''}</div></td>
@@ -8672,7 +8790,7 @@ function renderProduksi(){
     }
   });
   document.getElementById('bt-tbody').innerHTML = html;
-  try{ renderBahan(); }catch(e){ console.error(e); }
+  try{ renderBahan(); renderFormula(); }catch(e){ console.error(e); }
 }
 /* ---- Biaya tenaga kerja & overhead otomatis dari Jurnal Keuangan ----
    Tenaga kerja = Beban Gaji (6-1100) + Beban Tenaga Kerja Produksi (6-1200)
@@ -8780,20 +8898,20 @@ function btRecalc(){
      Total biaya produksi: <strong class="mono">${btMoney(total)}</strong>` +
     (b.expectedYield > 0 ? `<br>Perkiraan HPP: <strong class="mono">${btMoney(total / b.expectedYield)}</strong> per ${esc(b.unit)} (dari perkiraan hasil ${btRound(b.expectedYield)})` : `<br><span style="color:var(--ink-soft);">HPP per satuan dihitung otomatis saat produksi diselesaikan (isi hasil jadi).</span>`);
 }
-function btOpenEdit(id){
+function btOpenEdit(id, tpl){
   if(!btCanManage()){ showToast('Hanya Owner/SPV/Gudang yang bisa mengatur produksi'); return; }
   const b = id ? DB.hppBatches.find(x=>x.id===id) : null;
   if(id && (!b || b.status === 'selesai')){ showToast('Batch ini sudah selesai dan tidak bisa diubah'); return; }
   BT.editId = b ? b.id : uid();
-  document.getElementById('bt-title').textContent = b ? 'Edit Batch: ' + b.name : 'Batch Produksi Baru';
-  document.getElementById('bt-name').value = b ? b.name : '';
-  document.getElementById('bt-unit').value = b ? (b.unit || 'pcs') : 'pcs';
-  document.getElementById('bt-exp').value = b && b.expectedYield ? b.expectedYield : '';
+  document.getElementById('bt-title').textContent = b ? 'Edit Batch: ' + b.name : (tpl ? 'Produksi Lagi: ' + tpl.name : 'Batch Produksi Baru');
+  document.getElementById('bt-name').value = b ? b.name : (tpl ? tpl.name : '');
+  document.getElementById('bt-unit').value = b ? (b.unit || 'pcs') : (tpl ? (tpl.unit || 'pcs') : 'pcs');
+  document.getElementById('bt-exp').value = b && b.expectedYield ? b.expectedYield : (tpl && tpl.expectedYield ? tpl.expectedYield : '');
   document.getElementById('bt-labor').value = b && b.laborCost ? b.laborCost : '';
   document.getElementById('bt-over').value = b && b.overheadCost ? b.overheadCost : '';
   document.getElementById('bt-note').value = b ? (b.note || '') : '';
   document.getElementById('bt-ing-list').innerHTML = '';
-  (b && b.ingredients.length ? b.ingredients : [{}]).forEach(btAddRow);
+  (b && b.ingredients.length ? b.ingredients : (tpl && tpl.ingredients && tpl.ingredients.length ? tpl.ingredients : [{}])).forEach(btAddRow);
   { const _names = new Set((DB.materials||[]).map(m=>m.name)); Object.values(btKnownIngredients()).forEach(i=> _names.add(i.name));
     document.getElementById('bt-ing-names').innerHTML = [..._names].map(n=>`<option value="${esc(n)}">`).join(''); }
   btRecalc();
@@ -8846,10 +8964,55 @@ function btFinishPlan(){
 function btFinishPreview(){
   const pl = btFinishPlan(); if(!pl) return;
   document.getElementById('btf-unit-box').style.display = pl.tp ? 'none' : '';
+  { const fb = document.getElementById('btf-formula-box'); fb.style.display = (pl.tp && canManageProducts()) ? '' : 'none'; if(!pl.tp) document.getElementById('btf-formula').checked = false; }
   const el = document.getElementById('btf-preview');
   if(!(pl.qty > 0)){ el.innerHTML = '<span style="color:var(--ink-soft);">Isi hasil jadi untuk melihat HPP.</span>'; return; }
   el.innerHTML = `HPP batch ini: <strong class="mono">${btMoney(pl.hpp)}</strong> per satuan` +
     (pl.tp ? `<br>HPP stok setelah digabung (rata-rata): <strong class="mono">${btMoney(pl.avg)}</strong> · stok jadi ${btRound((Number(pl.tp.stock)||0) + pl.qty)}${(Number(pl.tp.sellPrice)||0) > 0 ? `<br>Harga jual produk ini tetap ${btMoney(pl.tp.sellPrice)} (bisa diubah setelahnya).` : ''}` : `<br>Produk baru <strong>${esc(pl.b.name)}</strong> dibuat dengan stok ${btRound(pl.qty)}, <strong>tanpa harga jual</strong> dulu.`);
+}
+function btRepeat(id){
+  const b = DB.hppBatches.find(x=>x.id===id); if(!b) return;
+  btOpenEdit(null, { name: b.name, unit: b.unit, expectedYield: b.qtyProduced, ingredients: (b.ingredients||[]).map(i=>({ name:i.name, qty:i.qty, unit:i.unit, price:i.price, materialId:i.materialId })) });
+}
+function fmSummary(p){
+  const rec = p.recipe || {}, y = Number(rec.yield) || 1;
+  const ing = (rec.ingredients||[]).map(i=>`${esc(i.name)} ${btRound(i.qty)} ${esc(i.unit||'')}${i.materialId ? ' 🔗' : ''}`).join(' · ');
+  return `<div style="font-size:12.5px;">${ing || '<span style="color:var(--ink-soft);">belum ada bahan</span>'}</div><div class="fin-hint" style="margin:0;">untuk hasil ${btRound(y)} ${esc(p.unit||'')}${Number(rec.laborCost) ? ' · tenaga kerja ' + btMoney(rec.laborCost) : ''}${Number(rec.overheadCost) ? ' · overhead ' + btMoney(rec.overheadCost) : ''}</div>`;
+}
+function fmCanMake(p){
+  const rec = p.recipe || {}, y = Math.max(Number(rec.yield) || 1, 0.000001);
+  let min = null;
+  (rec.ingredients||[]).forEach(i=>{
+    if(!i.materialId || !(Number(i.qty) > 0)) return;
+    const m = matById(i.materialId); if(!m) return;
+    const n = Math.floor((Number(m.stock)||0) / (Number(i.qty) / y));
+    min = min === null ? n : Math.min(min, n);
+  });
+  return min;
+}
+function renderFormula(){
+  const el = document.getElementById('fm-tbody'); if(!el) return;
+  const canEdit = canManageProducts();
+  const list = (DB.products||[]).filter(p=> p.productType === 'produksi').sort((a,b)=> String(a.name).localeCompare(String(b.name), 'id'));
+  document.getElementById('fm-empty').style.display = list.length ? 'none' : 'block';
+  el.innerHTML = list.map(p=>{
+    const hpp = Number(p.recipeHpp) || Number(p.buyPrice) || 0, sell = Number(p.sellPrice) || 0;
+    const margin = sell > 0 ? (sell - hpp) / sell * 100 : null;
+    const can = fmCanMake(p);
+    const id = esc(p.id);
+    return `<tr class="fin-first"><td><strong>${esc(p.name)}</strong><div class="fin-hint" style="margin:0;">stok ${btRound(p.stock)} ${esc(p.unit||'')}</div></td>
+      <td>${fmSummary(p)}</td>
+      <td class="num mono">${btMoney(hpp)}</td>
+      <td class="num mono">${sell > 0 ? btMoney(sell) : '<span style="color:var(--rust);">belum diisi</span>'}</td>
+      <td class="num mono" style="color:${margin !== null && margin < 0 ? 'var(--rust)' : 'inherit'};">${margin === null ? '-' : btRound(margin) + '%'}</td>
+      <td class="num mono">${can === null ? '-' : btRound(can) + ' ' + esc(p.unit||'')}</td>
+      <td style="white-space:nowrap;">${canEdit ? `<button class="btn amber sm" onclick="openHppModal('${id}')">Edit Formula</button> ` : ''}${btCanManage() ? `<button class="btn outline sm" onclick="fmRepeat('${id}')">Produksi Lagi</button>` : ''}</td></tr>`;
+  }).join('');
+}
+function fmRepeat(pid){
+  const p = DB.products.find(x=>x.id===pid); if(!p) return;
+  const rec = p.recipe || {};
+  btOpenEdit(null, { name: p.name, unit: p.unit, expectedYield: rec.yield, ingredients: (rec.ingredients||[]).map(i=>({ name:i.name, qty:i.qty, unit:i.unit, price:i.price, materialId:i.materialId })) });
 }
 function btOpenFinish(id){
   if(!btCanManage()){ showToast('Hanya Owner/SPV/Gudang yang bisa menyelesaikan produksi'); return; }
@@ -8880,6 +9043,11 @@ async function btFinishSave(){
     });
     if(error){ showToast('Gagal menyelesaikan produksi: ' + error.message); return; }
     applyCompanyDataToCache(data, CACHE.storeName);
+    if(pl.tp && document.getElementById('btf-formula').checked && canManageProducts()){
+      const r2_ = await sb.rpc('apply_batch_formula_rpc', { p_company_id: CURRENT_COMPANY.id, p_product_id: pl.tp.id, p_batch_id: pl.b.id });
+      if(r2_.error) showToast('Produksi tersimpan, tetapi formula gagal diperbarui: ' + r2_.error.message);
+      else applyCompanyDataToCache(r2_.data, CACHE.storeName);
+    }
     closeModal('modal-batch-finish'); renderProduksi();
     try{ renderProducts(); renderStockLog(); renderPriceLog(); }catch(e){}
     showToast('Produksi selesai. HPP ' + btMoney(pl.hpp) + '/satuan — sekarang tetapkan harga jual');
@@ -9002,8 +9170,9 @@ function matLinkRow(row, nameEl, unitEl, priceEl, m){
 }
 
 function prSwitchTab(t){
-  MT.tab = (t === 'bahan') ? 'bahan' : 'batch';
+  MT.tab = (t === 'bahan' || t === 'formula') ? t : 'batch';
   document.getElementById('pr-pane-batch').style.display = MT.tab === 'batch' ? '' : 'none';
+  document.getElementById('pr-pane-formula').style.display = MT.tab === 'formula' ? '' : 'none';
   document.getElementById('pr-pane-bahan').style.display = MT.tab === 'bahan' ? '' : 'none';
   document.querySelectorAll('#pr-tabs button').forEach(b=> b.classList.toggle('active', b.dataset.tab === MT.tab));
   renderProduksi();
@@ -9201,6 +9370,236 @@ document.getElementById('btn-ma-save').addEventListener('click', matAdjSave);
 document.getElementById('ma-stock').addEventListener('input', matAdjCalc);
 document.getElementById('mat-filter').addEventListener('change', renderBahan);
 document.getElementById('mat-search').addEventListener('input', renderBahan);
+
+/* ================= ASET & PENYUSUTAN ================= */
+const AS = { saving:false, editId:null, disposeId:null };
+const asPad = n => String(n).padStart(2,'0');
+function asCanManage(){ return !!(SESSION && ['owner','spv'].includes(SESSION.role)); }
+function asLastDay(y, m){ return new Date(y, m, 0).getDate(); }   // m = 1..12
+/* Jadwal penyusutan garis lurus per bulan, dibukukan di AKHIR bulan.
+   Mulai: bulan "depFrom" bila diisi; kalau tidak, bulan perolehan bila tanggal ≤ 15, selain itu bulan berikutnya.
+   Bulan terakhir menyerap sisa pembulatan supaya total = harga perolehan − nilai sisa.
+   Aset yang dilepas: penyusutan berhenti pada bulan-bulan yang berakhir pada/setelah tanggal pelepasan. */
+function assetSchedule(a, today){
+  today = today || todayStr();
+  const cost = Number(a.cost)||0, salv = Number(a.salvage)||0;
+  const life = Math.max(1, parseInt(a.lifeMonths, 10) || 1);
+  const base = Math.max(0, cost - salv), monthly = Math.floor(base / life);
+  let y, m;
+  if(a.depFrom && /^\d{4}-\d{2}$/.test(a.depFrom)){ [y, m] = a.depFrom.split('-').map(Number); }
+  else {
+    const p = String(a.acquisitionDate || today).split('-').map(Number);
+    y = p[0]; m = p[1]; if(p[2] > 15){ m++; if(m > 12){ m = 1; y++; } }
+  }
+  const disp = a.status === 'dilepas' ? a.disposedDate : null;
+  const rows = []; let accum = 0;
+  for(let i = 0; i < life; i++){
+    const date = y + '-' + asPad(m) + '-' + asPad(asLastDay(y, m));
+    if(disp && date >= disp) break;
+    const amount = (i === life - 1) ? base - monthly * (life - 1) : monthly;
+    const posted = date <= today;
+    if(posted) accum += amount;
+    rows.push({ date, ym: y + '-' + asPad(m), amount, posted, accum, book: cost - accum });
+    m++; if(m > 12){ m = 1; y++; }
+  }
+  return { rows, monthly, base, accumPosted: rows.filter(r=>r.posted).reduce((s,r)=>s+r.amount,0) };
+}
+function assetJournalEntries(){
+  const E = [];
+  (DB.assets||[]).forEach(a=>{
+    const cost = Math.round(Number(a.cost)||0); if(!(cost > 0) || !a.acquisitionDate) return;
+    const nm = a.name || 'Aset';
+    if(a.pay !== 'tercatat'){
+      const cr = a.pay === 'bank' ? '1-1200' : (a.pay === 'awal' ? '3-1100' : '1-1100');
+      E.push(finMk('ast-'+a.id, a.acquisitionDate, finNoonTs(a.acquisitionDate), a.pay === 'awal' ? 'penyesuaian' : 'kas',
+        (a.pay === 'awal' ? 'Aset awal: ' : 'Perolehan aset: ') + nm, [ {a:'1-2100', d:cost}, {a:cr, c:cost} ]));
+    }
+    const sc = assetSchedule(a);
+    sc.rows.filter(r=>r.posted).forEach(r=>{
+      E.push(finMk('dep-'+a.id+'-'+r.ym, r.date, finNoonTs(r.date), 'penyesuaian',
+        'Penyusutan ' + nm + ' — ' + r.ym, [ {a:'6-2000', d:r.amount}, {a:'1-2900', c:r.amount} ]));
+    });
+    if(a.status === 'dilepas' && a.disposedDate){
+      const accum = Math.round(sc.accumPosted), proceeds = Math.round(Number(a.proceeds)||0);
+      const diff = proceeds - (cost - accum);   // + untung, − rugi
+      E.push(finMk('dsp-'+a.id, a.disposedDate, finNoonTs(a.disposedDate), 'penyesuaian',
+        (proceeds > 0 ? 'Penjualan aset: ' : 'Penghapusan aset: ') + nm,
+        [ {a:(a.proceedsTo === 'bank' ? '1-1200' : '1-1100'), d:proceeds}, {a:'1-2900', d:accum}, {a:'6-9000', d:diff < 0 ? -diff : 0},
+          {a:'1-2100', c:cost}, {a:'4-2000', c: diff > 0 ? diff : 0} ]));
+    }
+  });
+  return E;
+}
+
+function asStatus(a, sc){
+  if(a.status === 'dilepas') return 'dilepas';
+  return (sc.rows.length && sc.rows.every(r=>r.posted)) ? 'habis' : 'aktif';
+}
+const AS_STATUS_LABEL = { aktif:'Aktif — disusutkan', habis:'Penyusutan selesai', dilepas:'Dilepas' };
+function renderAset(){
+  const el = document.getElementById('as-tbody'); if(!el) return;
+  const canM = asCanManage();
+  document.getElementById('btn-as-new').style.display = canM ? '' : 'none';
+  const list = [...(DB.assets||[])].sort((a,b)=> String(b.acquisitionDate).localeCompare(String(a.acquisitionDate)));
+  let tCost = 0, tAcc = 0, tBook = 0, nextAmt = 0;
+  const today = todayStr();
+  let html = '';
+  list.forEach(a=>{
+    const sc = assetSchedule(a, today);
+    const st = asStatus(a, sc);
+    const cost = Number(a.cost)||0, acc = sc.accumPosted;
+    if(st !== 'dilepas'){
+      tCost += cost; tAcc += acc; tBook += cost - acc;
+      const nx = sc.rows.find(r=>!r.posted); if(nx) nextAmt += nx.amount;
+    }
+    const nx = sc.rows.find(r=>!r.posted);
+    const bs = st === 'aktif' ? 'background:var(--green-bg);color:var(--green);' : st === 'habis' ? 'background:var(--paper-alt);color:var(--ink-soft);' : 'background:#FFF1D6;color:#9A6410;';
+    const id = esc(a.id);
+    let act = `<button class="btn outline sm" onclick="asOpenSched('${id}')">Jadwal</button> `;
+    if(canM){
+      if(a.status !== 'dilepas') act += `<button class="btn outline sm" onclick="asOpenEdit('${id}')">Edit</button> <button class="btn outline sm" onclick="asOpenDispose('${id}')">Jual/Hapus</button> `;
+      act += `<button class="btn danger sm" onclick="asDelete('${id}')">Hapus</button>`;
+    }
+    html += `<tr class="fin-first"><td><strong>${esc(a.name)}</strong><div class="fin-hint" style="margin:0;">${esc(a.category||'')}${a.note ? ' · ' + esc(a.note) : ''}</div></td>
+      <td>${esc(a.acquisitionDate)}</td>
+      <td class="num mono">${rupiah(cost)}</td>
+      <td class="num mono">${parseInt(a.lifeMonths,10)||0} bln<div class="fin-hint" style="margin:0;">${rupiah(sc.monthly)}/bln</div></td>
+      <td class="num mono">${rupiah(acc)}</td>
+      <td class="num mono" style="font-weight:700;">${a.status === 'dilepas' ? '-' : rupiah(cost - acc)}</td>
+      <td><span class="fin-type" style="${bs}">${AS_STATUS_LABEL[st]}</span>${a.status === 'dilepas' ? `<div class="fin-hint" style="margin:0;">${esc(a.disposedDate)} · ${rupiah(a.proceeds||0)}</div>` : (nx ? `<div class="fin-hint" style="margin:0;">berikutnya ${esc(nx.date)}</div>` : '')}</td>
+      <td style="white-space:nowrap;">${act}</td></tr>`;
+  });
+  el.innerHTML = html;
+  document.getElementById('as-empty').style.display = list.length ? 'none' : 'block';
+  document.getElementById('as-summary').innerHTML =
+    `<span class="fin-badge">${list.filter(a=>a.status!=='dilepas').length} aset aktif</span>` +
+    `<span class="fin-badge">Harga perolehan: ${rupiah(tCost)}</span>` +
+    `<span class="fin-badge">Akumulasi penyusutan: ${rupiah(tAcc)}</span>` +
+    `<span class="fin-badge ok">Nilai buku: ${rupiah(tBook)}</span>` +
+    (nextAmt > 0 ? `<span class="fin-badge">Penyusutan akhir bulan berikutnya: ${rupiah(nextAmt)}</span>` : '');
+}
+
+async function asRpc(name, args, okMsg, modalId){
+  if(AS.saving) return false;
+  AS.saving = true;
+  try{
+    const { data, error } = await sb.rpc(name, Object.assign({ p_company_id: CURRENT_COMPANY.id }, args));
+    if(error){ showToast('Gagal: ' + error.message); return false; }
+    applyCompanyDataToCache(data, CACHE.storeName);
+    if(modalId) closeModal(modalId);
+    renderKeuangan();
+    if(okMsg) showToast(okMsg);
+    return true;
+  } catch(e){ showToast('Gagal menyimpan (koneksi bermasalah?)'); return false; }
+  finally { AS.saving = false; }
+}
+
+/* ---- Form aset ---- */
+function asFormValues(){
+  return {
+    name: document.getElementById('as-name').value.trim(),
+    category: document.getElementById('as-cat').value.trim(),
+    acquisitionDate: document.getElementById('as-date').value,
+    cost: Number(document.getElementById('as-cost').value) || 0,
+    salvage: Number(document.getElementById('as-salv').value) || 0,
+    lifeMonths: parseInt(document.getElementById('as-life').value, 10) || 0,
+    pay: document.getElementById('as-pay').value,
+    depFrom: document.getElementById('as-from').value || '',
+    note: document.getElementById('as-note').value.trim(),
+  };
+}
+function asPreview(){
+  const v = asFormValues();
+  const el = document.getElementById('as-preview');
+  if(!(v.cost > 0) || !(v.lifeMonths > 0) || !v.acquisitionDate){ el.textContent = 'Isi tanggal, harga perolehan, dan umur ekonomis untuk melihat perhitungan.'; return; }
+  if(v.salvage >= v.cost){ el.innerHTML = '<span style="color:var(--rust);">Nilai sisa harus lebih kecil dari harga perolehan.</span>'; return; }
+  const sc = assetSchedule(Object.assign({}, v, { status:'aktif' }));
+  const first = sc.rows[0], last = sc.rows[sc.rows.length-1];
+  el.innerHTML = `Penyusutan per bulan: <strong class="mono">${rupiah(sc.monthly)}</strong> (total disusutkan ${rupiah(sc.base)})<br>
+    Dibukukan otomatis tiap <strong>akhir bulan</strong>, mulai <strong>${esc(first ? first.date : '-')}</strong> sampai ${esc(last ? last.date : '-')} (${sc.rows.length} kali).` +
+    (sc.rows.filter(r=>r.posted).length ? `<br>Sudah lewat ${sc.rows.filter(r=>r.posted).length} bulan → langsung dibukukan ${rupiah(sc.accumPosted)} sebagai penyusutan berjalan.` : '');
+}
+function asOpenEdit(id){
+  if(!asCanManage()){ showToast('Hanya Owner/SPV yang bisa mengelola aset'); return; }
+  const a = id ? (DB.assets||[]).find(x=>x.id===id) : null;
+  if(id && !a){ showToast('Aset tidak ditemukan'); return; }
+  AS.editId = a ? a.id : uid();
+  document.getElementById('as-title').textContent = a ? 'Edit Aset: ' + a.name : 'Catat Aset Baru';
+  document.getElementById('as-name').value = a ? a.name : '';
+  document.getElementById('as-cat').value = a ? (a.category || '') : '';
+  document.getElementById('as-date').value = a ? a.acquisitionDate : todayStr();
+  document.getElementById('as-cost').value = a ? a.cost : '';
+  document.getElementById('as-salv').value = a && a.salvage ? a.salvage : '';
+  document.getElementById('as-life').value = a ? a.lifeMonths : '';
+  document.getElementById('as-pay').value = a ? (a.pay || 'kas') : 'kas';
+  document.getElementById('as-from').value = a ? (a.depFrom || '') : '';
+  document.getElementById('as-note').value = a ? (a.note || '') : '';
+  asPreview();
+  openModal('modal-asset');
+}
+async function asSave(){
+  const v = asFormValues();
+  if(!v.name){ showToast('Nama aset wajib diisi'); return; }
+  if(!v.acquisitionDate){ showToast('Tanggal perolehan wajib diisi'); return; }
+  if(!(v.cost > 0)){ showToast('Harga perolehan harus lebih dari 0'); return; }
+  if(v.salvage < 0 || v.salvage >= v.cost){ showToast('Nilai sisa harus lebih kecil dari harga perolehan'); return; }
+  if(!(v.lifeMonths >= 1 && v.lifeMonths <= 600)){ showToast('Umur ekonomis harus 1–600 bulan'); return; }
+  const btn = document.getElementById('btn-as-save'); btn.disabled = true;
+  try{ await asRpc('save_asset_rpc', { p_asset: Object.assign({ id: AS.editId }, v) }, 'Aset tersimpan — penyusutan otomatis aktif', 'modal-asset'); }
+  finally { btn.disabled = false; }
+}
+
+/* ---- Jadwal ---- */
+function asOpenSched(id){
+  const a = (DB.assets||[]).find(x=>x.id===id); if(!a) return;
+  const sc = assetSchedule(a);
+  document.getElementById('asc-title').textContent = 'Jadwal Penyusutan: ' + a.name;
+  document.getElementById('asc-info').innerHTML = `Harga perolehan ${rupiah(a.cost)} · nilai sisa ${rupiah(a.salvage||0)} · ${parseInt(a.lifeMonths,10)} bulan · ${rupiah(sc.monthly)}/bulan` + (a.status === 'dilepas' ? ` · <strong>dilepas ${esc(a.disposedDate)}</strong>` : '');
+  document.getElementById('asc-tbody').innerHTML = sc.rows.map(r=>`<tr><td>${esc(r.date)}</td><td class="num mono">${rupiah(r.amount)}</td><td class="num mono">${rupiah(r.accum)}</td><td class="num mono">${rupiah(r.book)}</td>
+    <td>${r.posted ? '<span style="color:var(--green);">✓ sudah dibukukan</span>' : '<span style="color:var(--ink-soft);">terjadwal</span>'}</td></tr>`).join('') || '<tr><td colspan="5" class="fin-hint">Belum ada jadwal.</td></tr>';
+  openModal('modal-asset-sched');
+}
+
+/* ---- Jual / hapus aset ---- */
+function asDispCalc(){
+  const a = (DB.assets||[]).find(x=>x.id===AS.disposeId); if(!a) return;
+  const d = document.getElementById('asd-date').value || todayStr();
+  const sc = assetSchedule(Object.assign({}, a, { status:'dilepas', disposedDate:d }), todayStr());
+  const proceeds = Number(document.getElementById('asd-proceeds').value) || 0;
+  const book = (Number(a.cost)||0) - sc.accumPosted, diff = proceeds - book;
+  document.getElementById('asd-calc').innerHTML = `Nilai buku saat dilepas: <strong class="mono">${rupiah(book)}</strong> (harga ${rupiah(a.cost)} − akumulasi ${rupiah(sc.accumPosted)})<br>` +
+    (diff === 0 ? 'Tidak ada untung/rugi.' : diff > 0 ? `<span style="color:var(--green);">Keuntungan penjualan aset: ${rupiah(diff)}</span> (dicatat ke Pendapatan Lain-lain)` : `<span style="color:var(--rust);">Kerugian pelepasan aset: ${rupiah(-diff)}</span> (dicatat ke Beban Lain-lain)`);
+}
+function asOpenDispose(id){
+  const a = (DB.assets||[]).find(x=>x.id===id); if(!a) return;
+  AS.disposeId = id;
+  document.getElementById('asd-title').textContent = 'Jual / Hapus Aset: ' + a.name;
+  document.getElementById('asd-date').value = todayStr();
+  document.getElementById('asd-proceeds').value = '';
+  document.getElementById('asd-to').value = 'kas';
+  document.getElementById('asd-note').value = '';
+  asDispCalc();
+  openModal('modal-asset-dispose');
+}
+async function asDisposeSave(){
+  const d = document.getElementById('asd-date').value;
+  if(!d){ showToast('Tanggal pelepasan wajib diisi'); return; }
+  const btn = document.getElementById('btn-asd-save'); btn.disabled = true;
+  try{ await asRpc('dispose_asset_rpc', { p_asset_id: AS.disposeId, p_date: d, p_proceeds: Number(document.getElementById('asd-proceeds').value) || 0,
+    p_to: document.getElementById('asd-to').value, p_note: document.getElementById('asd-note').value.trim() }, 'Aset dilepas dan jurnal dibukukan', 'modal-asset-dispose'); }
+  finally { btn.disabled = false; }
+}
+function asDelete(id){
+  const a = (DB.assets||[]).find(x=>x.id===id); if(!a) return;
+  showConfirm(`Hapus catatan aset <strong>${esc(a.name)}</strong>? Jurnal perolehan, penyusutan, dan pelepasannya ikut hilang dari pembukuan. Gunakan <em>Jual/Hapus</em> bila aset hanya sudah tidak dipakai.`, async ()=>{
+    await asRpc('delete_asset_rpc', { p_asset_id: id }, 'Catatan aset dihapus', null);
+  });
+}
+document.getElementById('btn-as-new').addEventListener('click', ()=> asOpenEdit(null));
+document.getElementById('btn-as-save').addEventListener('click', asSave);
+document.getElementById('btn-asd-save').addEventListener('click', asDisposeSave);
+['as-date','as-cost','as-salv','as-life','as-from'].forEach(i=>{ const e = document.getElementById(i); e.addEventListener('input', asPreview); e.addEventListener('change', asPreview); });
+['asd-date','asd-proceeds'].forEach(i=>{ const e = document.getElementById(i); e.addEventListener('input', asDispCalc); e.addEventListener('change', asDispCalc); });
 
 
 /* ================= INIT ================= */
